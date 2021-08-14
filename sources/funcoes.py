@@ -19,18 +19,6 @@ def mapa(escala,nome):
     folha = escala[escala.MAPA == 'Carta geológica da folha '+nome]
     return(folha)
 
-'''
-# Selecionador de ocorrências
-def ocrr(substancia):
-    ocorrencias= gpd.read_file(gdb+'geodatabase.gpkg',
-                              driver= 'GPKG',
-                              layer= 'ocorr_min')
-    
-    subs= ocorrencias
-'''
-
-
-
 
 
 # Nomeador de Grids
@@ -40,10 +28,9 @@ p250k=[['A','C'],['B','D']]
 p100k=[['I','IV'],['II','V'],['III','VI']]
 p50k=[['1','3'],['2','4']]
 
-def nomeador_grid(left,right,top,bottom,escala=4):
-
+def nomeador_grid(left,right,top,bottom,escala=0):
     folha=''
-    if top<0:
+    if top<=0:
         folha+='S'
         north=False
         index=math.floor(-top/4)
@@ -72,22 +59,9 @@ def nomeador_grid(left,right,top,bottom,escala=4):
         LO=(math.ceil(right/0.5)%3)-1
         NS=math.ceil(top/0.5)%2!=north
         folha+='-'+p100k[LO][NS]
-    #p50k-----------------------
+    #p50k-----------------------¬³²²²²¢£¹¹²
     if (lat_gap<=0.25) & (escala>=4):
         LO=math.ceil(right/0.25)%2==0
         NS=math.ceil(top/0.25)%2!=north
         folha+='-'+p50k[LO][NS]
     return folha
-
-
-'''
-# Selecionador de Região
-
-def get_region(region,escala)
-
-    region = [-47.00, -46.75,
-            -22.75, -22.50]
-
-    geof_SF23_Y_A_V_4 = geof_1039[vd.inside((geof_1039.LONG, geof_1039.LAT), region = region)]
-
-'''

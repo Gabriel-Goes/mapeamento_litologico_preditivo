@@ -19,7 +19,15 @@ def mapa(escala,nome):
     folha = escala[escala.MAPA == 'Carta geológica da folha '+nome]
     return(folha)
 
-
+'''
+# Selecionador de ocorrências
+def ocrr(substancia):
+    ocorrencias= gpd.read_file(gdb+'geodatabase.gpkg',
+                              driver= 'GPKG',
+                              layer= 'ocorr_min')
+    
+    subs= ocorrencias
+'''
 
 # Nomeador de Grids
 p1kk=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
@@ -28,7 +36,7 @@ p250k=[['A','C'],['B','D']]
 p100k=[['I','IV'],['II','V'],['III','VI']]
 p50k=[['1','3'],['2','4']]
 
-def nomeador_grid(left,right,top,bottom,escala=0):
+def nomeador_grid(left,right,top,bottom,escala=4):
     folha=''
     if top<0:
         folha+='S'
