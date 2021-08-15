@@ -5,10 +5,10 @@ gdb = '/home/ggrl/geodatabase/'
 
 
 # Importador de Litologias por escala
-def litologia(escala):
+def importar(camada):
     lito =  gpd.read_file(gdb+'geodatabase.gpkg',
                         driver= 'GPKG',
-                        layer= escala)
+                        layer= camada)
     return(lito)
 
 
