@@ -33,13 +33,13 @@ def ocrr(substancia):
 
 
 # Nomeador de Grids
-p1kk=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
+p1kk=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'] # 26*4
 p500k=[['V','Y'],['X','Z']]
 p250k=[['A','C'],['B','D']]
 p100k=[['I','IV'],['II','V'],['III','VI']]
 p50k=[['1','3'],['2','4']]
 
-def nomeador_grid(left,right,top,bottom,escala=4):
+def nomeador_grid(left,right,bottom,top,escala=4):
     if left>right:
         print('Oeste deve ser menor que leste')
     if top<bottom:
@@ -47,7 +47,7 @@ def nomeador_grid(left,right,top,bottom,escala=4):
     
     else:
         folha=''
-        if top<0:
+        if top<=0:
             folha+='S'
             north=False
             index=math.floor(-top/4)
@@ -85,14 +85,14 @@ def nomeador_grid(left,right,top,bottom,escala=4):
 
 
 
-'''
+
 # Selecionador de Região
     # Selecionar SF23 Folha Rio de Janeiro Escala 1:1.000.000
     # Selecionar Intersecção do aerolevantamento 1039
 
 
-
-def get_region(region,escala)
+'''
+def get_region(region,escala):
 
     region = [-47.00, -46.75,
             -22.75, -22.50]

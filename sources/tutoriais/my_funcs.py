@@ -5,10 +5,10 @@ gdb = '/home/ggrl/geodatabase/'
 
 
 # Importador de Litologias por escala
-def litologia(escala):
-    lito =  gpd.read_file(gdb+'geodatabase.gpkg',
+def importar(camada):
+    lito =  gpd.read_file(gdb+'database.gpkg',
                         driver= 'GPKG',
-                        layer= escala)
+                        layer= camada)
     return(lito)
 
 
@@ -21,7 +21,7 @@ def mapa(escala,nome):
 '''
 # Selecionador de ocorrências
 def ocrr(substancia):
-    ocorrencias= gpd.read_file(gdb+'geodatabase.gpkg',
+    ocorrencias= gpd.read_file(gdb+'database.gpkg',
                               driver= 'GPKG',
                               layer= 'ocorr_min')
     
@@ -47,7 +47,7 @@ def nomeador_grid(left,right,top,bottom,escala=4):
     
     else:
         folha=''
-        if top<0:
+        if top<=0:
             folha+='S'
             north=False
             index=math.floor(-top/4)
@@ -85,18 +85,18 @@ def nomeador_grid(left,right,top,bottom,escala=4):
 
 
 
-'''
+
 # Selecionador de Região
     # Selecionar SF23 Folha Rio de Janeiro Escala 1:1.000.000
     # Selecionar Intersecção do aerolevantamento 1039
 
 
-
-def get_region(region,escala)
+'''
+def get_region(region,escala):
 
     region = [-47.00, -46.75,
             -22.75, -22.50]
 
-    geof_SF23_Y_A_V_4 = geof_1039[vd.inside((geof_1039.LONG, geof_1039.LAT), region = region)]
+    'id_geof'+'id_folha' = geof_1039[vd.inside((geof_1039.LONG, geof_1039.LAT), region = region)]
 
 '''

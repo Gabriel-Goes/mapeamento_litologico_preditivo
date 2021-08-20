@@ -271,7 +271,7 @@ scores = vd.cross_val_score(chain, coords_1105, dados.eU, cv=cv)
 # --- ------------ Plotting Figures to report ---------------------------------
 # Figure 1 --------- Plotting our raw data
 plt.figure(1)
-plt.scatter((*coords_1105), c=dados.eU, s=0.1)
+#plt.scatter((*coords_1105), c=dados.eU, s=0.1)
 lito_ccnd.plot(column='Litologia')
 plt.title('Plot dos dados brutos')
 plt.axis('scaled')
