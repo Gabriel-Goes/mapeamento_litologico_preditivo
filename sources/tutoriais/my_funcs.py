@@ -91,12 +91,6 @@ def nomeador_grid(left,right,top,bottom,escala=5):
             folha+='_'+p25k[LO][NS]
         return folha
 
-
-
-
-# Selecionador de Região
-# Selecionar SF23 Folha Rio de Janeiro Escala 1:1.000.000
-# Selecionar Intersecção do aerolevantamento 1039
 # Definindo Regions (W,E,S,N)
 
 def regions(gdf):
@@ -114,24 +108,24 @@ def nomeador_malha(gdf):
         lista_grid.append(row.id_folha)
 
     gdf['id_folha'] = lista_grid
-##
+
+# Selecionador de Região
 
 def select_area(escala,id):
     malha_cartog = importar('malha_cartog_'+escala+'_wgs84')
     regions(malha_cartog)
-    df=[]
-    for i in id:
-        print(i)
-        df.append(pd.DataFrame(malha_cartog[malha_cartog['id_folha'].str.contains(i)]))
-    return(df)
+    area = malha_cartog[malha_cartog['id_folha'].str.contains(id)]
+    return(area)
+
+# Selecionar Intersecção do aerolevantamento 1039
+
 
 # Iterando entre as regions da malha cartográfica
-def interpolar(escala,id,geof,degree=1,spacing=499,psize=100,n_splits=15,validate=False):
-    chain_list = input('Liste canais a serem interpolados:')      # Lista de canais a serem interpolados
+def interpolar(escala,id,geof,degree=1,spacing=499,psize=100,validate=False,n_splits=15):
+    chan_list=['CTCOR','eU','eTh','MDT','KPERC']
+    grids = {chan_list[0]:(),chan_list[1]:(),chan_list[2]:(),chan_list[3]:(), chan_list[4]:()}    # Dicionário para salvar os dados interpolados (grids)
+    scores = {chan_list[0]:(),chan_list[1]:(),chan_list[2]:(), chan_list[3]:(), chan_list[4]:()}   # Dicionário para salvar os dados da validação cruzada
                                                       
-    grids = {chain_list[0]:(),chain_list[1]:(),chain_list[2]:(),chain_list[3]:(), chain_list[4]:()}    # Dicionário para salvar os dados interpolados (grids)
-    scores = {chain_list[0]:(),chain_list[1]:(),chain_list[2]:(), chain_list[3]:(), chain_list[4]:()}   # Dicionário para salvar os dados da validação cruzada
-    
     df = select_area(escala,id)
        
     for index, row in df.iterrows():
@@ -144,7 +138,7 @@ def interpolar(escala,id,geof,degree=1,spacing=499,psize=100,n_splits=15,validat
             print('few data')
         else:
             # Iterando entre os canais de interpolação
-            for i in chain_list:
+            for i in chan_list:
                 print(i)
                 chain = vd.Chain([
                     ('trend', vd.Trend(degree=degree)),
@@ -167,4 +161,4 @@ def interpolar(escala,id,geof,degree=1,spacing=499,psize=100,n_splits=15,validat
                 grid = chain.grid(spacing=psize, data_names=[i],pixel_register=True)
                 grids[i] = vd.distance_mask(coordinates, maxdist=499, grid= grid)
                 tif_ = grids[i].rename(easting = 'x',northing='y')
-                tif_.rio.to_raster('/home/ggrl/Desktop/grids/3022/100m_25k/'+i+'_'+row.id_folha+'.tif')
+                tif_.rio.to_raster('/home/ggrl/Desktop/grids/1089/200_m/'+i+'_'+row.id_folha+'.tif')
