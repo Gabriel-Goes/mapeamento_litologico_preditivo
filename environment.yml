@@ -1,0 +1,25 @@
+# run: conda env create --file  ~/PATH/environment.yml  or conda env create -f ~/PATH/environment.yml
+# o ambiente conda será instalado com as seguintes bibliotecas:
+
+name: geologist_bot
+dependencies:
+
+ #Data Treatment & Visualization:
+- pandas
+- numpy
+
+# Geospatial libraries:
+- geopandas
+
+# Interpolation & Image Processing:
+- rasterio
+
+# Conda Environment
+- pip
+- ipympl
+- ipykernel
+
+# pip dependencies:
+- pip:
+  - verde
+  - matplotlib
