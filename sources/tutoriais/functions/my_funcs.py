@@ -23,7 +23,7 @@ gdb = '/home/ggrl/geodatabase/'
 
 
 #                                      DEFININDO FUNÇÕES PARA SCRIPT 
-# Importador de Litologias por escala --------------------------------------------------------------#
+# Importador de Litologias por escala
 def importar(camada, mapa=False):
     lito =  gpd.read_file(gdb+'database.gpkg',
                         driver= 'GPKG',
@@ -34,8 +34,7 @@ def importar(camada, mapa=False):
     else:
         return(lito)
 
-    
-# DEFININDO LIMITES DE CADA FOLHA CARTOGRÁFICA -----------------------------------------------------------------#
+# DEFININDO LIMITES DE CADA FOLHA CARTOGRÁFICA
 def regions(gdf):
     # CRIANDO COLUNA REGION EM COORDENADAS GEOGRÁFICAS
     #print(f" Definindo limites com GeoDataFrame.bounds ")
@@ -58,66 +57,8 @@ def regions(gdf):
     [(left,right,bottom,top) for left,right,bottom,top in zip(bounds['minx'],bounds['maxx'],
                                                           bounds['miny'],bounds['maxy'])]
     return gdf
-    
-
-# Nomeador de Grids ------------------------------------------------------------------------------------------#
-e1kk=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
-e500k=[['V','Y'],['X','Z']]
-e250k=[['A','C'],['B','D']]
-e100k=[['I','IV'],['II','V'],['III','VI']]
-e50k=[['1','3'],['2','4']]
-e25k=[['NW','SW'],['NE','SE']]
-
-def nomeador_grid(left,right,top,bottom,escala=5):
-    if left>right:
-        print('Oeste deve ser menor que leste')
-    if top<bottom:
-        print('Norte deve ser maior que Sul')
-    
-    else:
-        id_folha=''
-        if top<=0:
-            id_folha+='S'
-            north=False
-            index=math.floor(-top/4)
-        else:
-            id_folha+='N'
-            north=True
-            index=math.floor(bottom/4)
         
-        numero=math.ceil((180+right)/6)
-        id_folha+=e1kk[index]+str(numero)
-
-        lat_gap=abs(top-bottom)
-        #p500k-----------------------
-        if (lat_gap<=2) & (escala>=1):
-            LO=math.ceil(right/3)%2==0
-            NS=math.ceil(top/2)%2!=north
-            id_folha+='_'+e500k[LO][NS]
-        #p250k-----------------------
-        if (lat_gap<=1) & (escala>=2):
-            LO=math.ceil(right/1.5)%2==0
-            NS=math.ceil(top)%2!=north
-            id_folha+='_'+e250k[LO][NS]
-        #p100k-----------------------
-        if (lat_gap<=0.5) & (escala>=3):
-            LO=(math.ceil(right/0.5)%3)-1
-            NS=math.ceil(top/0.5)%2!=north
-            id_folha+='_'+e100k[LO][NS]
-        #p50k------------------------
-        if (lat_gap<=0.25) & (escala>=4):
-            LO=math.ceil(right/0.25)%2==0
-            NS=math.ceil(top/0.25)%2!=north
-            id_folha+='_'+e50k[LO][NS]
-        #p25k------------------------
-        if (lat_gap<=0.125) & (escala>=5):
-            LO=math.ceil(right/0.125)%2==0
-            NS=math.ceil(top/0.125)%2!=north
-            id_folha+='_'+e25k[LO][NS]
-        return id_folha
-
-
-# DEFININDO NOMES DA MALHA A PARTIR DA ARTICULA~AO SISTEMÁTICA DE FOLHAS DE CARTAS. CONSTURINDO UMA LISTA E DEFININDO COMO UMA SERIES (OBJETO DO PANDAS).
+# Definindo nomes da malha a partir da articulação sistematica de folhas de cartas. Construindo uma lista e definindo como uma series.
 def nomeador_malha(gdf):
     df = pd.DataFrame(gdf)
     lista_malha = []
@@ -128,7 +69,7 @@ def nomeador_malha(gdf):
 
     gdf['id_folha'] = lista_malha
 
-# SELECIONADOR DE REGIÃO  ------------------------------------------------------------------------------------------#
+# Selecionador de Região
 def select_area(escala,id):
     malha_cartog = importar('malha_cartog_'+escala+'_wgs84')
     malha_cartog_gdf_select = malha_cartog[malha_cartog['id_folha'].str.contains(id)]       # '.contains' não é ideal.
@@ -136,46 +77,13 @@ def select_area(escala,id):
     
     return(malha_cartog_gdf_select)
     
-
+# LEVANTAMENTO 1089 # tie + flight_lines
+geof_1089 =pd.read_csv(gdb+'geof/g1089')
 
 
 # DEFININDO DADOS AEROGEOFÍSICOS
-#geof_1089 =pd.read_csv(gdb+'geof/g1089')
-
-# LEVANTAMENTO 1089 # tie + flight_lines
-#geof_1089 =pd.read_csv(gdb+'geof/g1089')
-
-
-# DESCRIÇÃO DOS DADOS AEROGEOFÍSICOS
-
-def descricao(df):
-    df.drop(axis=0,columns=['X','Y','LATITUDE','LONGITUDE'],inplace=True)
-    datadict = pd.DataFrame(df.dtypes)
-    datadict["Valores Faltantes"] = df.isnull().sum()
-    datadict["Valores Únicos"] = df.nunique()
-    datadict["Contagem"] = df.count()
-    datadict = datadict.rename(columns = {0 : 'dType'})
+geof_1089 =pd.read_csv(gdb+'geof/g1089')
     
-    return datadict
-
-def descricao(geof):            
-    lista_atributo_geof,lista_atributo_geog,lista_atributo_proj = list_atributos(geof)
-    
-    datadict = pd.DataFrame(geof.dtypes)
-    datadict["Valores Faltantes"] = geof.isnull().sum()
-    datadict["Valores Únicos"] = geof.nunique()
-    datadict["Amostragem"] = geof.count()
-    datadict = datadict.rename(columns = {0 : 'dType'})
-    
-    df = geof.drop(axis=0,columns=lista_atributo_geog)
-    df = df.drop(axis=0,columns=lista_atributo_proj)
-
-    df_describe = df.describe(percentiles=[0.001,0.25,0.5,0.75,0.995])
-    
-    return datadict,lista_atributo_geof,lista_atributo_geog,lista_atributo_proj,df_describe
-
-################################################################################
-
 # LISTANDO REGIÕES DE CADA FOLHA DE CARTAS DA MALHA CARTOGRÁFICA \ ['REGEION'] = ['ID_FOLHA'] REDUNDANCIA
 def cartas(escala,id):
     # SELECIONANDO AREA DE ESTUDO
@@ -200,19 +108,32 @@ def cartas(escala,id):
     #print(dic_cartas)
     
     # APENAS UMA FOLHA DE CARTA SELECIONADA
-    if len(dic_cartas['raw_data']) > 1:
+    if len(dic_cartas) > 1:
         print(f"{len(dic_cartas['raw_data'])} folhas cartográfica selecionadas")
         print("")
 
     # MAIS DE UMA FOLHA DE CARTA SELECIONADA
-    if len(dic_cartas['raw_data']) == 1:
+    if len(dic_cartas) == 1:
         print(f"{len(dic_cartas['raw_data'])} folha cartográfica selecionada")
         print("")
     return malha_cartog_gdf_select, dic_cartas
 
 
-# LISTANDO ATRIBUTOS GEOFÍSICOS E ATRIBUTOS GEOGRÁFICOS
-def list_atributos(geof):
+
+
+# DEFININDO FUNÇÃO DE QUE CHAMARÁ AS FUNÇÕES ANTERIORES PROVOCANDO UM ENCADEAMENTO DE OPERAÇÕES  
+def interpolar(escala,id,geof, interpolador_verde=True,n_splits=None,camada=None,nome=None,crs__='proj'):
+    # DEFININDO PADRÃO DE INTERPOLAÇÃO VERDE
+    if interpolador_verde == True:
+        save=False
+        degree=1
+        spacing=499
+        psize= 100
+        
+    # Listando regiões das folhas cartográficas
+    malha_cartog_gdf_select, dic_cartas = cartas(escala,id)
+        
+    # LISTANDO ATRIBUTOS GEOFÍSICOS E ATRIBUTOS GEOGRÁFICOS
     atributos_geof = list(geof.columns)
     lista_atributo_geof=[]
     lista_atributo_geog=[]
@@ -238,40 +159,14 @@ def list_atributos(geof):
         else:
             lista_atributo_geof.append(atributo)
     codigo=str(geof)        
-    print(f"# --- # Listagem de dados do aerolevantamento:  ")
+    print(f"# --- # Listagem de dados do aerolevantamento de código: '{codigo}'")
     print(f"Lista de atributos geofísicos = {lista_atributo_geof}")
     print(f"lista de atributos geograficos = {lista_atributo_geog}")
     print(f"lista de atributos projetados = {lista_atributo_proj}")
-    return lista_atributo_geof, lista_atributo_geog, lista_atributo_proj
-
-
-# DEFININDO FUNÇÃO DE QUE CHAMARÁ AS FUNÇÕES ANTERIORES PROVOCANDO UM ENCADEAMENTO DE OPERAÇÕES  
-def interpolar(escala,id,geof,
-               standard_verde=None,psize=None,spacing=None,degree=None,n_splits=None,
-               camada=None,nome=None,crs__='proj',describe=False):
-    # DEFININDO PADRÃO DE INTERPOLAÇÃO VERDE
-    if standard_verde:
-        save=None
-        degree=1
-        spacing=499
-        psize= 100
-    else:
-        save=None
-        degree=degree
-        spacing=spacing
-        psize=psize
-        
-    geof
-        
-    # Listando regiões das folhas cartográficas
-    malha_cartog_gdf_select, dic_cartas = cartas(escala,id)
-        
-    # LISTANDO ATRIBUTOS GEOFÍSICOS E ATRIBUTOS GEOGRÁFICOS
-    lista_atributo_geof, lista_atributo_geog, lista_atributo_proj = list_atributos(geof)
-    
+    print("")
+            
 
     # Iterando entre itens da lista de folhas cartográficas
-    print("")
     print(f"# --- Início da iteração entre as folhas cartográficas #")
 
     for index, row in malha_cartog_gdf_select.iterrows():
@@ -307,8 +202,8 @@ def interpolar(escala,id,geof,
             # ADICIONANDO ATRIBUTOS AO DICIONÁRIO SCORES
             scores={}
             for atributo in lista_atributo_geof:
-                y = {atributo:''}
-                scores.update(y)
+                x = {atributo:''}
+                scores.update(x)
             #print(f" Construindo dicionário vazio de score do cross validation")
             #print(scores.keys())
 
@@ -323,28 +218,27 @@ def interpolar(escala,id,geof,
                                 ('spline', vd.Spline())
                             ])
                 
-                print(f"Encadeamento: {chain}") 
                 coordinates = (data.X.values, data.Y.values)
                 
-                print(f"Fitting Model of  '{i}' variable...")
+                print(f"fitting: {i}")
                 chain.fit(coordinates, data[i])
-
+                
                 # Griding the predicted data.
-                print(f"Predicting values of '{i}' to a regular grid of {psize} m")
+                #print(f"gridding: {i}")
                 grid = chain.grid(spacing=psize, data_names=[i],pixel_register=True)
                 interpolado[i] = vd.distance_mask(coordinates, maxdist=1000, grid= grid)
                 
                 # ATUALIZAÇÃO DE DICIONÁRIO DE INTERPOLADOS
+                #print(f" Atualizando dicionário com grids interpolados")
                 x = {index:interpolado}
                 dic_cartas['interpolado'].update(x)
-                print(f" Dicionário de dados interpolados da folha {index} atualizados")
-
+                                    
                 # Processo de validação cruzada da biblioteca verde
                 if n_splits:
                     cv     = vd.BlockKFold(spacing=spacing,
                                 n_splits=n_splits,
                                 shuffle=True)
-                    print(f"Parâmetros de validação cruzada: {cv}")
+
                     scores[i] = vd.cross_val_score(chain,
                                             coordinates,
                                             data[i],
@@ -354,8 +248,6 @@ def interpolar(escala,id,geof,
                 #print(f" Atualizando dicionário com scores")
                 y = {index:scores}
                 dic_cartas['scores'].update(y)
-                print(f" Dicionário de dados interpolados da folha {index} atualizados")
-
                 
                 # SALVANDO DADOS INTERPOLADOS NO FORMATO .TIF
                 if save:
@@ -366,64 +258,63 @@ def interpolar(escala,id,geof,
                     tif_.rio.to_raster(gdb+local)
         
             # RETIRANDO VALORES DE LITOLOGIA DE CADA PIXEL
-            if describe:
-                print("")
-                print(f"# --- Inicio da análise geoestatística")
-                lista_interpolado = list()
+            print("")
+            print(f"# --- Inicio da análise geoestatística")
+            dataframe = list()
+            
+            for i in lista_atributo_geof:
+                df = interpolado[i].to_dataframe()
+                dataframe.append(df[i])
 
-                for i in lista_atributo_geof:
-                    df = interpolado[i].to_dataframe()
-                    lista_interpolado.append(df[i])
+            geof_grids = pd.concat(dataframe,axis=1, join='inner')
+            geof_grids.reset_index(inplace=True)
+            geof_grids['geometry'] =\
+                 [geometry.Point(x,y) for x, y in zip(geof_grids['easting'], geof_grids['northing'])]
 
-                geof_grids = pd.concat(lista_interpolado,axis=1, join='inner')
-                geof_grids.reset_index(inplace=True)
-                geof_grids['geometry'] =\
-                     [geometry.Point(x,y) for x, y in zip(geof_grids['easting'], geof_grids['northing'])]
+            print('Ajustando crs')
+            if crs__=='proj':
+                gdf = gpd.GeoDataFrame(geof_grids,crs=32723)
+                gdf = gdf.set_crs(32723, allow_override=True)
+                gdf = gdf.to_crs("EPSG:32723")
+                print(f" geof: {gdf.crs}")
+            else:
+                gdf = gpd.GeoDataFrame(geof_grids,crs=32723)
+                gdf = gdf.set_crs(32723, allow_override=True)
+                gdf = gdf.to_crs("EPSG:4326")
+                print(f" geof: {gdf.crs}")
 
-                print('Ajustando crs')
-                if crs__=='proj':
-                    gdf = gpd.GeoDataFrame(geof_grids,crs=32723)
-                    gdf = gdf.set_crs(32723, allow_override=True)
-                    gdf = gdf.to_crs("EPSG:32723")
-                    print(f" geof: {gdf.crs}")
-                else:
-                    gdf = gpd.GeoDataFrame(geof_grids,crs=32723)
-                    gdf = gdf.set_crs(32723, allow_override=True)
-                    gdf = gdf.to_crs("EPSG:4326")
-                    print(f" geof: {gdf.crs}")
-
-                # IMPORTANDO VETORES LITOLÓGICOS
-                litologia = importar(camada,nome)
+            # IMPORTANDO VETORES LITOLÓGICOS
+            litologia = importar(camada,nome)
+            litologia.reset_index(inplace=True)
+            if crs__=='proj':
+                litologia = litologia.set_crs(32723, allow_override=True)
+                litologia = litologia.to_crs("EPSG:32723")
+                print(f" lito: {litologia.crs}")
+            else:
+                litologia = litologia.set_crs(4326, allow_override=True)
+                litologia = litologia.to_crs("EPSG:4326")
+                litologia=litologia.cx[row.region[0]:row.region[1],row.region[2]:row.region[3]]
                 litologia.reset_index(inplace=True)
-                if crs__=='proj':
-                    litologia = litologia.set_crs(32723, allow_override=True)
-                    litologia = litologia.to_crs("EPSG:32723")
-                    print(f" lito: {litologia.crs}")
-                else:
-                    litologia = litologia.set_crs(32723, allow_override=True)
-                    litologia = litologia.to_crs("EPSG:4326")
-                    litologia=litologia.cx[row.region[0]:row.region[1],row.region[2]:row.region[3]]
-                    litologia.reset_index(inplace=True)
-                    print(f" lito: {litologia.crs}")
+                print(f" lito: {litologia.crs}")
+            
 
+            print(f"# -- Calculando geometria mais próxima para cada um dos {len(geof_grids)} centróides de pixel")
+            #print(f"# Listagem de unidade geológicas do mapa litologia['MAPA'].unique():")
+            #print(f" {list(litologia['litologia'].unique())}")
+            lito_geof = geof_grids
+            lito_geof['closest_unid'] = gdf['geometry'].apply(lambda x: litologia['SIGLA'].iloc[litologia.distance(x).idxmin()])
+            print(f"# Listagem de unidades geológicas presentes na folha de id {index}:    ")
+            print(f"  {list(lito_geof['closest_unid'].unique())}")
 
-                print(f"# -- Calculando geometria mais próxima para cada um dos {len(geof_grids)} centróides de pixel")
-                #print(f"# Listagem de unidade geológicas do mapa litologia['MAPA'].unique():")
-                #print(f" {list(litologia['litologia'].unique())}")
-                lito_geof = geof_grids
-                lito_geof['closest_unid'] = gdf['geometry'].apply(lambda x: litologia['litologia'].iloc[litologia.distance(x).idxmin()])
-                print(f"# Listagem de unidades geológicas presentes na folha de id {index}:    ")
-                print(f"  {list(lito_geof['closest_unid'].unique())}")
+            # Adicionando lito_geof ao dicionario
+            print('')
+            print(f" Adicionando dataframe com valores de litologia e geofíscios ao dicionário de cartas")
+            x = {index:lito_geof}
+            dic_cartas['lito_geof'].update(x)
+            #print(dic_cartas['lito_geof'][index].keys())
 
-                # Adicionando lito_geof ao dicionario
-                print('')
-                print(f" Adicionando dataframe com valores de litologia e geofíscios ao dicionário de cartas")
-                x = {index:lito_geof}
-                dic_cartas['lito_geof'].update(x)
-                #print(dic_cartas['lito_geof'][index].keys())
-
-                print('__________________________________________')
-            print(" ")
+            print('__________________________________________')
+        print(" ")
     print("Dicionário de cartas disponível")
     return dic_cartas
 
