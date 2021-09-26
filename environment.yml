@@ -23,4 +23,6 @@ dependencies:
   # Interpolation & Image Processing:
   - rasterio
   - verde
-  
+  - rioxarray
+  - seaborn
+  - tqdm
