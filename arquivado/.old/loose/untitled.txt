@@ -1,3 +1,0 @@
-python3 -m Orange.canvas 
-'orangecanvas.main.fix_macos_nswindow_tabbing()
-'orangecanvas.gui.utils.macos_set_nswindow_tabbing()'   # instead
