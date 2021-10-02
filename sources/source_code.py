@@ -199,7 +199,7 @@ def list_atributos(geof):
     return lista_atributo_geof, lista_atributo_geog, lista_atributo_proj
 # ----------------------------------------------------------------------------------------------------------------------
 
-# DESCRIÇÃO DOS DADOS AEROGEOFÍSICOS
+# DESCRIÇÃO ESTATISTICA DOS DADOS AEROGEOFÍSICOS
 def descricao(geof):            
     lista_atributo_geof,lista_atributo_geog,lista_atributo_proj = list_atributos(geof)  # USANDO FUNCAO DEFINIDA ACIMA PARA CATEGORIZAR METADADO
     
@@ -359,7 +359,7 @@ def interpolar(escala,id,geof,psize=None,spacing=None,degree=None,n_splits=None,
             
         elif len(data) < 1000:
             None
-            #print(f"A folha {index} possui apenas '{len(data)}' pontos coletados que devem ser adicionados a folha mais próxima")
+            print(f"A folha {index} possui apenas '{len(data)}' pontos coletados que devem ser adicionados a folha mais próxima")
             
         else:
             print(f"# Folha de código: {index}")
