@@ -4,8 +4,8 @@ import numpy as np
 import geopandas as gpd
 import pandas as pd
 
-import pyproj
 from shapely import geometry
+
 
 import verde as vd
 import rioxarray as rio
@@ -332,7 +332,7 @@ def interpolar(escala,id,geof,psize=None,spacing=None,degree=None,n_splits=None,
             if atr == 'KPERC':
                 data.loc[data.KPERC < 0, 'KPERC'] = 0
                 data.loc[data.eU < 0, 'eU'] = 0
-                data.loc[data.eth < 0, 'eth'] = 0
+                data.loc[data.eTH < 0, 'eth'] = 0
                 data.loc[data.CTCOR < 0, 'CTCOR'] = 0
 
 

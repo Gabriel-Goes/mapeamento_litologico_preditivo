@@ -1,20 +1,8 @@
+
 from sources import importar
-from contribuicoes.hilogoes import nomeador_hilo
-import pandas as pd
 
-# DEFININDO NOMES DA MALHA A PARTIR DA ARTICULA~AO SISTEMÁTICA DE FOLHAS DE CARTAS. 
-# CONSTURINDO UMA LISTA E DEFININDO COMO UMA SERIES (OBJETO DO PANDAS).
-def nomeador_maçlha(gdf):
-    df = pd.DataFrame(gdf)
-    lista_malha = []
-    for index, row in df.iterrows():
-        row['id_folha'] = (nomeador_hilo.nomeador_grid(row.region[0],row.region[1],
-                                         row.region[3],row.region[2],escala=5))
-        lista_malha.append(row.id_folha)
 
-    gdf['id_folha'] = lista_malha
 
-# ----------------------------------------------------------------------------------------------------------------------   
 # DEFININDO LIMITES DE CADA FOLHA CARTOGRÁFICA -----------------------------------------------------------------#
 def regions(gdf):
     # CRIANDO COLUNA REGION EM COORDENADAS GEOGRÁFICAS
@@ -35,6 +23,7 @@ def regions(gdf):
     return gdf
 
 # ----------------------------------------------------------------------------------------------------------------------
+
 # SELECIONADOR DE REGIÃO  ------------------------------------------------------------------------------------------#
 def select_area(escala,ids):
     malha_cartog = importar.geologico('malha_cartog_'+escala+'_wgs84')
@@ -43,6 +32,7 @@ def select_area(escala,ids):
     
     return(malha_cartog_gdf_select)
 # ----------------------------------------------------------------------------------------------------------------------
+
 # LISTANDO REGIÕES DE CADA FOLHA DE CARTAS DA MALHA CARTOGRÁFICA \ ['REGEION'] = ['ID_FOLHA'] REDUNDANCIA
 def cartas(escala,id):
     # SELECIONANDO AREA DE ESTUDO
@@ -95,3 +85,4 @@ def cartas(escala,id):
         print("")
     return lista_cartas, dic_cartas, malha_cartog_gdf_select
 # ----------------------------------------------------------------------------------------------------------------------
+
