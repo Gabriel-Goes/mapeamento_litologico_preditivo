@@ -1,13 +1,36 @@
 import geopandas as gpd
 import pandas as pd
+import fiona
 
-gdb = '/home/ggrl/geodatabase/' # DEFININDO CAMINHO PARA A BASE DE DADOS
-# ---------------------------------------- DEFININDO FUNÇÕES QUE LEEM OS ARQUIVOS E ARMAZENAM NA MEMORIA RAM---------------------------------------#
+ # DEFININDO CAMINHO PARA A BASE DE DADOS
+
 # IMPORTADOR DE LITOLOGIAS POR ESCALA --------------------------------------------------------------------------#
-def geologico(camada, mapa=False):
-    lito =  gpd.read_file(gdb+'geodatabase.gpkg',
-                        driver= 'GPKG',
-                        layer= camada)
+def geometrias(camada=False, mapa=False, geofisico=False):
+    '''
+    Recebe:
+        camada: Camada vetorial presento no geopackage
+        mapa  : Nome da folha cartografica presenta na coluna 'MAPA' da camada vetorial
+        (SE NAO INSERIR MAPA RETORNA TODOS OS VETORES DA CAMADA SELECIONADA)
+
+    '''
+    gdb = '/home/ggrl/geodatabase/'
+
+    if geofisico:
+        geof_dataframe = pd.read_csv(gdb+'geof/'+str(geofisico))
+
+        return geof_dataframe
+
+    if camada:
+        lito =  gpd.read_file(gdb+'geodatabase.gpkg',
+                            driver= 'GPKG',
+                            layer= camada)
+
+        if lito.empty:
+            print(f"A camada escolhida nao est'a presente no geopackage.")
+            print(f"# -- Lista de camadas vetoriais disponiveis: {list(fiona.listlayers(gdb+'geodatabase.gpkg'))}")
+            
+            return lito
+
     if mapa:
         folha = lito[lito.MAPA == 'Carta geológica da folha '+mapa]
         if folha.empty:
@@ -15,14 +38,7 @@ def geologico(camada, mapa=False):
             print(f"# -- Lista de mapas: {list(lito.MAPA.unique())}")
 
             return(lito)
-
         else:    
             return(folha)
     else:
         return(lito)
-
-
-# IMPORTADOR DE DADOS AEROGEOFISICOS ---------------------------------------------------------------------------#
-def geofisico(raw_data):
-    geof_dataframe = pd.read_csv(gdb+'geof/'+str(raw_data))
-    return geof_dataframe

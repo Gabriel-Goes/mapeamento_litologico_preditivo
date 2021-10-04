@@ -2,9 +2,8 @@ import tqdm
 import pandas as pd
 
 # ----------------------------------------------------------------------------------------------------------------------
-
 # LISTANDO ATRIBUTOS GEOFÍSICOS E ATRIBUTOS GEOGRÁFICOS
-def categorico(geof):
+def lista_cols(geof):
     print('Listando atributos dos dados geofisicos')
     atributos_geof = list(geof.columns)             # DataFrame.columns
     lista_atributo_geof=[]
@@ -40,7 +39,7 @@ def categorico(geof):
 
 # DESCRIÇÃO ESTATISTICA DOS DADOS AEROGEOFÍSICOS
 def descricao(geof):            
-    lista_atributo_geof,lista_atributo_geog,lista_atributo_proj = categorico(geof)  # USANDO FUNCAO DEFINIDA ACIMA PARA CATEGORIZAR METADADO
+    lista_atributo_geof,lista_atributo_geog,lista_atributo_proj = lista_cols(geof)  # USANDO FUNCAO DEFINIDA ACIMA PARA CATEGORIZAR METADADO
     
     metadatadict = pd.DataFrame(geof.dtypes)
     metadatadict["Valores Faltantes"] = geof.isnull().sum()
@@ -48,10 +47,8 @@ def descricao(geof):
     metadatadict["Amostragem"] = geof.count()
     metadatadict = metadatadict.rename(columns = {0 : 'dType'})
 
-    geof_df = geof.drop(axis=0,columns=lista_atributo_geog)
-    geof_df.drop(axis=0,columns=lista_atributo_proj,inplace=True)
-
-    #datadict['Valores Negativos'] = lista_negativo
+    geof_df = geof.drop(axis=0, columns=lista_atributo_geog)
+    geof_df.drop(axis=0, columns=lista_atributo_proj, inplace=True)
 
     geof_descrito = geof_df.describe(percentiles=[0.001,0.1,0.25,0.5,0.75,0.995])
     

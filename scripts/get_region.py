@@ -1,6 +1,7 @@
-from sources import importar
-
-from sources import descricao
+from sources.importar import geofisico
+from sources.importar import geologico
+from sources.dicionario_cartas import cartas
+from sources.descricao import descricao
 
 import tqdm
 import verde as vd
@@ -8,24 +9,25 @@ import verde as vd
 # CRIANDO DICIONARIO DE FOLHAS CARTOGRAFICAS PARA CARA TIPO DE DADO
 def get_region(escala,id,geof,camada,mapa=None):
     print('importando dados geofisicos')
-    geof_dataframe = importar.geofisico(geof)
+    geof_dataframe = geofisico(geof)
     
     # LISTANDO REGIOES DAS FOLHAS DE CARTAS
-    lista_cartas, dic_cartas,malha_cartog_gdf_select = get_region.cartas(escala,id)       # importa malha cartografica
+    lista_cartas, dic_cartas,malha_cartog_gdf_select = cartas(escala,id)       # importa malha cartografica
     print(f"Lista de chaves do dicionario de cartas: {list(dic_cartas.keys())}")
-    metadatadict,       \
-    lista_atributo_geof,\
-    lista_atributo_geog,\
-    lista_atributo_proj,\
-    geof_descrito = descricao(geof_dataframe)
+    metadatadict,        \
+    lista_atributo_geof, \
+    lista_atributo_geog, \
+    lista_atributo_proj, \
+          geof_descrito  = descricao(geof_dataframe)
 
-    dic_raw_meta={'Metadata':metadatadict,
-            'Lista_id':lista_cartas,
-            'Lista_at_geof':lista_atributo_geof,
-            'Lista_at_geog':lista_atributo_geog,
-            'Lista_at_proj':lista_atributo_proj,
-            'Percentiles':geof_descrito,
-            'Malha_cartografica':malha_cartog_gdf_select}
+    dic_raw_meta={'Metadata'          :metadatadict,
+                  'Lista_id'          :lista_cartas,
+                  'Lista_at_geof'     :lista_atributo_geof,
+                  'Lista_at_geog'     :lista_atributo_geog,
+                  'Lista_at_proj'     :lista_atributo_proj,
+                  'Percentiles'       :geof_descrito,
+                  'Malha_cartografica':malha_cartog_gdf_select}
+
     print(f"Lista de chaves do dicionario de metadata bruto: {list(dic_raw_meta.keys())}")
 
 
@@ -53,7 +55,7 @@ def get_region(escala,id,geof,camada,mapa=None):
             dic_cartas['raw_data'].update(x) 
             print(f" com {len(data)} pontos de amostragem")
 
-            litologia= importar.geologico(camada,mapa)
+            litologia= geologico(camada,mapa)
             region = dic_cartas['region_proj']
             litologia.to_crs(32723,inplace=True)
             print(litologia.crs)

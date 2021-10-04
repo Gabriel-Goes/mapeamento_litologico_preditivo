@@ -1,35 +1,28 @@
+# OUTPUT DO SCRPIT/GET_REGION SERA O INPUT DESTE SCRIPT
+from scripts import get_region
+from sources import descricao as d
+from sources import importar as i
 
+import verde as vd
+import numpy as np
+import pandas as pd
+import geopandas as gpd
+from pyproj import geometry
+from tqdm import tqdm
 
-
-
-
-
-
+gdb = get_region.gdb
 
 # # --------------------- DEFININDO FUNÇÃO DE QUE CHAMARÁ AS FUNÇÕES ANTERIORES PROVOCANDO UM ENCADEAMENTO DE OPERAÇÕES -------------- 
-def interpolar(escala,id,geof,standard_verde=None,psize=None,spacing=None,degree=None,n_splits=None,
-               camada=None,nome=None,crs__='geografica',describe=False):
-    # DEFININDO PADRÃO DE INTERPOLAÇÃO VERDE
-    if standard_verde:
-        save=None
-        degree=1
-        spacing=499
-        psize= 100
-    else:
-        save=None
-        degree=degree
-        spacing=spacing
-        psize=psize
+def interpolar(escala,id,geof,psize=None,spacing=None,degree=None,n_splits=None,
+               camada=None,nome=None,crs__='geografica',describe=False,save=None):
 
     # RECORTANDO REGIOES E DESCRENDO DADOS
-    data_list = f.get_region(escala,id,geof)    
+    #get_region.
+    data_list = get_region(escala,id,geof)    
                                                  #           Dicionario de Metadatas['Lista_id',            #1 DICIONARIO COM METADADOS
                                                  #                                   'Lista_at_geof', 
                                                  #                                   'Lista_at_geog',
                                                  #                                   'Lista_at_proj']      
-    data_list[1]['Lista_at_geof'].append('U_TH')
-    data_list[1]['Lista_at_geof'].append('U_K')
-    data_list[1]['Lista_at_geof'].append('TH_K')
 
     for index, row in tqdm(data_list[2].iterrows()):
 
@@ -37,15 +30,10 @@ def interpolar(escala,id,geof,standard_verde=None,psize=None,spacing=None,degree
         dic_cartas = data_list[0]
         data = data_list[0]['raw_data'][index]              
 
-        # REMOVENDO VALORES NEGATIVOS DOS DADOS AEROGAMAESPECTOMETRICOS
-        data.loc[data.KPERC < 0, 'KPERC'] = 0
-        data.loc[data.eU < 0, 'eU'] = 0
-        data.loc[data.eTH < 0, 'eTH'] = 0
-
         # ----------------------------------------------------------------------------------------------------------------------
         # CALCULANDO RAZOES DE BANDAS PARA OS DADOS
-        a,b,c,d,e = f.descricao(data)
-        
+        a,b,c,d,e = d.descricao(data)
+
         # Calculo de normalizaçao dos dados para seguir com a razao de bandas min = 10% da media dos dados
         data_razoes = data   # criando uma nova variavel para ser alterada
 
@@ -196,7 +184,7 @@ def interpolar(escala,id,geof,standard_verde=None,psize=None,spacing=None,degree
                     print(f" geof: {gdf.crs}")
 
                 # IMPORTANDO VETORES LITOLÓGICOS
-                litologia = f.importar(camada,nome)
+                litologia = i.geologico(camada,nome)
                 litologia.reset_index(inplace=True)
                 if crs__=='proj':
                     litologia = litologia.set_crs(32723, allow_override=True)

@@ -7,13 +7,13 @@ def plot_brazil(gdf,atributo=None):
     brazil = world[world.name == 'Brazil']
     if atributo:
         ax = brazil.boundary.plot(color='black')
-        gdf.plot(atributo,ax=ax)
+        gdf.plot(atributo,ax=ax,color='black')
     else:
         ax = brazil.boundary.plot(color='black')
-        gdf.plot(ax=ax)
+        gdf.plot(ax=ax,color='black')
 
-def plot_base(gdf,atributo=None,escala=None,nome=None):
-    litologia = importar.geologico(escala,nome)
+def plot_base(gdf,atributo=None,camada=None,mapa=None):
+    litologia = importar.geologico(camada,mapa)
 
     if atributo:
         ax = litologia.plot('SIGLA')
@@ -23,10 +23,10 @@ def plot_base(gdf,atributo=None,escala=None,nome=None):
         gdf.plot(ax=ax,color='black')
 
 def labels(gdf):
-    gdf['coords'] = gdf['geometry'].apply(lambda x: x.representative_point().coords[:])
-    gdf['coords'] = [coords[0] for coords in gdf['coords']]
+    gdf['centroid'] = gdf['geometry'].apply(lambda x: x.representative_point().coords[:])
+    gdf['centroid'] = [coords[0] for coords in gdf['centroid']]
 
     for index, row in gdf.iterrows():
-        plt.annotate(text=row['id_folha'], xy=row['coords'],horizontalalignment='center')
+        plt.annotate(text=row['id_folha'], xy=row['centroid'],horizontalalignment='center')
 
 # ----------------------------------------------------------------------------------------------------------------------
