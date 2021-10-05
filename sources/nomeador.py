@@ -4,7 +4,7 @@ import pandas as pd
 
 # DEFININDO NOMES DA MALHA A PARTIR DA ARTICULA~AO SISTEMÁTICA DE FOLHAS DE CARTAS. 
 # CONSTURINDO UMA LISTA E DEFININDO COMO UMA SERIES (OBJETO DO PANDAS).
-def nomeador_maçlha(gdf):
+def nomeador_malha(gdf):
     df = pd.DataFrame(gdf)
     lista_malha = []
     for index, row in df.iterrows():
