@@ -1,15 +1,16 @@
-from sources.importar import geofisico
-from sources.importar import geologico
+from sources.importar import geometrias
 from sources.dicionario_cartas import cartas
 from sources.descricao import descricao
 
-import tqdm
+from tqdm import tqdm
 import verde as vd
+
 
 # CRIANDO DICIONARIO DE FOLHAS CARTOGRAFICAS PARA CARA TIPO DE DADO
 def get_region(escala,id,geof,camada,mapa=None):
+    
     print('importando dados geofisicos')
-    geof_dataframe = geofisico(geof)
+    geof_dataframe = geometrias(geofisico=geof)
     
     # LISTANDO REGIOES DAS FOLHAS DE CARTAS
     lista_cartas, dic_cartas,malha_cartog_gdf_select = cartas(escala,id)       # importa malha cartografica
@@ -55,7 +56,7 @@ def get_region(escala,id,geof,camada,mapa=None):
             dic_cartas['raw_data'].update(x) 
             print(f" com {len(data)} pontos de amostragem")
 
-            litologia= geologico(camada,mapa)
+            litologia= geometrias(camada,mapa)
             region = dic_cartas['region_proj']
             litologia.to_crs(32723,inplace=True)
             print(litologia.crs)

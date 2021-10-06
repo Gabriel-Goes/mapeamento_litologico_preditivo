@@ -1,5 +1,5 @@
 
-from sources import importar
+from sources.importar import geometrias
 
 
 
@@ -26,8 +26,8 @@ def regions(gdf):
 
 # SELECIONADOR DE REGIÃO  ------------------------------------------------------------------------------------------#
 def select_area(escala,ids):
-    malha_cartog = importar.geologico('malha_cartog_'+escala+'_wgs84')
-    malha_cartog_gdf_select = malha_cartog[malha_cartog['id_folha'].str.contains(ids)]       # '.contains' não é ideal.
+    malha_cartog = geometrias(camada='malha_cartog_'+escala+'_wgs84')
+    malha_cartog_gdf_select = malha_cartog[malha_cartog['id_folha'] == ids]       # '.contains' não é ideal.
     malha_cartog_gdf_select = regions(malha_cartog_gdf_select) 
     
     return(malha_cartog_gdf_select)
@@ -39,22 +39,8 @@ def cartas(escala,id):
     print('# --- Iniciando seleção de área de estudo')
     malha_cartog_gdf_select = select_area(escala,id)
     
-    #print("Indexando a coluna 'id_folha'") 
-        #print("Indexando a coluna 'id_folha'") 
-    #print("Indexando a coluna 'id_folha'") 
-        #print("Indexando a coluna 'id_folha'") 
-    #print("Indexando a coluna 'id_folha'") 
-        #print("Indexando a coluna 'id_folha'") 
-    #print("Indexando a coluna 'id_folha'") 
     malha_cartog_gdf_select.set_index('id_folha',inplace=True)
-    
-    #print(list(malha_cartog_gdf_select.index))              
-        #print(list(malha_cartog_gdf_select.index))              
-    #print(list(malha_cartog_gdf_select.index))              
-        #print(list(malha_cartog_gdf_select.index))              
-    #print(list(malha_cartog_gdf_select.index))              
-        #print(list(malha_cartog_gdf_select.index))              
-    #print(list(malha_cartog_gdf_select.index))              
+             
     lista_cartas = list(malha_cartog_gdf_select.index)
 
     # CRIANDO UM DICIONÁRIO DE CARTAS

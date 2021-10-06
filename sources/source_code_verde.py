@@ -366,7 +366,7 @@ def extrapolate_nans(x, y, v):
                                          method='nearest').ravel()
     return v
 
-'''
+
 def cut(x, y, scalars, area):
     """
     Return a subsection of a grid.
@@ -398,4 +398,3 @@ def cut(x, y, scalars, area):
               if x[i] >= xmin and x[i] <= xmax
               and y[i] >= ymin and y[i] <= ymax]
     return [x[inside], y[inside], [s[inside] for s in scalars]]
-'''

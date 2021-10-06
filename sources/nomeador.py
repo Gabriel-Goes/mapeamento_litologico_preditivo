@@ -1,5 +1,6 @@
 from sources import importar
 from contribuicoes.hilogoes import nomeador_hilo
+
 import pandas as pd
 
 # DEFININDO NOMES DA MALHA A PARTIR DA ARTICULA~AO SISTEMÁTICA DE FOLHAS DE CARTAS. 

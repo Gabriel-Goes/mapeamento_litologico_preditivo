@@ -36,7 +36,7 @@ def nomeador_grid(left,right,top,bottom,escala=5):
         if (lat_gap<=1) & (escala>=2):
             LO=math.ceil(right/1.5)%2==0
             NS=math.ceil(top)%2!=0
-            id_folha+='_'+e250k[LO][NS]
+            id_folha+=e250k[LO][NS]
         #p100k-----------------------
         if (lat_gap<=0.5) & (escala>=3):
             LO=(math.ceil(right/0.5)%3)-1
@@ -51,5 +51,5 @@ def nomeador_grid(left,right,top,bottom,escala=5):
         if (lat_gap<=0.125) & (escala>=5):
             LO=math.ceil(right/0.125)%2==0
             NS=math.ceil(top/0.125)%2!=0
-            id_folha+='_'+e25k[LO][NS]
+            id_folha+=e25k[LO][NS]
         return id_folha
