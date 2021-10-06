@@ -1,8 +1,4 @@
-
 import math
-import pandas as pd
-
-
 
 # Nomeador de Grids ------------------------------------------------------------------------------------------#
 def nomeador_grid(left,right,top,bottom,escala=5):
@@ -22,11 +18,9 @@ def nomeador_grid(left,right,top,bottom,escala=5):
         id_folha=''
         if top<=0:
             id_folha+='S'
-            north=False
             index=math.floor(-top/4)
         else:
             id_folha+='N'
-            north=True
             index=math.floor(bottom/4)
         
         numero=math.ceil((180+right)/6)
@@ -36,26 +30,26 @@ def nomeador_grid(left,right,top,bottom,escala=5):
         #p500k-----------------------
         if (lat_gap<=2) & (escala>=1):
             LO=math.ceil(right/3)%2==0
-            NS=math.ceil(top/2)%2!=north
+            NS=math.ceil(top/2)%2!=0
             id_folha+='_'+e500k[LO][NS]
         #p250k-----------------------
         if (lat_gap<=1) & (escala>=2):
             LO=math.ceil(right/1.5)%2==0
-            NS=math.ceil(top)%2!=north
+            NS=math.ceil(top)%2!=0
             id_folha+='_'+e250k[LO][NS]
         #p100k-----------------------
         if (lat_gap<=0.5) & (escala>=3):
             LO=(math.ceil(right/0.5)%3)-1
-            NS=math.ceil(top/0.5)%2!=north
+            NS=math.ceil(top/0.5)%2!=0
             id_folha+='_'+e100k[LO][NS]
         #p50k------------------------
         if (lat_gap<=0.25) & (escala>=4):
             LO=math.ceil(right/0.25)%2==0
-            NS=math.ceil(top/0.25)%2!=north
+            NS=math.ceil(top/0.25)%2!=0
             id_folha+='_'+e50k[LO][NS]
         #p25k------------------------
         if (lat_gap<=0.125) & (escala>=5):
             LO=math.ceil(right/0.125)%2==0
-            NS=math.ceil(top/0.125)%2!=north
+            NS=math.ceil(top/0.125)%2!=0
             id_folha+='_'+e25k[LO][NS]
         return id_folha
