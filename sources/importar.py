@@ -17,11 +17,7 @@ def geometrias(camada=False, mapa=False, geofisico=False):
     geof_gdb = gdb+'geof/'
 
     if geofisico:
-        print('')
-        print('TRACK ERROR !')
         geof_dataframe = pd.read_csv(geof_gdb+geofisico)
-        print('TRACK ERROR !!')
-        print('')
 
         return geof_dataframe
         
