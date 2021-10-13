@@ -13,13 +13,18 @@ def geometrias(camada=False, mapa=False, geofisico=False):
         (SE NAO INSERIR MAPA RETORNA TODOS OS VETORES DA CAMADA SELECIONADA)
 
     '''
-    gdb = '/home/ggrl/geodatabase/'
+    gdb      = '/home/ggrl/geodatabase/'
+    geof_gdb = gdb+'geof/'
 
     if geofisico:
-        geof_dataframe = pd.read_csv(gdb+'geof/'+str(geofisico))
+        print('')
+        print('TRACK ERROR !')
+        geof_dataframe = pd.read_csv(geof_gdb+geofisico)
+        print('TRACK ERROR !!')
+        print('')
 
         return geof_dataframe
-
+        
     if camada:
         lito =  gpd.read_file(gdb+'geodatabase.gpkg',
                             driver= 'GPKG',
@@ -28,7 +33,6 @@ def geometrias(camada=False, mapa=False, geofisico=False):
         if lito.empty:
             print(f"A camada escolhida nao est'a presente no geopackage.")
             print(f"# -- Lista de camadas vetoriais disponiveis: {list(fiona.listlayers(gdb+'geodatabase.gpkg'))}")
-            
             return lito
 
     if mapa:
@@ -36,7 +40,6 @@ def geometrias(camada=False, mapa=False, geofisico=False):
         if folha.empty:
             print(f"O mapa escolhido nao est'a presente na coluna MAPA da camada veotiral.")
             print(f"# -- Lista de mapas: {list(lito.MAPA.unique())}")
-
             return(lito)
         else:    
             return(folha)

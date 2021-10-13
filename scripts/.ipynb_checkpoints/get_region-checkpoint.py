@@ -8,29 +8,29 @@ import verde as vd
 
 # CRIANDO DICIONARIO DE FOLHAS CARTOGRAFICAS PARA CARA TIPO DE DADO
 def get_region(escala,id,geof,camada,mapa=None):
-    '''
     
-    '''
-    print('# -- Lendo dados aerogeofisicos')
+    print('importando dados geofisicos')
     geof_dataframe = geometrias(geofisico=geof)
-
+    
     # LISTANDO REGIOES DAS FOLHAS DE CARTAS
-    print('# -- Selecionando Folhas Cartograficas')
-    dic_cartas,malha_cartog_gdf_select = cartas(escala,id)
-
+    lista_cartas, dic_cartas,malha_cartog_gdf_select = cartas(escala,id)       # importa malha cartografica
+    print(f"Lista de chaves do dicionario de cartas: {list(dic_cartas.keys())}")
     metadatadict,        \
     lista_atributo_geof, \
     lista_atributo_geog, \
     lista_atributo_proj, \
           geof_descrito  = descricao(geof_dataframe)
 
-    print('# -- Contruindo dicionario de metadados')
     dic_raw_meta={'Metadata'          :metadatadict,
+                  'Lista_id'          :lista_cartas,
                   'Lista_at_geof'     :lista_atributo_geof,
                   'Lista_at_geog'     :lista_atributo_geog,
                   'Lista_at_proj'     :lista_atributo_proj,
                   'Percentiles'       :geof_descrito,
                   'Malha_cartografica':malha_cartog_gdf_select}
+
+    print(f"Lista de chaves do dicionario de metadata bruto: {list(dic_raw_meta.keys())}")
+
 
     # ITERANDO ENTRE AS FOLHAS DE CARTAS
     print("")
@@ -44,7 +44,6 @@ def get_region(escala,id,geof,camada,mapa=None):
         # GERANDO TUPLA DE COORDENADAS
         if data.empty:
             None
-            print('Folha cartografica sem dados Aerogeofisicos')
             
         elif len(data) < 1000:
             None
@@ -58,6 +57,7 @@ def get_region(escala,id,geof,camada,mapa=None):
             print(f" com {len(data)} pontos de amostragem")
 
             litologia= geometrias(camada,mapa)
+            region = dic_cartas['region_proj']
             litologia.to_crs(32723,inplace=True)
             print(litologia.crs)
 
@@ -66,8 +66,37 @@ def get_region(escala,id,geof,camada,mapa=None):
             print(f" com {litologia.shape[0]} poligonos descritos por\
                          {litologia.shape[1]} atributos geologicos ")
 
-            dic_cartas['litologia'] ={}
             y = {index:litologia}
             dic_cartas['litologia'].update(y)
 
     return dic_cartas,dic_raw_meta
+
+
+# data_list[Dicionario de Cartas['region',                 #0  DICIONARIO COM DADOS PRINCIPAIS
+#                                'region_proj',
+#                                'raw_data',
+#                                'interpolado',
+#                                'scores',
+#                                'lito_geof',
+#                                'mean_score'],
+
+
+
+#           Malha Cartografica Selecionada['geometry',     #2 GEODATAFRAME DA MALHA CARTOGRAFICA
+#                                          'region',
+#                                          'region_proj']
+
+#           Descricao Dados Brutos['KPERC',                #3 DATAFRAME DESCRICAO ESTATISTICA DADOS BRUTOS
+#                                  'eU',
+#                                  'eTH',
+#                                  'UTHRAZAO',
+#                                  'UKRAZAO',
+#                                  'MDT',
+#                                  'THKRAZAO',
+#                                  'CTCOR']           
+#           ]
+
+
+     
+
+

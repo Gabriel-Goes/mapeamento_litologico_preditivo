@@ -39,7 +39,7 @@ def lista_cols(geof):
 
 # DESCRIÇÃO ESTATISTICA DOS DADOS AEROGEOFÍSICOS
 def descricao(geof):
-    lista_atributo_geof,lista_atributo_geog,lista_atributo_proj = lista_cols(geof)  # USANDO FUNCAO DEFINIDA ACIMA PARA CATEGORIZAR METADADO
+    lista_atributo_geof,lista_atributo_geog,lista_atributo_proj = list_columns(geof)  # USANDO FUNCAO DEFINIDA ACIMA PARA CATEGORIZAR METADADO
         
     metadatadict = pd.DataFrame(geof.dtypes)
     metadatadict["Valores Faltantes"] = geof.isnull().sum()

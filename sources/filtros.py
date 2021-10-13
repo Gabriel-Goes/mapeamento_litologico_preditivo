@@ -15,3 +15,5 @@ def filtro(gdf,mineral):
         print(f"{list(gdf['LITOTIPOS'].unique())}")
     else:
         return filtrado
+
+

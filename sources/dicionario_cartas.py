@@ -2,30 +2,8 @@
 from sources.importar import geometrias
 
 
-
-# DEFININDO LIMITES DE CADA FOLHA CARTOGRÁFICA -----------------------------------------------------------------#
-def regions(gdf):
-    # CRIANDO COLUNA REGION EM COORDENADAS GEOGRÁFICAS
-    
-    bounds = gdf.bounds
-    gdf['region'] = \
-    [(left,right,bottom,top) for left,right,bottom,top in zip(bounds['minx'],bounds['maxx'],
-                                                              bounds['miny'],bounds['maxy'])]
-
-    # CRIANDOCOLUNA REGIONS EM COORDENADAS PROJETADAS
-    gdf.to_crs("EPSG:32723",inplace=True)   # APENAS AS INFORMAÇOES NA ZONA 23SUL UTM ESTARAO CORRETAS
-    print(f"{gdf.crs}")
-
-    bounds = gdf.bounds
-    gdf['region_proj'] = \
-    [(left,right,bottom,top) for left,right,bottom,top in zip(bounds['minx'],bounds['maxx'],
-                                                              bounds['miny'],bounds['maxy'])]
-    return gdf
-
-# ----------------------------------------------------------------------------------------------------------------------
-
 # SELECIONADOR DE REGIÃO  ------------------------------------------------------------------------------------------#
-def select_area(escala,ids):
+def import_malha_cartog(escala,ids):
     malha_cartog = geometrias(camada='malha_cartog_'+escala+'_wgs84')
     malha_cartog_gdf_select = malha_cartog[malha_cartog['id_folha'] == ids]       # '.contains' não é ideal.
     malha_cartog_gdf_select = regions(malha_cartog_gdf_select) 
@@ -33,42 +11,47 @@ def select_area(escala,ids):
     return(malha_cartog_gdf_select)
 # ----------------------------------------------------------------------------------------------------------------------
 
+# DEFININDO LIMITES DE CADA FOLHA CARTOGRÁFICA -----------------------------------------------------------------#
+def regions(malha_cartog):
+    '''
+    
+    '''
+    bounds = malha_cartog.bounds
+    malha_cartog['region'] = \
+    [(left,right,bottom,top) for left,right,bottom,top in zip(bounds['minx'],bounds['maxx'],
+                                                              bounds['miny'],bounds['maxy'])]
+
+
+    malha_cartog.to_crs("EPSG:32723",inplace=True)   # APENAS AS INFORMAÇOES NA ZONA 23SUL UTM ESTARÃO CORRETAS
+    print(f"{malha_cartog.crs}")
+
+    bounds = malha_cartog.bounds
+    malha_cartog['region_proj'] = \
+    [(left,right,bottom,top) for left,right,bottom,top in zip(bounds['minx'],bounds['maxx'],
+                                                              bounds['miny'],bounds['maxy'])]
+    return malha_cartog
+# ----------------------------------------------------------------------------------------------------------------------
+
 # LISTANDO REGIÕES DE CADA FOLHA DE CARTAS DA MALHA CARTOGRÁFICA \ ['REGEION'] = ['ID_FOLHA'] REDUNDANCIA
 def cartas(escala,id):
-    # SELECIONANDO AREA DE ESTUDO
-    print('# --- Iniciando seleção de área de estudo')
-    malha_cartog_gdf_select = select_area(escala,id)
     
+    print('# --- Iniciando seleção de área de estudo')
+    malha_cartog_gdf_select = import_malha_cartog(escala,id)
     malha_cartog_gdf_select.set_index('id_folha',inplace=True)
-             
-    lista_cartas = list(malha_cartog_gdf_select.index)
 
-    # CRIANDO UM DICIONÁRIO DE CARTAS
-    #print(f"Retirada da coluna 'geometry'")
     malha_cartog_df_select = malha_cartog_gdf_select.drop(columns=['geometry'])
     malha_cartog_df_select['raw_data'] =''
-    malha_cartog_df_select['splines'] =''
-    malha_cartog_df_select['scores'] =''
-    malha_cartog_df_select['lito_splines'] =''
-    malha_cartog_df_select['mean_score'] =''
-    malha_cartog_df_select['litologia']=''
-    malha_cartog_df_select['cubic']=''
-    malha_cartog_df_select['lito_cubic'] =''
-
-    #print("Gerando dicionário com o index")                     
     dic_cartas = malha_cartog_df_select.to_dict()
-    #print(dic_cartas.keys())                                    
-    #print(dic_cartas)
     
-    # APENAS UMA FOLHA DE CARTA SELECIONADA
-    if len(dic_cartas['raw_data']) > 1:
-        print(f"{len(dic_cartas['raw_data'])} folhas cartográfica selecionadas")
-        print("")
-
     # MAIS DE UMA FOLHA DE CARTA SELECIONADA
-    if len(dic_cartas['raw_data']) == 1:
-        print(f"{len(dic_cartas['raw_data'])} folha cartográfica selecionada")
+    if len(dic_cartas['raw_data']) > 1:
         print("")
-    return lista_cartas, dic_cartas, malha_cartog_gdf_select
+        print(f"{len(dic_cartas['raw_data'])} folhas cartográfica selecionadas")
+
+    # APENAS UMA FOLHA DE CARTA SELECIONADA
+    if len(dic_cartas['raw_data']) == 1:
+        print("")
+        print(f"{len(dic_cartas['raw_data'])} folha cartográfica selecionada")
+    return dic_cartas, malha_cartog_gdf_select
 # ----------------------------------------------------------------------------------------------------------------------
 
