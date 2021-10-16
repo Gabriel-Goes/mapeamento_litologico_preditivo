@@ -1,7 +1,6 @@
 # OUTPUT DO SCRPIT/GET_REGION SERA O INPUT DESTE SCRIPT
-from scripts.get_region import get_region
-from sources import descricao as d
-from sources.importar import geometrias
+from scr.get_region import get_region
+
 
 from contribuicoes.victsnet_emails import source_code_verde as td
 
@@ -19,14 +18,15 @@ gdb = '/home/ggrl/geodatabase/'
 # # --------------------- DEFININDO FUNÇÃO DE QUE CHAMARÁ AS FUNÇÕES ANTERIORES PROVOCANDO UM ENCADEAMENTO DE OPERAÇÕES -------------- 
 def interpolar(mag=None,gama=None,
                dic_cartas=None,dic_raw_meta=None):
+               
     print('# Inicio dos processos de interpolação pelo método cúbico')
     for index, row in tqdm(dic_raw_meta['Malha_cartografica'].iterrows()):
-
-        lista_atributo_geof = dic_raw_meta['Lista_at_geof']
+        print(index,row)
+        # lista_atributo_geof = dic_raw_meta['Lista_at_geof']
         data = dic_cartas['raw_data'][index]              
 
         # GERANDO TUPLA DE COORDENADAS
-        if data.empty:
+        if len(data) == 0:
             None
             
         elif len(data) < 1000:
@@ -100,7 +100,8 @@ def interpolar(mag=None,gama=None,
                 # Create DataFrame 
                 interpolado_cubico = pd.DataFrame(data)
 
-                dic_cartas['cubic'] = {}                
+                dic_cartas['cubic'] = {}
+                                
                 y={index:interpolado_cubico}
                 dic_cartas['cubic'].update(y)
 

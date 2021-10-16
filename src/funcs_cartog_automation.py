@@ -1,16 +1,23 @@
+import pandas as pd
 
-from sources.importar import geometrias
 
-
-# SELECIONADOR DE REGIÃO  ------------------------------------------------------------------------------------------#
-def import_malha_cartog(escala,ids):
-    malha_cartog = geometrias(camada='malha_cartog_'+escala+'_wgs84')
-    malha_cartog_gdf_select = malha_cartog[malha_cartog['id_folha'] == ids]       # '.contains' não é ideal.
-    malha_cartog_gdf_select = regions(malha_cartog_gdf_select) 
+# DEFININDO NOMES DA MALHA A PARTIR DA ARTICULA~AO SISTEMÁTICA DE FOLHAS DE CARTAS. 
+# CONSTURINDO UMA LISTA E DEFININDO COMO UMA SERIES (OBJETO DO PANDAS).
+def nomeador_malha(gdf):
+    from contribuicoes.hilogoes.nomeador_hilo import nomeador_grid
+    '''
     
-    return(malha_cartog_gdf_select)
-# ----------------------------------------------------------------------------------------------------------------------
+    '''
+    df = pd.DataFrame(gdf)
+    lista_malha = []
+    for index, row in df.iterrows():
+        row['id_folha'] = (nomeador_grid(row.region[0],row.region[1],
+                                         row.region[3],row.region[2],escala=5))
+        lista_malha.append(row.id_folha)
 
+    gdf['id_folha'] = lista_malha
+# ----------------------------------------------------------------------------------------------------------------------
+ 
 # DEFININDO LIMITES DE CADA FOLHA CARTOGRÁFICA -----------------------------------------------------------------#
 def regions(malha_cartog):
     '''
@@ -33,25 +40,32 @@ def regions(malha_cartog):
 # ----------------------------------------------------------------------------------------------------------------------
 
 # LISTANDO REGIÕES DE CADA FOLHA DE CARTAS DA MALHA CARTOGRÁFICA \ ['REGEION'] = ['ID_FOLHA'] REDUNDANCIA
-def cartas(escala,id):
-    
-    print('# --- Iniciando seleção de área de estudo')
-    malha_cartog_gdf_select = import_malha_cartog(escala,id)
-    malha_cartog_gdf_select.set_index('id_folha',inplace=True)
+# SELECIONANDO AREA DE ESTUDO
 
-    malha_cartog_df_select = malha_cartog_gdf_select.drop(columns=['geometry'])
-    malha_cartog_df_select['raw_data'] =''
-    dic_cartas = malha_cartog_df_select.to_dict()
+def cartas(escala,ids):
+    from src.funcs_importar import import_malha_cartog
+    '''
     
+    '''
+    print('# --- Iniciando seleção de área de estudo')
+    malha_cartog_gdf_select = import_malha_cartog(escala,ids)
+    malha_cartog_gdf_select.set_index('id_folha',inplace=True)
+    regions(malha_cartog_gdf_select)
+
+    # CRIANDO UM DICIONÁRIO DE CARTAS
+    print('# --- Construindo Dicionario de Cartas')
+    malha_cartog_gdf_select['raw_data']= ''
+    dic_cartas = malha_cartog_gdf_select.to_dict()
+
     # MAIS DE UMA FOLHA DE CARTA SELECIONADA
     if len(dic_cartas['raw_data']) > 1:
-        print("")
         print(f"{len(dic_cartas['raw_data'])} folhas cartográfica selecionadas")
+        print("")
 
     # APENAS UMA FOLHA DE CARTA SELECIONADA
     if len(dic_cartas['raw_data']) == 1:
-        print("")
         print(f"{len(dic_cartas['raw_data'])} folha cartográfica selecionada")
-    return dic_cartas, malha_cartog_gdf_select
+        print("")
+        
+    return dic_cartas,malha_cartog_gdf_select 
 # ----------------------------------------------------------------------------------------------------------------------
-

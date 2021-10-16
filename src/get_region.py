@@ -1,20 +1,25 @@
-from sources.importar import geometrias
-from sources.dicionario_cartas import cartas
-from sources.descricao import descricao
+from src.funcs_importar import dado_bruto
+from src.funcs_cartog_automation import cartas
+from src.funcs_descricao import descricao
 
 from tqdm import tqdm
-import verde as vd
+from verde import inside
 
 
 # CRIANDO DICIONARIO DE FOLHAS CARTOGRAFICAS PARA CARA TIPO DE DADO
 def get_region(escala,id,geof,camada,mapa=None):
     '''
-    
+    Recebe:
+        escala : Escalas disponíveis para recorte: '50k', '100k', '250k', '1kk'.
+            id : ID da folha cartográfica (Articulação Sistemática de Folhas Cartográficas)
+          geof : Dado aerogeofísico disponível na base de dados (/home/ggrl/geodatabase/geof/)
+        camada : Litologias disponíveis na base de dados (/home/ggrl/geodatabase/geodatabase.gpkg)
     '''
-    print('# -- Lendo dados aerogeofisicos')
-    geof_dataframe = geometrias(geofisico=geof)
+    print('# Importando dados')
+    litologia, geof_dataframe = dado_bruto(camada,mapa,geof)
 
     # LISTANDO REGIOES DAS FOLHAS DE CARTAS
+    print('')
     print('# -- Selecionando Folhas Cartograficas')
     dic_cartas,malha_cartog_gdf_select = cartas(escala,id)
 
@@ -36,10 +41,11 @@ def get_region(escala,id,geof,camada,mapa=None):
     print("")
     print(f"# --- Início da iteração entre as folhas cartográficas #")
 
+    dic_cartas['litologia'] ={}
     for index, row in tqdm(malha_cartog_gdf_select.iterrows()):
         # RECORTANDO DATA PARA CADA FOLHA COM ['region.proj']
-        print(index, row)
-        data = geof_dataframe[vd.inside((geof_dataframe.X, geof_dataframe.Y), region = row.region_proj)]
+        #print(index, row)
+        data = geof_dataframe[inside((geof_dataframe.X, geof_dataframe.Y), region = row.region_proj)]
 
         # GERANDO TUPLA DE COORDENADAS
         if data.empty:
@@ -57,7 +63,6 @@ def get_region(escala,id,geof,camada,mapa=None):
             dic_cartas['raw_data'].update(x) 
             print(f" com {len(data)} pontos de amostragem")
 
-            litologia= geometrias(camada,mapa)
             litologia.to_crs(32723,inplace=True)
             print(litologia.crs)
 
@@ -66,7 +71,6 @@ def get_region(escala,id,geof,camada,mapa=None):
             print(f" com {litologia.shape[0]} poligonos descritos por\
                          {litologia.shape[1]} atributos geologicos ")
 
-            dic_cartas['litologia'] ={}
             y = {index:litologia}
             dic_cartas['litologia'].update(y)
 
