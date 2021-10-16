@@ -21,7 +21,9 @@ def get_region(escala,id,geof,camada,mapa=None):
     # LISTANDO REGIOES DAS FOLHAS DE CARTAS
     print('')
     print('# -- Selecionando Folhas Cartograficas')
-    dic_cartas,malha_cartog_gdf_select = cartas(escala,id)
+    
+    dict_cartas,\
+    malha_cartog_gdf_select = cartas(escala,id)
 
     metadatadict,        \
     lista_atributo_geof, \
@@ -36,31 +38,29 @@ def get_region(escala,id,geof,camada,mapa=None):
                   'Lista_at_proj'     :lista_atributo_proj,
                   'Percentiles'       :geof_descrito,
                   'Malha_cartografica':malha_cartog_gdf_select}
-
     # ITERANDO ENTRE AS FOLHAS DE CARTAS
     print("")
     print(f"# --- Início da iteração entre as folhas cartográficas #")
 
-    dic_cartas['litologia'] ={}
+    ## Dicionario de cartas[key: 'litologia']
+    dict_cartas['litologia'] ={}
+    
     for index, row in tqdm(malha_cartog_gdf_select.iterrows()):
-        # RECORTANDO DATA PARA CADA FOLHA COM ['region.proj']
-        #print(index, row)
+
+        # RECORTANDO DATA PARA CADA FOLHA COM verde.inside() ['region.proj']
         data = geof_dataframe[inside((geof_dataframe.X, geof_dataframe.Y), region = row.region_proj)]
 
-        # GERANDO TUPLA DE COORDENADAS
-        if data.empty:
-            None
-            print('Folha cartografica sem dados Aerogeofisicos')
-            
-        elif len(data) < 1000:
-            None
+        # GERANDO TUPLA DE COORDENADAS          
+        if len(data) < 1000:
+            y = {index:litologia}
+            dict_cartas['litologia'].update(y)
             print(f"A folha {index} possui apenas '{len(data)}' pontos coletados que devem ser adicionados a folha mais próxima")
             
         else:
             print(f"# Folha de código: {index}")
             print(f" Atualizando dados brutos em dic_cartas['raw_data']")
             x = {index:data}
-            dic_cartas['raw_data'].update(x) 
+            dict_cartas['raw_data'].update(x) 
             print(f" com {len(data)} pontos de amostragem")
 
             litologia.to_crs(32723,inplace=True)
@@ -72,6 +72,10 @@ def get_region(escala,id,geof,camada,mapa=None):
                          {litologia.shape[1]} atributos geologicos ")
 
             y = {index:litologia}
-            dic_cartas['litologia'].update(y)
+            dict_cartas['litologia'].update(y)
+        
+        if data.empty:
+            None
+            print('Folha cartografica sem dados Aerogeofisicos')
 
-    return dic_cartas,dic_raw_meta
+    return dict_cartas,dic_raw_meta

@@ -1,32 +1,43 @@
+# ggrl;
+# geologist_machine; 
+# ic_2021
+\
+\
+\
+
 import pandas as pd
 import geopandas as gpd
 import fiona
 
-# DEFININDO CAMINHO PARA A BASE DE DADOS
-'''s
-class csf(__self):
-    def __init():
-        print('class csf(__self')
-'''
 
+# ~/Geodatabase/; 
 def gdb(caminho='/home/ggrl/geodatabase/geodatabase.gpkg'):
+
     '''
     Definindo local de acesso aos dados na máquina local.
     '''
+
     gdb = caminho
+
     return gdb
 
+
 def geof_gdb(geof):
+
     '''
     Recebe: 
-        caminho : Diretório dos arquivos .csv tratados;
-        __geof  : .csv tratado;
+        caminho_geof : /diretoŕo .XYZ;
+          : .csv tratado;
 
     Retorna:
         str do caminho para o modulo importar.dado_bruto;
     '''
-    path = '/home/ggrl/geodatabase/geof/'+geof
-    return path
+
+    path = '/home/ggrl/geodatabase/'
+
+    geof_path= path + geof
+
+    return geof_path
 # ----------------------------------------------------------------------------------------------------------------------
 
 # IMPORTADOR DE LITOLOGIAS POR ESCALA --------------------------------------------------------------------------#
@@ -40,7 +51,7 @@ def dado_bruto(camada, mapa,geof=None):
     '''
     path_geof = geof_gdb(geof)
     print(f'Diretório de dados aerogeofisicos brutos: {path_geof}')
-
+    
     geof_dataframe = pd.read_csv(path_geof)
 
     path_lito = gdb()
