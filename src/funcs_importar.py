@@ -10,18 +10,19 @@ import geopandas as gpd
 import fiona
 
 
-# ~/Geodatabase/; 
-def gdb(caminho='/home/ggrl/geodatabase/geodatabase.gpkg'):
+# ~/Geodatabase/; # ---------------------------------------------------------------------------------------------------
+def gdb(path=None):
 
     '''
     Definindo local de acesso aos dados na máquina local.
     '''
-
-    gdb = caminho
+    path = '/home/ggrl/geodatabase/geodatabase.gpkg'
+    gdb = path
 
     return gdb
+# ----------------------------------------------------------------------------------------------------------------------
 
-
+# .XYZ ~/PATH/; # ------------------------------------------------------------------------------------------------------
 def geof_gdb(geof):
 
     '''
@@ -40,7 +41,7 @@ def geof_gdb(geof):
     return geof_path
 # ----------------------------------------------------------------------------------------------------------------------
 
-# IMPORTADOR DE LITOLOGIAS POR ESCALA --------------------------------------------------------------------------#
+# IMPORTADOR DE LITOLOGIAS POR ESCALA ----------------------------------------------------------------------------------
 def dado_bruto(camada, mapa,geof=None):
     '''
     Recebe:
@@ -49,10 +50,8 @@ def dado_bruto(camada, mapa,geof=None):
         __geof   : Dados dos aerolevantamentos. gama_tie, gama_line, 
 
     '''
-    path_geof = geof_gdb(geof)
-    print(f'Diretório de dados aerogeofisicos brutos: {path_geof}')
-    
-    geof_dataframe = pd.read_csv(path_geof)
+    print(f'Diretório de dados aerogeofisicos brutos: {geof_gdb(geof)}')
+    geof_dataframe = pd.read_csv(geof_gdb(geof))
 
     path_lito = gdb()
     print(f'Diretório de dados litologicos brutos: {path_lito}')
@@ -79,8 +78,7 @@ def dado_bruto(camada, mapa,geof=None):
         return lito, geof_dataframe
 # ----------------------------------------------------------------------------------------------------------------------
 
-
-# SELECIONADOR DE REGIÃO  ---------------------------------------------------------------------------------------------#
+# SELECIONADOR DE REGIÃO # ---------------------------------------------------------------------------------------------
 def import_malha_cartog(escala,ids):
 
     malha_cartog = gpd.read_file(gdb(),

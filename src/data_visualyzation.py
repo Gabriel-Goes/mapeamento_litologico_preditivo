@@ -1,9 +1,9 @@
-from sources import importar
+from src.funcs_importar import dado_bruto
 import matplotlib.pyplot as plt
 
 # FUNÇOES DE PLOTAGEM COM GEOPANDAS
 def plot_brazil(gdf,atributo=None):
-    world = importar.gpd.read_file(importar.gpd.datasets.get_path('naturalearth_lowres'))
+    world = dado_bruto.gpd.read_file(dado_bruto.gpd.datasets.get_path('naturalearth_lowres'))
     brazil = world[world.name == 'Brazil']
     if atributo:
         ax = brazil.boundary.plot(color='black')
@@ -13,7 +13,7 @@ def plot_brazil(gdf,atributo=None):
         gdf.plot(ax=ax,color='black')
 
 def plot_base(gdf,atributo=None,camada=None,mapa=None):
-    litologia = importar.geologico(camada,mapa)
+    litologia = dado_bruto(camada,mapa)
 
     if atributo:
         ax = litologia.plot('SIGLA')
