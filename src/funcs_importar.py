@@ -11,35 +11,27 @@ import fiona
 
 
 # ~/Geodatabase/; # ---------------------------------------------------------------------------------------------------
-def gdb(path=None):
-
+def gdb(path=''):
     '''
-    Definindo local de acesso aos dados na máquina local.
-    '''
-    path = '/home/ggrl/geodatabase/geodatabase.gpkg'
-    gdb = path
+    Diretório raíz dos dados : '/home/ggrl/geodatabase/'
 
+        path : caminho até o arquivo desejado
+    '''
+    gdb = '/home/ggrl/geodatabase/' + path
     return gdb
 # ----------------------------------------------------------------------------------------------------------------------
 
-# .XYZ ~/PATH/; # ------------------------------------------------------------------------------------------------------
-def geof_gdb(geof):
-
-    '''
-    Recebe: 
-        caminho_geof : /diretoŕo .XYZ;
-          : .csv tratado;
-
-    Retorna:
-        str do caminho para o modulo importar.dado_bruto;
-    '''
-
-    path = '/home/ggrl/geodatabase/'
-
-    geof_path= path + geof
-
-    return geof_path
+# IMPORTADOR DE LITOLOGIAS POR ESCALA ----------------------------------------------------------------------------------
+def import_xyz(caminho,cols,skiprows,usecols):
+    dataframe = pd.read_csv(gdb(caminho),
+                            names=cols,
+                            delim_whitespace=True,
+                            skiprows=skiprows,                                     # Linhas de cabeçalho
+                            usecols=usecols)
+    dataframe.dropna(inplace=True)
+    return dataframe
 # ----------------------------------------------------------------------------------------------------------------------
+
 
 # IMPORTADOR DE LITOLOGIAS POR ESCALA ----------------------------------------------------------------------------------
 def dado_bruto(camada, mapa,geof=None):
@@ -50,8 +42,8 @@ def dado_bruto(camada, mapa,geof=None):
         __geof   : Dados dos aerolevantamentos. gama_tie, gama_line, 
 
     '''
-    print(f'Diretório de dados aerogeofisicos brutos: {geof_gdb(geof)}')
-    geof_dataframe = pd.read_csv(geof_gdb(geof))
+    print(f'Diretório de dados aerogeofisicos brutos: {gdb(geof)}')
+    geof_dataframe = import_xyz(geof)
 
     path_lito = gdb()
     print(f'Diretório de dados litologicos brutos: {path_lito}')

@@ -1,10 +1,11 @@
 import pandas as pd
 
+from contribuicoes.hilogoes.nomeador_hilo import nomeador_grid
 
-# DEFININDO NOMES DA MALHA A PARTIR DA ARTICULA~AO SISTEMÁTICA DE FOLHAS DE CARTAS. 
+
+# DEFININDO NOMES DA MALHA A PARTIR DA ARTICULaÇO SISTEMÁTICA DE FOLHAS DE CARTAS. 
 # CONSTURINDO UMA LISTA E DEFININDO COMO UMA SERIES (OBJETO DO PANDAS).
 def nomeador_malha(gdf):
-    from contribuicoes.hilogoes.nomeador_hilo import nomeador_grid
     '''
     
     '''

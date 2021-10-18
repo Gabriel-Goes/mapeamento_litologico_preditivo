@@ -37,6 +37,7 @@ def lista_cols(geof):
     return lista_atributo_geof, lista_atributo_geog, lista_atributo_proj
 # ----------------------------------------------------------------------------------------------------------------------
 
+# ----------------------------------------------------------------------------------------------------------------------
 # DESCRIÇÃO ESTATISTICA DOS DADOS AEROGEOFÍSICOS
 def descricao(geof):
     lista_atributo_geof,lista_atributo_geog,lista_atributo_proj = lista_cols(geof)  # USANDO FUNCAO DEFINIDA ACIMA PARA CATEGORIZAR METADADO
@@ -58,6 +59,7 @@ def descricao(geof):
     return metadatadict,lista_atributo_geof,lista_atributo_geog,lista_atributo_proj,geof_descrito
 #----------------------------------------------------------------------------------------------------------------------
 
+# ----------------------------------------------------------------------------------------------------------------------
 def metadataframe(GeoDataFrame):
     '''
     Recebe: GeoDataFrame (Features and Geometry)
@@ -69,8 +71,9 @@ def metadataframe(GeoDataFrame):
     meta_lito['Valores unicos'] = GeoDataFrame.nunique()        # Describe the number of unique values from our object, that is a GeoDataFrame
     meta_lito = meta_lito.rename(columns = {0 : 'dType'})       # Rename the first column to 'dtype', the name of the function we used.
     return meta_lito
+# ----------------------------------------------------------------------------------------------------------------------
 
-
+# ----------------------------------------------------------------------------------------------------------------------
 # com estas funçoes utilizadas asssimas, podemos definir uma funçao que descreve o nosso dado vetorial
 def describe_geologico(gdf):
     lista_colunas = list(gdf.columns)
@@ -81,11 +84,10 @@ def describe_geologico(gdf):
                       'lista_litotipos': lista_litotipos,
                       'lista_legenda': lista_legenda}
     return dic_litologico   
+# ----------------------------------------------------------------------------------------------------------------------
 
-
+# ----------------------------------------------------------------------------------------------------------------------
 #### Filtro de LITOTIPOS
-
-
 def filtro(gdf,mineral):
     '''
     Recebe uma camada vetorial e uma 'str', navega pela coluna LITOTIPOS selecionando geometrias que contem a 'str'
@@ -99,5 +101,6 @@ def filtro(gdf,mineral):
         print(f"{list(gdf['LITOTIPOS'].unique())}")
     else:
         return filtrado
+# ----------------------------------------------------------------------------------------------------------------------
 
 
