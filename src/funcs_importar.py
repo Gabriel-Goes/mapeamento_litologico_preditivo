@@ -22,11 +22,11 @@ def gdb(path=''):
 # ----------------------------------------------------------------------------------------------------------------------
 
 # IMPORTADOR DE LITOLOGIAS POR ESCALA ----------------------------------------------------------------------------------
-def import_xyz(caminho,cols,skiprows,usecols):
+def import_xyz(caminho,usecols):
     dataframe = pd.read_csv(gdb(caminho),
-                            names=cols,
+                            names='KB DATA BARO UB THB COSMICO CTB UUP ALTURA KPERC eU eTH CTEXP UTHRAZAO X Y UKRAZAO MDT THKRAZAO LIVE_TIME CTCOR KCOR THCOR UCOR HORA GPSALT LATITUDE FIDUCIAL TEMP LONGITUDE'.split(" "),
                             delim_whitespace=True,
-                            skiprows=skiprows,                                     # Linhas de cabeçalho
+                            skiprows=11,                                     # Linhas de cabeçalho
                             usecols=usecols)
     dataframe.dropna(inplace=True)
     return dataframe
