@@ -45,7 +45,7 @@ def descricao(geof):
     metadatadict = pd.DataFrame(geof.dtypes)
     metadatadict["Valores Faltantes"] = geof.isnull().sum()
     metadatadict["Valores Únicos"] = geof.nunique()
-    metadatadict["Valoes Negativos"] = sum(n < 0 for n in geof.values)
+    metadatadict["Valores Negativos"] = sum(n < 0 for n in geof.values)
     metadatadict["Amostragem"] = geof.count()
     metadatadict = metadatadict.rename(columns = {0 : 'dType'})
 

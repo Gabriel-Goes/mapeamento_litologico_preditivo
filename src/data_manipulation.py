@@ -13,11 +13,13 @@ from shapely import geometry
 from tqdm import tqdm
 from verde import inside
 
-from src.funcs_importar import dado_bruto
+from src.funcs_importar import dado_bruto, import_xyz, importar_geometrias
 from src.funcs_cartog_automation import cartas
 from src.funcs_descricao import descricao
 
 from contribuicoes.victsnet_emails import source_code_verde as td
+
+from src.funcs_importar import gdb
 
 
 # CRIANDO DICIONARIO DE FOLHAS CARTOGRAFICAS PARA CARA TIPO DE DADO
@@ -29,34 +31,38 @@ def get_region(escala,id,geof,camada,mapa=None):
           geof : Dado aerogeofísico disponível na base de dados (/home/ggrl/geodatabase/geof/)
         camada : Litologias disponíveis na base de dados (/home/ggrl/geodatabase/geodatabase.gpkg)
     '''
+    # Importando dados litológicos e geofísicos
+    print('')
     print('# Importando dados')
-    litologia, geof_dataframe = dado_bruto(camada,mapa,geof)
+    litologia = importar_geometrias(camada,mapa)
+    geof_dataframe = import_xyz(gdb(geof))
 
     # LISTANDO REGIOES DAS FOLHAS DE CARTAS
     print('')
-    print('# -- Selecionando Folhas Cartograficas')
-    
+    print('# - Selecionando Folhas Cartograficas')
     dict_cartas,\
     malha_cartog_gdf_select = cartas(escala,id)
 
+    print('')
+    print('# -- Contruindo dicionario de metadados')
     metadatadict,        \
     lista_atributo_geof, \
     lista_atributo_geog, \
     lista_atributo_proj, \
           geof_descrito  = descricao(geof_dataframe)
 
-    print('# -- Contruindo dicionario de metadados')
     dic_raw_meta={'Metadata'          :metadatadict,
                   'Lista_at_geof'     :lista_atributo_geof,
                   'Lista_at_geog'     :lista_atributo_geog,
                   'Lista_at_proj'     :lista_atributo_proj,
                   'Percentiles'       :geof_descrito,
                   'Malha_cartografica':malha_cartog_gdf_select}
+
     # ITERANDO ENTRE AS FOLHAS DE CARTAS
-    print("")
+    print('')
     print(f"# --- Início da iteração entre as folhas cartográficas #")
 
-    ## Dicionario de cartas[key: 'litologia']
+    ## dict_cartas = {'litologia':''}
     dict_cartas['litologia'] ={}
     
     for index, row in tqdm(malha_cartog_gdf_select.iterrows()):
@@ -69,10 +75,14 @@ def get_region(escala,id,geof,camada,mapa=None):
             y = {index:litologia}
             dict_cartas['litologia'].update(y)
             print(f"A folha {index} possui apenas '{len(data)}' pontos coletados que devem ser adicionados a folha mais próxima")
+            print(f" Atualizando dados geofísicos em dic_cartas['raw_data']")
+            x = {index:data}
+            dict_cartas['raw_data'].update(x) 
+            print(f" com {len(data)} pontos de amostragem")
             
         else:
             print(f"# Folha de código: {index}")
-            print(f" Atualizando dados brutos em dic_cartas['raw_data']")
+            print(f" Atualizando dados geofísicos em dic_cartas['raw_data']")
             x = {index:data}
             dict_cartas['raw_data'].update(x) 
             print(f" com {len(data)} pontos de amostragem")
@@ -80,25 +90,40 @@ def get_region(escala,id,geof,camada,mapa=None):
             litologia.to_crs(32723,inplace=True)
             print(litologia.crs)
 
-            litologia=litologia.cx[row.region_proj[0]:row.region_proj[1],row.region_proj[2]:row.region_proj[3]]
-            print(f" Atualizando dados geologicos em dic_cartas['litologia']")
+            litologia = litologia.cx[row.region_proj[0]:row.region_proj[1],row.region_proj[2]:row.region_proj[3]]
+            print(f" Atualizando dados litológicos em dic_cartas['litologia']")
             print(f" com {litologia.shape[0]} poligonos descritos por\
                          {litologia.shape[1]} atributos geologicos ")
-
+            
+            # dict_cartas = {'litologia':{'id_folha':''}         # this can be done better
+            #                                                     dict_cartas = {'index':'litologia','geofisico','interpolado','...'}
+            #                }
             y = {index:litologia}
             dict_cartas['litologia'].update(y)
+            
         
         if data.empty:
             None
             print('Folha cartografica sem dados Aerogeofisicos')
 
-    return dict_cartas,dic_raw_meta
+    return dict_cartas, dic_raw_meta
 # --------------------------------------------------------------------------------------
 
 # # --------------------- DEFININDO FUNÇÃO DE QUE CHAMARÁ AS FUNÇÕES ANTERIORES PROVOCANDO UM ENCADEAMENTO DE OPERAÇÕES -------------- 
-def interpolar(mag=None,gama=None,
+def interpolar(mag=None,gama=None, geof=None,
                dic_cartas=None,dic_raw_meta=None):
-               
+    '''
+    Recebe:
+                 mag :
+                gama :
+          dic_cartas :
+        dic_raw_meta :
+
+
+    '''
+    # Criando chave para dados Interpolados
+    dic_cartas['cubic'] = {}
+
     print('# Inicio dos processos de interpolação pelo método cúbico')
     for index, row in tqdm(dic_raw_meta['Malha_cartografica'].iterrows()):
         print(index,row)
@@ -126,8 +151,39 @@ def interpolar(mag=None,gama=None,
             area = dic_cartas['region_proj'][index]
 
             # creating a grid with cells
-            xu, yu = td.regular(shape = (636, 444),
+            xu, yu = td.regular(shape = (1272, 888),
                                 area  = area)
+
+            if geof:
+                CTC = np.array(gdf_geof.CTC)
+                THC = np.array(gdf_geof.THC)
+                UC = np.array(gdf_geof.UC)
+                KC = np.array(gdf_geof.KC)
+                MAGR = np.array(gdf_geof.MAGR)
+                ALTE = np.array(gdf_geof.ALTE)
+
+
+                x2, y2 = np.array(gdf_geof.X), np.array(gdf_geof.Y)
+
+                alte_ = td.interp_at(x2, y2, ALTE, xu, yu, algorithm = 'cubic', extrapolate = True)
+                uc_ = td.interp_at(x2, y2, UC, xu, yu, algorithm = 'cubic', extrapolate = True)
+                kc_ = td.interp_at(x2, y2, KC, xu, yu, algorithm = 'cubic', extrapolate = True)
+                ctc_ = td.interp_at(x2, y2, CTC, xu, yu, algorithm = 'cubic', extrapolate = True)
+                thc_ = td.interp_at(x2, y2, THC, xu, yu, algorithm = 'cubic', extrapolate = True)
+                magr_ = td.interp_at(x2, y2, MAGR, xu, yu, algorithm = 'cubic', extrapolate = True)
+
+
+                # intialise data of lists. 
+                data = {'X':xu, 'Y':yu, 'MAGIGRF': magr_,'ALTE':alte_,
+                        'CTC': ctc_, 'KC': kc_, 'UC':uc_, 'THC': thc_} 
+                
+                # Create DataFrame 
+                interpolado_cubico = pd.DataFrame(data)
+                
+                # Atualizando chave 'cubic' com dados interpolados
+                y={index:interpolado_cubico}
+                dic_cartas['cubic'].update(y)
+
 
             if mag:
                 ALTURA = np.array(gdf_geof.ALTURA)
@@ -147,14 +203,14 @@ def interpolar(mag=None,gama=None,
                 # Create DataFrame 
                 interpolado_cubico = pd.DataFrame(data_interpolado)
                 
-                # Print the output. 
+                # Print the output 
                 y={index:interpolado_cubico}
                 dic_cartas['cubic'].update(y)  
 
             if gama:
                 CTCOR = np.array(gdf_geof.CTCOR)
                 MDT = np.array(gdf_geof.MDT)
-                eTH = np.array(gdf_geof.eTH)
+                eTh = np.array(gdf_geof.eTh)
                 eU = np.array(gdf_geof.eU)
                 KPERC = np.array(gdf_geof.KPERC)
                 THKRAZAO = np.array(gdf_geof.THKRAZAO)
@@ -163,7 +219,7 @@ def interpolar(mag=None,gama=None,
 
                 x2, y2 = np.array(gdf_geof.X), np.array(gdf_geof.Y)
 
-                eTH_ = td.interp_at(x2, y2, eTH, xu, yu, algorithm = 'cubic', extrapolate = True)
+                eTh_ = td.interp_at(x2, y2, eTh, xu, yu, algorithm = 'cubic', extrapolate = True)
                 eu_ = td.interp_at(x2, y2, eU, xu, yu, algorithm = 'cubic', extrapolate = True)
                 kperc_ = td.interp_at(x2, y2, KPERC, xu, yu, algorithm = 'cubic', extrapolate = True)
                 ctcor_ = td.interp_at(x2, y2, CTCOR, xu, yu, algorithm = 'cubic', extrapolate = True)
@@ -174,13 +230,11 @@ def interpolar(mag=None,gama=None,
 
                 # intialise data of lists. 
                 data = {'X':xu, 'Y':yu, 'MDT': mdt_,  'CTCOR': ctcor_,
-                        'KPERC': kperc_, 'eU':eu_, 'eTH': eTH_,
+                        'KPERC': kperc_, 'eU':eu_, 'eTH': eTh_,
                         'UTHRAZAO':uthrazao_,'UKRAZAO':ukrazao_,'THKRAZAO':thkrazao_} 
                 
                 # Create DataFrame 
                 interpolado_cubico = pd.DataFrame(data)
-
-                dic_cartas['cubic'] = {}
                                 
                 y={index:interpolado_cubico}
                 dic_cartas['cubic'].update(y)
@@ -226,11 +280,13 @@ def describe(dic_cartas,dic_raw_data,crs__,tdm,):
                 gdf = gpd.GeoDataFrame(geof_cubic,crs=32723)
                 gdf = gdf.set_crs(32723, allow_override=True)
                 gdf = gdf.to_crs("EPSG:32723")
+                print('')
                 print(f" geof: {gdf.crs}")
             else:
                 gdf = gpd.GeoDataFrame(geof_cubic,crs=32723)
                 gdf = gdf.set_crs(32723, allow_override=True)
                 gdf = gdf.to_crs("EPSG:4326")
+                print('')
                 print(f" geof: {gdf.crs}")
 
 

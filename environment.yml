@@ -1,28 +1,36 @@
-# run: "conda env create --file  ~/PATH/environment.yml"  or "conda env create -f ~/PATH/environment.yml"
+# run: "conda env create --file  ~/PATH/environment.yml"  or "conda env create -f ~/PATH/environment.yml";
 # o ambiente conda será instalado com as seguintes bibliotecas:
 
-name: geologist_bot
+name: geologist_machine            # The name can be changed to anything of your like;
 dependencies:
 
  #Data Treatment & Visualization:
 - pandas
-- numpy
-- matplotlib
+- numpy                           #{ Data visualization \
+- matplotlib                       
+- seaborn                         #  buth has more features than this};     
+
 
 # Geospatial libraries:
 - geopandas
 
+# Further we can inplement theese algorithms on QGIS
+- qgis
 
 # Conda Environment
-- pip
-- ipympl
-- ipykernel
+- pip                                 # Package Mannager to install dependencies that conda-forge cant handle;
+- ipympl                              # {
+- ipykernel                           # Packages do handle visual studio code compatibility with jupyter notebooks };
+
 
 # pip dependencies:
 - pip:
   # Interpolation & Image Processing:
   - rasterio
-  - verde
+  - verde                             # Interpolation with Splines. Has classes for cross validation
   - rioxarray
-  - seaborn
-  - tqdm
+  - tqdm                              # Loading bar within the fors
+
+
+# machine learning
+- scikitlearn
