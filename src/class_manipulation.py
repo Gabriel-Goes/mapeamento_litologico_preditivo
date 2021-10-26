@@ -13,13 +13,12 @@ from shapely import geometry
 from tqdm import tqdm
 from verde import inside
 
-from src.funcs_importar import dado_bruto, import_xyz, importar_geometrias
-from src.funcs_cartog_automation import cartas
-from src.funcs_descricao import descricao
+from src.funcs1_importar import dado_bruto, import_xyz, importar_geometrias, gdb
+from src.funcs2_descricao import descricao
+from src.funcs3_cartog_automation import cartas
 
 from contribuicoes.victsnet_emails import source_code_verde as td
 
-from src.funcs_importar import gdb
 
 
 # CRIANDO DICIONARIO DE FOLHAS CARTOGRAFICAS PARA CARA TIPO DE DADO
@@ -31,9 +30,10 @@ def get_region(escala,id,geof,camada,mapa=None):
           geof : Dado aerogeofísico disponível na base de dados (/home/ggrl/geodatabase/geof/)
         camada : Litologias disponíveis na base de dados (/home/ggrl/geodatabase/geodatabase.gpkg)
     '''
+
     # Importando dados litológicos e geofísicos
     print('')
-    print('# Importando dados')
+    print('# - Importando dados')
     litologia = importar_geometrias(camada,mapa)
     geof_dataframe = import_xyz(gdb(geof))
 

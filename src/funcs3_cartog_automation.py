@@ -1,5 +1,6 @@
 import pandas as pd
 
+from src.funcs1_importar import import_malha_cartog
 from contribuicoes.hilogoes.nomeador_hilo import nomeador_grid
 
 
@@ -44,7 +45,6 @@ def regions(malha_cartog):
 # SELECIONANDO AREA DE ESTUDO
 
 def cartas(escala,ids):
-    from src.funcs_importar import import_malha_cartog
     '''
     
     '''

@@ -1,6 +1,35 @@
 from tqdm import tqdm
 import pandas as pd
 
+
+
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# METANÁLISE DOS DADOS LITOLÓGICOS
+def metadataframe(GeoDataFrame):
+    '''
+    Recebe : 
+        GeoDataFrame Object : Camadas vetoriais de unidades litoestratigráficas;
+        
+        Retorna :
+            DataFrame Object: Planílha com metanálise das camadas vetoriais;
+    '''
+    print(f'# -- Gerando MetaDataFrame Litoestratigráfico')
+    type_dataframe = pd.DataFrame(GeoDataFrame.dtypes)               # Describe the dtype of each column from the DataFrame or, better saying, GeoDataFrame;
+
+    type_dataframe['Valores null']   = GeoDataFrame.isnull().sum()   # Describe the sum of each null value from our object
+    type_dataframe['Valores unicos'] = GeoDataFrame.nunique()        # Describe the number of unique values from our object, that is a GeoDataFrame
+
+    meta_dataframe_litologico = type_dataframe.rename(columns = {0 : 'dType'})       # Rename the first column to 'dtype', the name of the function we used.
+
+    print('')
+    
+    return meta_dataframe_litologico
+# ----------------------------------------------------------------------------------------------------------------------
+
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 # LISTANDO ATRIBUTOS GEOFÍSICOS E ATRIBUTOS GEOGRÁFICOS
 def lista_cols(geof):
@@ -59,19 +88,7 @@ def descricao(geof):
     return metadatadict,lista_atributo_geof,lista_atributo_geog,lista_atributo_proj,geof_descrito
 #----------------------------------------------------------------------------------------------------------------------
 
-# ----------------------------------------------------------------------------------------------------------------------
-def metadataframe(GeoDataFrame):
-    '''
-    Recebe: GeoDataFrame (Features and Geometry)
 
-        Retorna: An object Pandas DataFrame containing a MetaData description of the GeoPandas Object GeoDataFrame
-    '''
-    meta_lito = pd.DataFrame(GeoDataFrame.dtypes)               # Describe the dtype of each column from the DataFrame or, better saying, GeoDataFrame;
-    meta_lito['Valores null'] = GeoDataFrame.isnull().sum()     # Describe the sum of each null value from our object
-    meta_lito['Valores unicos'] = GeoDataFrame.nunique()        # Describe the number of unique values from our object, that is a GeoDataFrame
-    meta_lito = meta_lito.rename(columns = {0 : 'dType'})       # Rename the first column to 'dtype', the name of the function we used.
-    return meta_lito
-# ----------------------------------------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------------------------------------
 # com estas funçoes utilizadas asssimas, podemos definir uma funçao que descreve o nosso dado vetorial
