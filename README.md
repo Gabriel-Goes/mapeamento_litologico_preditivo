@@ -80,7 +80,7 @@ The process to install the linux distribution, kernel and Window Mannager can be
 
     4.a - First step is to install the Pre-requisites packages with the following command:
     
-	sudo pacman -Sy libxau libxi libxss libxtst libxcursor libxcomposite libxdamage libxfixes libxrandr libxrender mesa-libgl  alsa-lib libglvnd
+    	sudo pacman -Sy libxau libxi libxss libxtst libxcursor libxcomposite libxdamage libxfixes libxrandr libxrender mesa-libgl  alsa-lib libglvnd
   
     4.b - Second step is to download the Anaconda.sh file, a bash script that will handle the actual installation of Anaconda;
         - But before running any bash script, we have to make shure that the file is the original one and not will harm our machine, or is not corrupted. Run de command:
