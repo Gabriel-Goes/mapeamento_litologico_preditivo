@@ -25,10 +25,9 @@
 	environment.yml
 
 -5 Programming Language
-	- Python
-		Tutorials 
-			- Jupyter Notebooks:
-  				1: GeoPandas Reading loose shp & Writing Data Base.gpkg 
+	5.1- Python Tutorials 
+			5.1.a - Jupyter Notebooks:
+  					1: GeoPandas Reading loose shp & Writing Data Base.gpkg 
 
 # ---------------------------------------------------------------------------------------------------------------------------------- #
 
@@ -64,6 +63,9 @@ The process to install the linux distribution, kernel and Window Mannager can be
 
 
 # 3 ---------------------------------------------- Git: File Versioning System ----------------------------------------------------- #
+ - GIT commes installed with arch linux, but can be downloaded with the following command:
+
+	sudo pacman -S git
 
  - With git installed we can run the command:
  
@@ -90,16 +92,20 @@ The process to install the linux distribution, kernel and Window Mannager can be
 #		*** Take note that the version will change, so the hash function output ***
 #			*** Make sure that the version is the exact same one ***
 
-   4.c - After downloading and verifying integrity, we can install the the package mannager with the following command: 
+   4.c - After downloading and verifying integrity, we can install the the package mannager with the following command:
+   
 	bash ~/Downloads/Anaconda3-2021.05-Linux-x86_64.sh
 	
    4.d - At my distribution of linux, it was necessary to send the following command to activate anaconda:
+   
 	source bin/activate root
 	
    4.e - With Anaconda installed, we can build our environment runing the command:
+   
 	conda env create --file environment.yml
    
    4.f - For better practiality, we can install nb_conda_kernels. This way, we can access any environment from base env. Command:
+   
 	conda activate base
 	conda install -c conda-forge nb_conda_kernels
 	
@@ -111,7 +117,7 @@ The process to install the linux distribution, kernel and Window Mannager can be
  - We gonna start by interacting with the online database of the Brasil's Geological Service and constructing a local database inside our machine.
 
  - The process of this interaction and local database creation is discretized within the first Tutorial Jupyter Notebook and can be read by typing the following command:
- 
-	jupyter-notebook 1-Geopandas:Geopackage_as_Database.ipynb
+ 	
+		jupyter-notebook 1-Geopandas:Geopackage_as_Database.ipynb
  
 
