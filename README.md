@@ -66,6 +66,7 @@ The process to install the linux distribution, kernel and Window Mannager can be
 # 3 ---------------------------------------------- Git: File Versioning System ----------------------------------------------------- #
 
  - With git installed we can run the command:
+ 
 	git clone git@github.com:Gabriel-Goes/mapeamento_litologico_preditivo.git
 
  - This command will create a directory exactly the same as it is at GitHub and we can work on the same project simuntaniously
@@ -78,14 +79,16 @@ The process to install the linux distribution, kernel and Window Mannager can be
  - The steps to install Anaconda can be found at < https://docs.anaconda.com/anaconda/install/linux/ >
 
     4.a - First step is to install the Pre-requisites packages with the following command:
+    
 	sudo pacman -Sy libxau libxi libxss libxtst libxcursor libxcomposite libxdamage libxfixes libxrandr libxrender mesa-libgl  alsa-lib libglvnd
   
     4.b - Second step is to download the Anaconda.sh file, a bash script that will handle the actual installation of Anaconda;
         - But before running any bash script, we have to make shure that the file is the original one and not will harm our machine, or is not corrupted. Run de command:
+        
 		sha256sum ~/Downloads/Anaconda3-2021.05-Linux-x86_64.sh 
 
-		*** Take note that the version will change, so the hash function output ***
-			*** Make sure that the version is the exact same one ***
+#		*** Take note that the version will change, so the hash function output ***
+#			*** Make sure that the version is the exact same one ***
 
    4.c - After downloading and verifying integrity, we can install the the package mannager with the following command: 
 	bash ~/Downloads/Anaconda3-2021.05-Linux-x86_64.sh
@@ -108,6 +111,7 @@ The process to install the linux distribution, kernel and Window Mannager can be
  - We gonna start by interacting with the online database of the Brasil's Geological Service and constructing a local database inside our machine.
 
  - The process of this interaction and local database creation is discretized within the first Tutorial Jupyter Notebook and can be read by typing the following command:
+ 
 	jupyter-notebook 1-Geopandas:Geopackage_as_Database.ipynb
  
 
