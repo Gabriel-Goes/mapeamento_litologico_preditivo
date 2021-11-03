@@ -20,9 +20,16 @@
 -3 Git (Version Control);
 	Git is a tool for controlling versions enabeling group work.
 
--4 Programming Environment - Anaconda;
-	Anaconda is a package mannager and environment builder. 
-	environment.yml
+-4 Programming Environment;
+	- VIM: A Powerful text Editor.
+
+	- Anaconda: A package mannager and environment builder. 
+		- environment.yml
+
+	- Poetry: Another package mannager.
+
+	- PyEnv:
+	
 
 -5 Programming Language
 	5.1- Python Tutorials 
