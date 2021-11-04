@@ -1,8 +1,9 @@
 # Definindo caminho
 def gdb(path=''):
     '''
-    Diretorio raiz dos dados : '/home/ggrl/geodatabase/'
-    path : caminho ate o arquivo desejado;
+    Diretório raíz dos dados : '/home/ggrl/geodatabase/'
+
+        path : caminho até o arquivo desejado
     '''
     gdb = '/home/ggrl/geodatabase/' + path
     return gdb
