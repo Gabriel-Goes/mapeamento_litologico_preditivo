@@ -1,5 +1,5 @@
 import geopandas as gpd
-
+import fiona
 
 # Definindo caminho
 def gdb(path=''):
@@ -26,18 +26,23 @@ def importar_geometrias(camada, mapa=False):
     Se Retornar camada vazia recebera a lista das camadas veotoriais diposniveis
     Se mapa == False: retorna todos os objetos presente nesta camada vetorial
     '''
-    
-    lito =  gpd.read_file(gdb('geodatabase.gpkg'),
-                        driver= 'GPKG',
-                        layer= camada)
+   
+    try:
+        lito =  gpd.read_file(gdb('geodatabase.gpkg'),
+                              driver= 'GPKG',
+                              layer= camada)
+    except ValueError:
+        print(f"# -- Lista de camadas vetoriais disponívei: {fiona.listlayers(gdb('geodatabase.gpkg'))}")
 
     if mapa:
         folha = lito[lito.MAPA == 'Carta geológica da folha ' + mapa]             # df[df.series]
         
         if folha.empty:
 
-            print("O mapa escolhido nao est'a presente na coluna MAPA da camada veotiral. Os mapas disponiveis serao listados a seguir.")
-            print('# Selecionando apenas os caracteres apos ''folha'' (SEM ESPAÇO)')
+            print("# O mapa escolhido nao está presente na coluna MAPA da camada veotiral. Os mapas disponiveis serao listados a seguir.")
+            print(" ")
+            print('# Digite apenas o nome do mapa após <Carta geológica da folha>. (SEM ESPAÇO)')
+            print(" ")
             print(f"# -- Lista de mapas: {list(lito.MAPA.unique())}")
 
             lista_mapas = list(lito.MAPA.unique())
@@ -45,6 +50,7 @@ def importar_geometrias(camada, mapa=False):
 
         else:    
             return(folha)
+
 
     else:
         return(lito)
