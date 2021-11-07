@@ -1,6 +1,6 @@
-#                                                  THIS IS THE TUTORIAL BRANCH
+#                        THIS IS THE TUTORIAL BRANCH
 
-# ------------------------------------------------------- !ATENTION! --------------------------------------------------------------- #
+#--------------------------------- !ATENTION! ------------------------------- #
 
 # THIS IS A WORK IN PROGRESS REPOSITORY, ANY CONTENT INSIDE IT IS SUBJECT TO CHANGES, IF YOU SPOT ANY ERROR REPORT BY OPENING AN ISSUE
 
@@ -12,15 +12,17 @@
 
 	git branch development
 
-# ------------------------------------------------------- !ATENTION! ---------------------------------------------------------------- #
+# -------------------------------- !ATENTION! ------------------------------- #
 
 # This file contains a Summary list and Summanry Description
 
 # Summary List:
-Programming Environment - Google Colabs;
-	Google Colabs is a online service that provide computational power via internet;
+1 - Programming Environment - Google Colabs:
+	Google Colabs is a online service that provide computational power via internet. The following  link is the Google Drive where is located the jupyter notebooks and exemple files all setted up to run within googlecolab environment.
 
--5 Programming Language
+	https://drive.google.com/drive/folders/1ZNYQBscv28Srgu-FAlyCwJoVhrXjIOne?usp=sharing
+
+2 - Programming Language
 	- Python
 		Tutorials 
 			- Jupyter Notebooks:
