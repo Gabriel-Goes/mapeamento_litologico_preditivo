@@ -1,16 +1,16 @@
-#                                                  THIS IS THE DELEVOPMENT BRANCH
+#                      THIS IS THE DELEVOPMENT BRANCH
 
-# ------------------------------------------------------- !ATENTION! --------------------------------------------------------------- #
+# --------------------------------- !ATENTION! ------------------------------ #
 
-# IF YOU SEEK FOR THE BASICS OF PYTHON PROGRAMMING LANGUAGES FOR GEOSPATIAL DATA ANALYSIS *HEAD TO TUTORIAL BRANCHES BY TYPING:
+# IF YOU SEEK FOR THE BASICS OF PYTHON PROGRAMMING FOR GEOSPATIAL DATA ANALYSIS 		*HEAD TO TUTORIAL BRANCHES BY TYPING:
 
 	git branch Tutorials
 
-# ------------------------------------------------------- !ATENTION! --------------------------------------------------------------- #
+# --------------------------------- !ATENTION! ------------------------------ #
 
 # This file contains a Summary list and Summanry Description
 
-# Summary List:
+# ----- Summary List:
 -1 Machine Assembly;
 	Construction of a local machine to process our data.
 
@@ -36,16 +36,16 @@
 			5.1.a - Jupyter Notebooks:
   					1: GeoPandas Reading loose shp & Writing Data Base.gpkg 
 
-# ---------------------------------------------------------------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
 
-# Summary Description:
-	- The Geologist Machine Repository contain all the steps necessary to create an programming environment for geological data analysis;
-	- Starting from the construction of a local machine capable to execute commands through the interpretation of an logical language.
-	- To do so, we'll need a personal computer and an operational system installed;
+# ----- Summary Description:
+
+	The Geologist Machine Repository contain all the steps necessary to create an programming environment for geological data analysis. Starting from the construction of a local machine capable to execute commands through the interpretation of an logical language.
+	To do so, we'll need a personal computer and an operational system installed.
 
 # 1 - Machine Assembly -
 
-The local machine running this project is equiped with:
+ - The local machine running this project is equiped with:
 
 	- MB: B450M DS3H;
 	- CPU: AMD Ryzen 3600X (6 cores, 12 threads, 3,6 to 4,4Ghz );
