@@ -12,30 +12,37 @@
 
 # ----- Summary List:
 -1 Machine Assembly;
-	Construction of a local machine to process our data.
+	Building a local machine to process our data.
 
 -2 Operational System;
-	The software system that is used to interact with to hardware that we've assembled.
+	The software system that is used to interact to hardware that we've assembled.
 
 -3 Git (Version Control);
 	Git is a tool for controlling versions enabeling group work.
 
 -4 Programming Environment;
 	- VIM: A Powerful text Editor.
+		- ./vimrc
 
 	- Anaconda: A package mannager and environment builder. 
 		- environment.yml
 
-	- Poetry: Another package mannager.
+	- Poetry: Another package mannager. (STUDYING)
 
-	- PyEnv:
+	- PyEnv: (STUDYING)
 	
 
 -5 Programming Language
 	5.1- Python Tutorials 
 			5.1.a - Jupyter Notebooks:
-  					1: GeoPandas Reading loose shp & Writing Data Base.gpkg 
+  					1: GeoPandas - Read mutiples.shp & Write one.gpkg
+						1.1: Geopandas - Geospatial Data Analysis
+						1.2: Geopandas - Geospatial Data Visualization
 
+					2: Pandas & Numpy - From .xyx to Geometry
+						2.1: Describing raw aerogeophysical data
+				
+					3: Python - Cartographic Mesh Automation
 # --------------------------------------------------------------------------- #
 
 # ----- Summary Description:
@@ -47,7 +54,7 @@
 
  - The local machine running this project is equiped with:
 
-	- MB: B450M DS3H;
+	- MOBO: B450M DS3H;
 	- CPU: AMD Ryzen 3600X (6 cores, 12 threads, 3,6 to 4,4Ghz );
 	- RAM: 1 Module of 16Gb at 3.2Ghz & 1 Module of 8Gb at 3.2Ghz;
 	- GPU: Nvidia GTX 1650 Super ( 4Gb vram up to 2.1Ghz );
@@ -65,7 +72,7 @@
 
  - The process to install the linux distribution, kernel and Window Mannager can be found at:
 		
-		< https://wiki.archlinux.org > 
+						< https://wiki.archlinux.org > 
 
 
 # 3 - Git: File Versioning System -
@@ -75,7 +82,7 @@
 
 	- With git installed we can run the command:
  
-		git clone git@github.com:Gabriel-Goes/mapeamento_litologico_preditivo.git
+				git clone git@github.com:Gabriel-Goes/mapeamento_litologico_preditivo.git
 
 	- This command will create a directory exactly the same as it is at GitHub and we can work on the same project simuntaniously
 
@@ -85,8 +92,12 @@
 # 4 - Programming Environment -
 ##	4.1 Anaconda
 
-	- The steps to install Anaconda can be found at < https://docs.anaconda.com/anaconda/install/linux/ >
-
+	- The steps to install Anaconda can be found at:
+			
+					 < https://docs.anaconda.com/anaconda/install/linux/ >
+	
+	- But the following commands that'll be described here is a 'mix' of useful commands to create a robust programming environment
+	
 ###	4.1.a - First step is to install the Pre-requisites packages with the following command:
     
     		sudo pacman -Sy libxau libxi libxss libxtst libxcursor libxcomposite libxdamage libxfixes libxrandr libxrender mesa-libgl  alsa-lib libglvnd
@@ -117,32 +128,31 @@
 		conda activate base
 		conda install -c conda-forge nb_conda_kernels
 
+		* There are other ways for mannaging packages and environments, and we shall try thoose and test which suits better to our project
 
-## There are other ways for mannaging packages and environments, and we shall try thoose and test which suits better to our project
+## 	4.2 - Poetry: A Package Mannager
+	
+	- With poetry, we can create packages and deploy them with easy. So download packages too.
 
-##	4.2 - VIM: A Powerful Text Editor:
+##	4.3 - VIM: A Powerful Text Editor:
 	
 	- VIM is a free software built to edit text files with built in commands that helps us to navigate throught our project with easy.
 
 
-## 	4.3 - Poetry: A Package Mannager
-	
-	- With poetry, we can create packages and deploy them with easy. So download packages too.
-
-
 # 5 - Programming Language - #
  - Python:
-	- To start writing and testing our code, we can use jupyter notebooks by making sure we are inside a anaconda terminal. To do so, check if the terminal contain (base) or another (env) at the begining. Then, type:
+	- To start writing and testing our code, we can use jupyter notebooks by making sure we are inside a anaconda terminal. To do so, check if the terminal contain (base) or another (environment) at the begining. Then, type:
 		
 			jupyter-notebook &
 	
 	- The '&' argument makes us able to close the terminal and continue running the task.
 	- Remember, jupyter will open at the folder that your terminal is in.
 
+	- We can use an API called JupyterLab, with JupyterLab we can navigate through our files and run the .ipynb text-files.
 
-# Start of the tutorial:
+# Quick-Start of the tutorial:
 
-	- At this point we are fully capable of creating workflow to process and analyse our geological data;
+	- At this point we are fully capable of creating workflow to process and analyse our geological and geophysical data;
 	- We gonna start by interacting with the online database of the Brasil's Geological Service and constructing a local database inside our machine.
 	- The construction of a local database is not necessary and is not recomended either. But at this tutorial, this process is intended to make us familiarize with our data. But be aware that there are better ways to interact with data, like WFS protocols. 
 	- The process of this interaction and local database creation is discretized within the first Tutorial Jupyter Notebook and can be read by typing the following command:
