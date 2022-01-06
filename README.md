@@ -93,12 +93,12 @@
   
 ###	4.1.b - Second step is to download the Anaconda.sh file, a bash script that will handle the actual installation of Anaconda;
 
-	- But before running any bash script, we have to make shure that the file is the original one and not will harm our machine, or is not corrupted. Run de command:
+	- But before running any bash script, we have to make shure that the file is the original one and will not harm our machine, nor is corrupted. Run de command:
         
 		sha256sum ~/Downloads/Anaconda3-2021.05-Linux-x86_64.sh 
 
-		*** Take note that the version will change, so the hash function output ***
-			*** Make sure that the version is the exact same one ***
+		*** Take note that the version will change, so the hash function output. ***
+			*** Make sure that the version is the same of yours, or copy from the begining to the "/Anaconda3-". ***
 
 ###	4.1.c - After downloading and verifying integrity, we can install the the package mannager with the following command:
    
