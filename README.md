@@ -1,12 +1,13 @@
 #                      THIS IS THE DELEVOPMENT BRANCH
 
-# --------------------------------- !ATENTION! ------------------------------ #
+# ---------------------------- !ATENTION! ------------------------ #
 
-# IF YOU SEEK FOR THE BASICS OF PYTHON PROGRAMMING FOR GEOSPATIAL DATA ANALYSIS 		*HEAD TO TUTORIAL BRANCHES BY TYPING:
+# IF YOU SEEK FOR THE BASICS OF PYTHON PROGRAMMING FOR GEOSPATIAL DATA ANALYSIS
+   *HEAD TO TUTORIAL BRANCHES BY TYPING:
 
-	git branch Tutorials
+	git switch Tutorials
 
-# --------------------------------- !ATENTION! ------------------------------ #
+# ---------------------------- !ATENTION! ------------------------ #
 
 # This file contains a Summary list and Summanry Description
 
@@ -15,7 +16,8 @@
 	Building a local machine to process our data.
 
 -2 Operational System;
-	The software system that is used to interact to hardware that we've assembled.
+	The software system that is used to interact with the hardware that 
+    we've assembled.
 
 -3 Git (Version Control);
 	Git is a tool for controlling versions enabeling group work.
@@ -39,7 +41,7 @@
 						1.1: Geopandas - Geospatial Data Analysis
 						1.2: Geopandas - Geospatial Data Visualization
 
-					2: Pandas & Numpy - From .xyx to Geometry
+					2: Pandas & Numpy - From .xyx to Point Geometry
 						2.1: Describing raw aerogeophysical data
 				
 					3: Python - Cartographic Mesh Automation
@@ -72,21 +74,23 @@
 
  - The process to install the linux distribution, kernel and Window Mannager can be found at:
 		
-						< https://wiki.archlinux.org > 
+                     	< https://wiki.archlinux.org > 
 
 
 # 3 - Git: File Versioning System -
 	- GIT commes installed with arch linux, but can be downloaded with the following command:
 
-		sudo pacman -S git
+	sudo pacman -S git
 
 	- With git installed we can run the command:
  
-				git clone git@github.com:Gabriel-Goes/mapeamento_litologico_preditivo.git
+	git clone git@github.com:Gabriel-Goes/mapeamento_litologico_preditivo.git
 
-	- This command will create a directory exactly the same as it is at GitHub and we can work on the same project simuntaniously
+	- This command will create a directory exactly the same as it is at GitHub 
+and we can work on the same project simuntaniously
 
-	- Git is a powerfull and complex tool, but with a few commands we can do usefull tasks;
+	- Git is a powerfull and complex tool, but with a few commands we can do 
+usefull tasks;
 
 
 # 4 - Programming Environment -
@@ -130,11 +134,11 @@
 
 		* There are other ways for mannaging packages and environments, and we shall try thoose and test which suits better to our project
 
-## 	4.2 - Poetry: A Package Mannager
+## 4.2 - Poetry: A Package Mannager
 	
 	- With poetry, we can create packages and deploy them with easy. So download packages too.
 
-##	4.3 - VIM: A Powerful Text Editor:
+## 4.3 - VIM: A Powerful Text Editor:
 	
 	- VIM is a free software built to edit text files with built in commands that helps us to navigate throught our project with easy.
 
