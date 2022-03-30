@@ -45,6 +45,8 @@
 	
 	I've created a folder, and i'm sharing it by this link:
 		
+		https://drive.google.com/drive/folders/1ZNYQBscv28Srgu-FAlyCwJoVhrXjIOne?usp=sharing
+		
 
  - At this point we are fully capable of creating workflow to process and analyse our geological data;
 
