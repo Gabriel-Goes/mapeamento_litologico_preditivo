@@ -19,8 +19,6 @@ def import_xyz(filename,rowskiped):
 
     return geof
 
-
-# Dado Aerogeofísico
 geof = import_xyz('1105_GamaLine.XYZ',10)
 geof.dropna(inplace=True)
 
@@ -67,11 +65,21 @@ def list_columns(geof):
     print(f"lista de atributos projetados = {lista_atributo_proj}")
     return lista_atributo_geof, lista_atributo_geog, lista_atributo_proj
 
+listas = list_columns(geof)
 
-meta_listas = list_columns(geof)
+def malha_cartografica(escala,id):
+    malha_cartog = gpd.read_file('/home/ggrl/geodatabase/geodatabase.gpkg',layer='malha_cartog_'+escala+'_wgs84')
+    malha_cartog.head()
+    '''if id:
+        malha_cartog = malha_cartog[malha_cartog.ID].str.contains(id)
+
+        return malha_cartog
+    '''
+    return malha_cartog
 
 
 
+malha_cartog_SF23_250k = malha_cartografica('250k','SF23')
 
 
 

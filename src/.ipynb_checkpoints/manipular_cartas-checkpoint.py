@@ -1,9 +1,26 @@
 # ggrl;
 # geologist_machine;
 # ic_2021
+\
+\
+\
+
 # ------------------------ IMPORTS ---------------
 
+import numpy as np
+import pandas as pd
+import geopandas as gpd
 
+from shapely import geometry
+from tqdm import tqdm
+from verde import inside
+
+# GEOLOGIST REPOSITORY CLASSES 
+from src.f1_importar_geom import dado_bruto, import_xyz, geometrias, gdb
+from src.f2_descrever_geom import descricao
+from src.f3_dicionario_cartas import cartas
+
+#from contribuicoes.victsnet_emails import source_code_verde as td
 
 # CRIANDO DICIONARIO DE FOLHAS CARTOGRAFICAS PARA CARA TIPO DE DADO
 def get_region(escala,id,geof,camada,mapa=None):
@@ -20,7 +37,7 @@ def get_region(escala,id,geof,camada,mapa=None):
     print('# - Importando dados litologicos e geofisicos')
     litologia = geometrias(camada,mapa)
     geof_dataframe = import_xyz(gdb(geof))
-    
+
     # LISTANDO REGIOES DAS FOLHAS DE CARTAS
     print('')
     print('# - Selecionando Folhas Cartograficas')
@@ -48,6 +65,7 @@ def get_region(escala,id,geof,camada,mapa=None):
 
     ## dict_cartas = {'litologia':''}
     dict_cartas['litologia'] ={}
+    
     for index, row in tqdm(malha_cartog_gdf_select.iterrows()):
 
         # RECORTANDO DATA PARA CADA FOLHA COM verde.inside() ['region.proj']
@@ -204,7 +222,7 @@ def interpolar(mag=None, gama=None, geof=None, dic_cartas=None, dic_raw_meta=Non
 
 
 # RETIRANDO VALORES DE LITOLOGIA DE CADA PIXEL
-def describe(dic_cartas,dic_raw_data,crs__,tdm):
+def describe(dic_cartas,dic_raw_data,crs__,tdm,):
     print("")
     print(f"# --- Inicio da análise geoestatística")
     lista_interpolado = list()

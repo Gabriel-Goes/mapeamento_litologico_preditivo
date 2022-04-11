@@ -1,0 +1,13 @@
+(APRESENTAÇÃO)
+    Boa terde, venho apresentar meu projeto Aplicado em Geologia entitulado:
+
+(INTRODUÇÃO)    
+    Prospecção de Áreas Potenciais de Mineraçalização de Minério de Grafita com Auxílio de Sensores Remotos e Inteligênica Artificial. A área de interesse se localiza nos terrenos granulíticos de alto grau metamórfico do sistema de nappes Socorro-Guaxupé, no estado de São Paulo, divisa com Minas Gerais.
+
+(OBJETIVO)
+    O projeto objetiva o mapeamento prospectivo de minério de grafita que auxiliarão em futuras campanhas de exploração.
+
+(METODO)
+    Com a utilização de dados gratuitos é possível contruir um banco de dados com atributos descritivos das anomalias características dos minérios de grafita bem como suas rochas hospedeiras, além de seus efeitos na cobertura detrito-laterítica e vegetação, e com algorítmos de classificação supervisionada como o de florestas randomicas é possível criar uma análise integrada deste conjunto de dados.
+
+    Com um grid sintético de espaçamento de 100m é possível identificar áreas com anomalias radiométricas, lineamentos magnéticos e topográficos que podem indicar controladores estruturais das mineralizações de grafita, além dos dados de sensores orbitais com maior resolução, que podem indicar presença de coberturas ferruginosas
