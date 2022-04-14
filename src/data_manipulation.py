@@ -13,17 +13,17 @@ from shapely import geometry
 from tqdm import tqdm
 from verde import inside
 
-from src.funcs_importar import dado_bruto, import_xyz, importar_geometrias
-from src.funcs_cartog_automation import cartas
-from src.funcs_descricao import descricao
+from funcs_importar import dado_bruto, import_xyz, importar_geometrias
+from funcs_cartog_automation import cartas
+from funcs_descricao import descricao
 
-from contribuicoes.victsnet_emails import source_code_verde as td
+from victsnet_emails import source_code_verde as td
 
-from src.funcs_importar import gdb
+from funcs_importar import gdb
 
 
 # CRIANDO DICIONARIO DE FOLHAS CARTOGRAFICAS PARA CARA TIPO DE DADO
-def get_region(escala,id,geof,camada,mapa=None):
+def select_region(escala,id,geof,camada,mapa=None):
     '''
     Recebe:
         escala : Escalas disponíveis para recorte: '50k', '100k', '250k', '1kk'.
