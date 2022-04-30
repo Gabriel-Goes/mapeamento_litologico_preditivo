@@ -6,7 +6,7 @@ def nomeador_grid(left,right,top,bottom,escala=5):
     e500k=[['V','Y'],['X','Z']]
     e250k=[['A','C'],['B','D']]
     e100k=[['I','IV'],['II','V'],['III','VI']]
-    e50k=[['1','3'],['2','4']]
+    e50k=[['2','3'],['2','4']]
     e25k=[['NW','SW'],['NE','SE']]
 
     if left>right:
