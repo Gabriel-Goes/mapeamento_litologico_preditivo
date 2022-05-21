@@ -2,7 +2,7 @@
 
 
 # Os arquivos presentes nos diretorios a seguir serao ignorados durante os commits:
-arquivado/
+arquivado/*
 .ipynb_checkpoints/
-__pycache__/
-Docs/
+__pycache__/*
+Docs/*
