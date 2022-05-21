@@ -2,14 +2,16 @@
 import geopandas as gpd
 import pandas as pd
 import fiona
-from setuptools_scm import meta
+#from setuptools_scm import meta
 from tqdm import tqdm
 import verde as vd
 from shapely import geometry
 import numpy as np
 import matplotlib.pyplot as plt
-import source as td
 import math
+import pyproj
+from shapely.ops import transform
+
 # -----------------------------------------------------------------------------
 def set_gdb(path=''):
     '''
@@ -28,7 +30,8 @@ def importar_geometrias(camada=None, mapa=None):
 
     Retorna:
         Objeto GeoDataFrame.
-    Se houver seleçao de mapa retornara apenas as geometrias que possuem o nome escolhido na coluna ['MAPA']
+    Se houver seleçao de mapa retornara apenas as geometrias que possuem o nome 
+    escolhido na coluna ['MAPA']
     Se Retornar camada vazia recebera a lista das camadas veotoriais diposniveis
     Se mapa == False: retorna todos os objetos presente nesta camada vetorial
     '''
@@ -47,18 +50,33 @@ def importar_geometrias(camada=None, mapa=None):
     else:
         return lito
 # -----------------------------------------------------------------------------
-def import_malha_cartog(escala, ids=None):
-    malha_cartog = gpd.read_file(set_gdb('geodatabase.gpkg'),
+def import_malha_cartog(escala='25k',ID=None,IDs=None):
+    mc = gpd.read_file(set_gdb('geodatabase.gpkg'),
                                  driver='GPKG',
                                  layer='mc_' + escala)
-    if ids:
-        mc_selected = gpd.GeoDataFrame()
-        for id_folha in ids:
-            mc_selected = mc_selected.append(malha_cartog[malha_cartog['id_folha'] == id_folha])
-            
-        return mc_selected
+                                 
+    if IDs:
+        mc_slct = gpd.GeoDataFrame()
+        for id in tqdm(IDs):
+            mc_slct = mc_slct.append(mc[mc['id_folha'] == id])
+
+    elif ID: 
+        mc_slct = mc[mc['id_folha'].str.contains(ID)]
+
+        return mc_slct
+
     else:
-        return malha_cartog
+        return mc
+# -----------------------------------------------------------------------------
+def import_mc(escala=None,ID=None):
+    mc = gpd.read_file(set_gdb('geodatabase.gpkg'),driver='GPKG',layer='mc_'+escala)
+    mc_slct = gpd.GeoDataFrame()
+    if ID:
+        for id in tqdm(ID):
+            mc_slct = mc_slct.append(mc[mc['id_folha'].str.contains(id)])
+        return mc_slct
+    else:
+        return mc
 # -----------------------------------------------------------------------------
 def import_xyz(caminho):
     '''
@@ -68,10 +86,13 @@ def import_xyz(caminho):
     return dataframe
 # ----------------------------------------------------------------------------------------------------------------------
 def dado_bruto(camada=None, mapa=None, geof=None):
+
     '''
     Recebe:
         __camada : Camada vetorial presento no geopackage;
-        __mapa   : Nome da folha cartografica presenta na coluna 'MAPA' da camada vetorial (SE NAO INSERIR MAPA RETORNA TODOS OS VETORES DA CAMADA SELECIONADA);
+        __mapa   : Nome da folha cartografica presenta na coluna 'MAPA' da 
+                   camada vetorial 
+        (SE NAO INSERIR MAPA RETORNA TODOS OS VETORES DA CAMADA SELECIONADA);
         __geof   : Dados dos aerolevantamentos. gama_tie, gama_line, 
     '''
     print(f'Diretório de dados aerogeofisicos brutos: {set_gdb(geof)}')
@@ -151,9 +172,9 @@ def set_EPSG(mc):
     EPSG=[]
     for i in mc['id_folha']:
         if i[:1] == 'S':
-            EPSG.append('326'+str(i[2:4]))
-        else:
             EPSG.append('327'+str(i[2:4]))
+        else:
+            EPSG.append('326'+str(i[2:4]))
     mc['EPSG']=EPSG
     return mc
         
@@ -167,27 +188,28 @@ def nomeador_malha(gdf):
         lista_malha.append(row.id_folha)
     gdf['id_folha'] = lista_malha
 # -----------------------------------------------------------------------------
-def regions(mc,crs__=None):
-    for i in mc:
-        bounds = mc.bounds
+def regions(mc):
+    bounds = mc.bounds
+    for index,row in mc.iterrows():
         mc['region'] = [(left, right, bottom, top) for
                                     left, right, bottom, top in
                                     zip(bounds['minx'],bounds['maxx'],
                                         bounds['miny'],bounds['maxy'])]
-        mc.to_crs("EPSG:", inplace=True)
-        print(f"-->{mc.crs}")
-        bounds = mc.bounds
+        
+        crs__= row.EPSG
+        mc_proj=mc.to_crs("EPSG:"+str(crs__))
+        bounds_proj = mc_proj.bounds
         mc['region_proj'] = [(left, right, bottom, top) for 
                                 left, right, bottom, top in 
                                     zip(bounds['minx'], bounds['maxx'],
                                         bounds['miny'], bounds['maxy'])]
     return mc
 # -----------------------------------------------------------------------------
-def cartas():
+def cartas(escala=None,ids=None):
     print('# --- Iniciando seleção de área de estudo')
-    mc_select = import_malha_cartog()
-    mc_select.set_index('id_folha', inplace=True)
+    mc_select = import_malha_cartog(escala,ids)
     regions(mc_select)
+    mc_select.set_index('id_folha', inplace=True)
     # CRIANDO UM DICIONÁRIO DE CARTAS
     print('# --- Construindo Dicionario de Cartas')
     mc_select['raw_data'] = ''
@@ -275,16 +297,15 @@ def describe_geologico(gdf):
                       'lista_legenda': lista_legenda}
     return dic_litologico
 # ----------------------------------------------------------------------------------------------
-
+'''
 def set_region(escala, id, geof, camada, mapa=None,crs__=None):
-    '''
     Recebe:
         escala : Escalas disponíveis para recorte: '50k', '100k', '250k', '1kk'.
             id : ID da folha cartográfica (Articulação Sistemática de Folhas Cartográficas)
           geof : Dado aerogeofísico disponível na base de dados (/home/ggrl/database/geof/)
         camada : Litologias disponíveis na base de dados (/home/ggrl/database/geodatabase.gpkg)
         mapa   : Nome do mapa caso necessário.
-    '''
+
     # LISTANDO REGIOES DAS FOLHAS DE CARTAS
     print('')
     print('# - Selecionando Folhas Cartograficas')
@@ -314,6 +335,7 @@ def set_region(escala, id, geof, camada, mapa=None,crs__=None):
         data = geof_df[vd.inside((geof_df.X,
                                   geof_df.Y),
                                   region=row.region_proj)]
+        crs__= row.EPSG
         if len(data) < 10000 & len(data) > 0:
             y = {index:litologia}
             dict_cartas['litologia'].update(y)
@@ -343,6 +365,7 @@ def set_region(escala, id, geof, camada, mapa=None,crs__=None):
             print(f'Folha de código {index} sem dados Aerogeofisicos')
 
     return dict_cartas, dic_raw_meta
+'''
 # --------------------------------------------------------------------------------------
 def batch_verde(dic_cartas=None, dic_raw_meta=None):
     lista_at_geof = dic_raw_meta['Lista_at_geof']
@@ -613,3 +636,96 @@ def filtro(gdf, mineral):
     else:
         return filtrado
 # ---------------------------------------------------------------------------------------------------
+def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
+    mc = import_mc(escala,ID)
+    mc.set_index('id_folha',inplace=True)
+    
+    quadricula = {}
+    for index,row in tqdm(mc.iterrows()):
+        y = {index:{'folha':row,
+                    'mag' :'',
+                    'gama':'',
+                    'lito':''}}
+        quadricula.update(y)
+        if verbose:
+            print(f' - Folha "{index}" adicionada.')
+    if verbose:
+        print('')
+        print(f'  {len(quadricula.keys())} folhas adicionadas.')
+
+        
+    
+    return quadricula
+# ---------------------------------------------------------------------------------------------------
+def Upload_mc(quadricula=None,gama_xyz=None,mag_xyz=None,camada=None):
+    gama_data = import_xyz('/home/ggrl/database/geof/'+gama_xyz)
+    mag_data = import_xyz('/home/ggrl/database/geof/'+mag_xyz)
+    lito = importar_geometrias(camada)
+    if len(gama_data) > 10:
+        print(f' - Levantamento {gama_xyz} importado com sucesso')
+    else:
+        raise() 
+    if len(mag_data)  > 10:
+        print(f' - Levantamento {mag_xyz} importado com sucesso')
+    else:
+        raise()
+    gama_coords=(gama_data.X,gama_data.Y)
+    mag_coords=(mag_data.X,mag_data.Y)
+    wgs84 = pyproj.CRS('EPSG:4326')
+    ids = list(quadricula.keys())
+    for id in ids:
+        utm = pyproj.CRS('EPSG:'+quadricula[id]['folha']['EPSG'])
+        carta_wgs84 = quadricula[id]['folha']['geometry']
+        project = pyproj.Transformer.from_crs(wgs84,utm,always_xy=True).transform
+        carta_utm = transform(project,carta_wgs84)
+        # TEST PLOT ----------------------------------------------------------
+        plt.figure()
+        plt.plot(*carta_utm.exterior.xy)
+        plt.axis('scaled')
+        # --------------------------------------------------------------------
+        region = carta_utm.bounds
+        reg =(region[0]-1000,region[2]+1000,region[1]-1000,region[3]+1000)
+        gama_df = gama_data[vd.inside(gama_coords,reg)]
+        mag_df = mag_data[vd.inside(mag_coords,reg)]
+        lito_id = lito.cx[region[0]:region[1],
+                          region[2]:region[3]]
+        y = {'gama':gama_df}
+        quadricula[id].update(y)
+        print(f' - {gama_xyz} atualizado na folha: {id}')
+        z = {'mag':mag_df}
+        quadricula[id].update(z)
+        print(f' - {mag_xyz} atualizado na folha: {id}')
+        w = {'lito':lito_id}
+        quadricula[id].update(w)
+        print(f' - {camada} atualizado na folha: {id}')
+
+    
+    return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
