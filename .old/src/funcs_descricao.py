@@ -42,11 +42,11 @@ def lista_cols(geof):
 def descricao(geof):
     lista_atributo_geof,lista_atributo_geog,lista_atributo_proj = lista_cols(geof)  # USANDO FUNCAO DEFINIDA ACIMA PARA CATEGORIZAR METADADO
         
-    metadatadict = pd.DataFrame(geof.dtypes)
-    metadatadict["Valores Faltantes"] = geof.isnull().sum()
-    metadatadict["Valores Únicos"] = geof.nunique()
-    metadatadict["Valores Negativos"] = sum(n < 0 for n in geof.values)
-    metadatadict["Amostragem"] = geof.count()
+    metadatadict = pd.DataFrame(geof[lista_atributo_geof].dtypes)
+    metadatadict["Valores Faltantes"] = geof[lista_atributo_geof].isnull().sum()
+    metadatadict["Valores Únicos"] = geof[lista_atributo_geof].nunique()
+    metadatadict["Valores Negativos"] = sum(n < 0 for n in geof[lista_atributo_geof].values)
+    metadatadict["Amostragem"] = geof[lista_atributo_geof].count()
     metadatadict = metadatadict.rename(columns = {0 : 'dType'})
 
     geof_df = geof.drop(axis=0,columns=lista_atributo_geog)
