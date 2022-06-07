@@ -637,61 +637,7 @@ def filtro(gdf, mineral):
     else:
         return filtrado
 # ---------------------------------------------------------------------------------------------------
-def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
-    mc = import_mc(escala,ID)
-    mc.set_index('id_folha',inplace=True)
-    quadricula = {}
-    for index,row in tqdm(mc.iterrows()):
-        y = {index:{'folha':row,
-                    'escala':escala}}
-        quadricula.update(y)
-        if verbose:
-            print(f' - Folha "{index}" adicionada.')
-    if verbose:
-        print('')
-        print(f'  {len(quadricula.keys())} folhas adicionadas.')
-    return quadricula
-# ---------------------------------------------------------------------------------------------------
-def Upload_geof(quadricula=None,gama_xyz=None,mag_xyz=None,extend_size=0):
-    gama_data = import_xyz('/home/ggrl/database/geof/'+gama_xyz)
-    mag_data = import_xyz('/home/ggrl/database/geof/'+mag_xyz)
-    list_atri=gama_data.columns
-    if 'LAT_WGS' in list_atri:
-        gama_data.rename(columns={'LAT_WGS':'LATITUDE','LONG_WGS':'LONGITUDE'},inplace=True)
-    if 'eTH' in list_atri:
-        gama_data.rename(columns={'eTH':'eTh'},inplace=True)
-    list_atri=mag_data.columns
-    if 'LAT_WGS' in list_atri:
-        mag_data.rename(columns={'LAT_WGS':'LATITUDE','LONG_WGS':'LONGITUDE'},inplace=True)
 
-
-    gama_coords=(gama_data.X,gama_data.Y)
-    mag_coords=(mag_data.X,mag_data.Y)
-    wgs84 = pyproj.CRS('EPSG:4326')
-    ids = list(quadricula.keys())
-    gama_df=pd.DataFrame()
-    mag_df=pd.DataFrame()
-    for id in tqdm(ids):
-        utm = pyproj.CRS('EPSG:'+quadricula[id]['folha']['EPSG'])
-        carta_wgs84 = quadricula[id]['folha']['geometry']
-        project = pyproj.Transformer.from_crs(wgs84,utm,always_xy=True).transform
-        carta_utm = transform(project,carta_wgs84)
-        region_utm = carta_utm.bounds
-        reg =(region_utm[0]-extend_size,region_utm[2]+extend_size,region_utm[1]-extend_size,region_utm[3]+extend_size)
-        if gama_xyz:
-            gama = gama_data[vd.inside(gama_coords,reg)]
-            if len(gama) > 1000:
-                quadricula[id].update({gama_xyz:gama})
-                gama_df=pd.concat([gama,gama_df])
-                print(f' - {gama_xyz} atualizado na folha: {id} com {len(gama_df)} pontos')
-        if mag_xyz:
-            mag = mag_data[vd.inside(mag_coords,reg)]
-            if len(mag) > 1000:
-                quadricula[id].update({mag_xyz:mag})
-                mag_df=pd.concat([mag,mag_df])
-                print(f' - {mag_xyz} atualizado na folha: {id} com {len(mag_df)} pontos')
-    return gama_df, mag_df
-# -----------------------------------------------------------------------------
 def pop_nodata(quadricula):
     for id in tqdm(list(quadricula.keys())):
         if len(quadricula[id]) <= 2:
@@ -761,15 +707,17 @@ def parser_siglas(ID='SF23',quadricula=None):
     lista_periodos_set = list(set(lista_periodos))
     return lista_SIGLAS,lista_periodos,lista_periodos_set
 # ---------------------------------------------------------------------------------------------------
+'''
 def remove_negative_gama(df):
-    df['K_pos'] = df['KPERC'] - df['KPERC'].min() + 0.01
-    df['eU_pos'] = df['eU'] - df['eU'].min() + 0.01
-    df['eTh_pos'] = df['eTh'] - df['eTh'].min() + 0.01
+    df['K_pos'] = df['KPERC'] - df['KPERC'].min() + 0.001
+    df['eU_pos'] = df['eU'] - df['eU'].min() + 0.001
+    df['eTh_pos'] = df['eTh'] - df['eTh'].min() + 0.001
     #excluindo os canais originais
     df.drop(['KPERC','eU','eTh'], axis =1, inplace = True)
     #renomeando os positivos para os nomes dos originais
     df.rename(columns={'K_pos':'KPERC','eU_pos':'eU','eTh_pos':'eTh','CTCOR':'CT'}, inplace=True)
     df = df[['CT', 'eTh','eU','KPERC','UTHRAZAO','UKRAZAO','THKRAZAO','MDT','X','Y','LATITUDE','LONGITUDE']]
+'''
 # ---------------------------------------------------------------------------------------------------
 def remove_negative_values(dataframe=None,lista=['X','Y','LATITUDE','LONGITUDE','geometry']):
     atributo = list(dataframe.columns)
@@ -785,7 +733,6 @@ def remove_negative_values(dataframe=None,lista=['X','Y','LATITUDE','LONGITUDE',
         dataframe.rename(columns={'CTC':'CTCOR','KC':'KPERC','UC':'eU','THC':'eTh'},inplace=True)
     if 'MAGR' in atributo:
         dataframe.rename(columns={'MAGR':'MAGIGRF'},inplace=True)
-
     return dataframe
 # ---------------------------------------------------------------------------------------------------
 def transform_to_carta_utm(carta):
@@ -795,6 +742,134 @@ def transform_to_carta_utm(carta):
     project=pyproj.Transformer.from_crs(wgs84,utm,always_xy=True).transform
     carta_utm=transform(project,carta_wgs84)
     return carta_utm
+# -----------------------------------------------------------------------------
+def sintetic_grid(quadricula,ID,psize=100,projection='geog'):
+    if projection=='geog':
+        area=quadricula[ID]['folha']['geometry'].bounds
+        print(area)
+    elif projection=='proj':
+        area=transform_to_carta_utm(quadricula[ID]['folha']).bounds
+    area=area[0],area[2],area[1],area[3]
+    print(area)
+    xu, yu = regular(shape=(int((area[3]-area[2])/psize),int((area[1]-area[0])/psize)),area=area)
+    return xu,yu
+# ------------------------------------------------------------------------------------------------- 
+def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
+    mc = import_mc(escala,ID)
+    mc.set_index('id_folha',inplace=True)
+    quadricula = {}
+    for index,row in tqdm(mc.iterrows()):
+        y = {index:{'folha':row,
+                    'escala':escala}}
+        quadricula.update(y)
+        if verbose:
+            print(f' - Folha "{index}" adicionada.')
+    if verbose:
+        print('')
+        print(f'  {len(quadricula.keys())} folhas adicionadas.')
+    return quadricula
+# ---------------------------------------------------------------------------------------------------
+def Upload_geof(quadricula=None,gama_xyz=None,mag_xyz=None,extend_size=0):
+    gama_data = import_xyz('/home/ggrl/database/geof/'+gama_xyz)
+    mag_data = import_xyz('/home/ggrl/database/geof/'+mag_xyz)
+    list_atri=gama_data.columns
+    if 'LAT_WGS' in list_atri:
+        gama_data.rename(columns={'LAT_WGS':'LATITUDE','LONG_WGS':'LONGITUDE'},inplace=True)
+    if 'eTH' in list_atri:
+        gama_data.rename(columns={'eTH':'eTh'},inplace=True)
+    list_atri=mag_data.columns
+    if 'LAT_WGS' in list_atri:
+        mag_data.rename(columns={'LAT_WGS':'LATITUDE','LONG_WGS':'LONGITUDE'},inplace=True)
+    gama_coords=(gama_data.X,gama_data.Y)
+    mag_coords=(mag_data.X,mag_data.Y)
+    wgs84 = pyproj.CRS('EPSG:4326')
+    ids = list(quadricula.keys())
+    gama_df=pd.DataFrame()
+    mag_df=pd.DataFrame()
+    for id in tqdm(ids):
+        utm = pyproj.CRS('EPSG:'+quadricula[id]['folha']['EPSG'])
+        carta_wgs84 = quadricula[id]['folha']['geometry']
+        project = pyproj.Transformer.from_crs(wgs84,utm,always_xy=True).transform
+        carta_utm = transform(project,carta_wgs84)
+        region_utm = carta_utm.bounds
+        reg =(region_utm[0]-extend_size,region_utm[2]+extend_size,region_utm[1]-extend_size,region_utm[3]+extend_size)
+        if gama_xyz:
+            gama = gama_data[vd.inside(gama_coords,reg)]
+            if len(gama) > 1000:
+                quadricula[id].update({gama_xyz:gama})
+                gama_df=pd.concat([gama,gama_df])
+                print(f' - {gama_xyz} atualizado na folha: {id} com {len(gama_df)} pontos')
+        if mag_xyz:
+            mag = mag_data[vd.inside(mag_coords,reg)]
+            if len(mag) > 1000:
+                quadricula[id].update({mag_xyz:mag})
+                mag_df=pd.concat([mag,mag_df])
+                print(f' - {mag_xyz} atualizado na folha: {id} com {len(mag_df)} pontos')
+    return gama_df, mag_df
+#  -----------------------------------------------------------------------------
+def traditional_interpolation(quadricula=None,mag_xyz=None,gama_xyz=None,algorithm='cubic',geof=None,projection="geog"):
+    for id in list(quadricula.keys()):
+        if mag_xyz and gama_xyz in list(quadricula[id].keys()):
+            print(f' - Folha: {id}')
+            gama_data=remove_negative_values(quadricula[id][gama_xyz])
+            mag_data=quadricula[id][mag_xyz]
+            print(mag_data.columns)
+            CTCOR=np.array(gama_data.CTCOR) 
+            eTh=np.array(gama_data.eTh)
+            eU=np.array(gama_data.eU)
+            KPERC=np.array(gama_data.KPERC)
+            if 'THKRAZAO' in gama_data.columns:
+                THKRAZAO=np.array(gama_data.THKRAZAO)
+                UKRAZAO=np.array(gama_data.UKRAZAO)
+                UTHRAZAO=np.array(gama_data.UTHRAZAO)
+                MAGIGRF=np.array(mag_data.MAGIGRF)
+                MDT=np.array(mag_data.MDT)
+
+                xu,yu=sintetic_grid(quadricula,id,projection)
+                x1,y1=np.array(gama_data.LONGITUDE),np.array(gama_data.LATITUDE)
+                x2,y2=np.array(mag_data.LONGITUDE),np.array(mag_data.LATITUDE)
+                df_xu_yu = pd.DataFrame(np.array([xu,yu]))
+                df_xu_yu=df_xu_yu.T
+                df_xu_yu.rename(columns={0:'xu',1:'yu'},inplace=True)
+                
+                eth_=interp_at(x1,y1,eTh,xu,yu,algorithm=algorithm,extrapolate=True)
+                eu_=interp_at(x1,y1,eU,xu,yu,algorithm=algorithm,extrapolate=True)
+                kperc_=interp_at(x1,y1,KPERC, xu, yu, algorithm= algorithm,extrapolate=True)
+                ctcor_=interp_at(x1,y1,CTCOR,xu,yu,algorithm=algorithm,extrapolate=True)
+                uthrazao_=interp_at(x1,y1,UTHRAZAO,xu,yu,algorithm=algorithm,extrapolate=True)
+                ukrazao_=interp_at(x1,y1,UKRAZAO,xu,yu,algorithm=algorithm,extrapolate=True)
+                thkrazao_=interp_at(x1,y1,THKRAZAO,xu,yu,algorithm=algorithm,extrapolate=True)
+                mdt_=interp_at(x2,y2,MDT,xu,yu,algorithm=algorithm,extrapolate=True)
+                mag_=interp_at(x2,y2,MAGIGRF,xu,yu,algorithm=algorithm,extrapolate=True)
+    
+                data={'X':xu,'Y':yu,'MDT': mdt_,'CTCOR':ctcor_,
+                      'KPERC': kperc_,'eU':eu_,'eTh':eth_,'GMT':mag_,
+                      'UTHRAZAO':uthrazao_,'UKRAZAO':ukrazao_,'THKRAZAO':thkrazao_}
+                df=pd.DataFrame(data)
+                quadricula[id].update({geof+'_'+algorithm:df})
+ 
+            else:
+                MAGIGRF=np.array(mag_data.MAGIGRF)
+                MDT=np.array(gama_data.MDT)
+                
+                xu,yu=sintetic_grid(quadricula,id,200,projection)
+                x1,y1=np.array(gama_data.LONGITUDE),np.array(gama_data.LATITUDE)
+                x2,y2=np.array(mag_data.LONGITUDE),np.array(mag_data.LATITUDE)
+                df_xu_yu = pd.DataFrame(np.array([xu,yu]))
+                df_xu_yu=df_xu_yu.T
+                df_xu_yu.rename(columns={0:'xu',1:'yu'},inplace=True)
+                
+                eth_=interp_at(x1,y1,eTh,xu,yu,algorithm=algorithm,extrapolate=True)
+                eu_=interp_at(x1,y1,eU,xu,yu,algorithm=algorithm,extrapolate=True)
+                kperc_=interp_at(x1,y1,KPERC, xu, yu, algorithm= algorithm,extrapolate=True)
+                ctcor_=interp_at(x1,y1,CTCOR,xu,yu,algorithm=algorithm,extrapolate=True)
+                mdt_=interp_at(x2,y2,MDT,xu,yu,algorithm=algorithm,extrapolate=True)
+                mag_=interp_at(x2,y2,MAGIGRF,xu,yu,algorithm=algorithm,extrapolate=True)
+                
+                data={'X':xu,'Y':yu,'MDT': mdt_,'CTCOR':ctcor_,
+                      'KPERC': kperc_,'eU':eu_,'eTh':eth_,'GMT':mag_}
+                df=pd.DataFrame(data)
+                quadricula[id].update({geof+'_'+algorithm:df})
 # -----------------------------------------------------------------------------
 # Gama Titulos
 gama_FEAT=['CTCOR','eTh','eU','KPERC','UTHRAZAO','UKRAZAO','THKRAZAO','MDT']
@@ -883,71 +958,6 @@ def plotBoxplots(df, cols = None):
         if f!=cols[n-1]:
             ax.axes.get_xaxis().set_visible(False)
 # -----------------------------------------------------------------------------
-def sintetic_grid(quadricula,ID,psize=100):
-    area = transform_to_carta_utm(quadricula[ID]['folha']).bounds
-    area = area[0],area[2],area[1],area[3]
-    xu, yu = regular(shape=(int((area[3]-area[2])/psize),int((area[1]-area[0])/psize)),area=area)
-    return xu,yu
-# -----------------------------------------------------------------------------
-def traditional_interpolation(quadricula=None,mag_xyz=None,gama_xyz=None,algorithm='cubic',geof=None):
-    for id in list(quadricula.keys()):
-        if mag_xyz and gama_xyz in list(quadricula[id].keys()):
-            print(f' - Folha: {id}')
-            mag_data=remove_negative_values(quadricula[id][mag_xyz])
-            gama_data=remove_negative_values(quadricula[id][gama_xyz])
-            print(mag_data.columns)
-            CTCOR=np.array(gama_data.CTCOR) 
-            eTh=np.array(gama_data.eTh)
-            eU=np.array(gama_data.eU)
-            KPERC=np.array(gama_data.KPERC)
-            if 'THKRAZAO' in gama_data.columns:
-                THKRAZAO=np.array(gama_data.THKRAZAO)
-                UKRAZAO=np.array(gama_data.UKRAZAO)
-                UTHRAZAO=np.array(gama_data.UTHRAZAO)
-                MAGIGRF=np.array(mag_data.MAGIGRF)
-                MDT=np.array(mag_data.MDT)
-                xu,yu=sintetic_grid(quadricula,id)
-                x1,y1=np.array(gama_data.X),np.array(gama_data.Y)
-                x2,y2=np.array(mag_data.X),np.array(mag_data.Y)
-                df_xu_yu = pd.DataFrame(np.array([xu,yu]))
-                df_xu_yu=df_xu_yu.T
-                df_xu_yu.rename(columns={0:'xu',1:'yu'},inplace=True)
-                eth_=interp_at(x1,y1,eTh,xu,yu,algorithm=algorithm,extrapolate=True)
-                eu_=interp_at(x1,y1,eU,xu,yu,algorithm=algorithm,extrapolate=True)
-                kperc_=interp_at(x1,y1,KPERC, xu, yu, algorithm= algorithm,extrapolate=True)
-                ctcor_=interp_at(x1,y1,CTCOR,xu,yu,algorithm=algorithm,extrapolate=True)
-                uthrazao_=interp_at(x1,y1,UTHRAZAO,xu,yu,algorithm=algorithm,extrapolate=True)
-                ukrazao_=interp_at(x1,y1,UKRAZAO,xu,yu,algorithm=algorithm,extrapolate=True)
-                thkrazao_=interp_at(x1,y1,THKRAZAO,xu,yu,algorithm=algorithm,extrapolate=True)
-                mdt_=interp_at(x2,y2,MDT,xu,yu,algorithm=algorithm,extrapolate=True)
-                mag_=interp_at(x2,y2,MAGIGRF,xu,yu,algorithm=algorithm,extrapolate=True)
-                data={'X':xu,'Y':yu,'MDT': mdt_,'CTCOR':ctcor_,
-                      'KPERC': kperc_,'eU':eu_,'eTh':eth_,'GMT':mag_,
-                      'UTHRAZAO':uthrazao_,'UKRAZAO':ukrazao_,'THKRAZAO':thkrazao_}
-                df=pd.DataFrame(data)
-                quadricula[id].update({geof+'_'+algorithm:df})
- 
-            else:
-                MAGIGRF=np.array(mag_data.MAGIGRF)
-                MDT=np.array(gama_data.MDT)
-                xu,yu=sintetic_grid(quadricula,id,200)
-                x1,y1=np.array(gama_data.X),np.array(gama_data.Y)
-                x2,y2=np.array(mag_data.X),np.array(mag_data.Y)
-                df_xu_yu = pd.DataFrame(np.array([xu,yu]))
-                df_xu_yu=df_xu_yu.T
-                df_xu_yu.rename(columns={0:'xu',1:'yu'},inplace=True)
-                eth_=interp_at(x1,y1,eTh,xu,yu,algorithm=algorithm,extrapolate=True)
-                eu_=interp_at(x1,y1,eU,xu,yu,algorithm=algorithm,extrapolate=True)
-                kperc_=interp_at(x1,y1,KPERC, xu, yu, algorithm= algorithm,extrapolate=True)
-                ctcor_=interp_at(x1,y1,CTCOR,xu,yu,algorithm=algorithm,extrapolate=True)
-                mdt_=interp_at(x2,y2,MDT,xu,yu,algorithm=algorithm,extrapolate=True)
-                mag_=interp_at(x2,y2,MAGIGRF,xu,yu,algorithm=algorithm,extrapolate=True)
-                data={'X':xu,'Y':yu,'MDT': mdt_,'CTCOR':ctcor_,
-                      'KPERC': kperc_,'eU':eu_,'eTh':eth_,'GMT':mag_}
-                df=pd.DataFrame(data)
-                quadricula[id].update({geof+'_'+algorithm:df})
-          
-            
 
 
 
