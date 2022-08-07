@@ -29,39 +29,28 @@ Create and operate on grids and profiles.
 ----
 
 """
-
 import numpy
 import scipy.interpolate
 import matplotlib.mlab
-
-
 def load_surfer(fname, fmt='ascii'):
     """
     Read a Surfer grid file and return three 1d numpy arrays and the grid shape
-
     Surfer is a contouring, gridding and surface mapping software
     from GoldenSoftware. The names and logos for Surfer and Golden
     Software are registered trademarks of Golden Software, Inc.
-
     http://www.goldensoftware.com/products/surfer
-
     According to Surfer structure, x and y are horizontal and vertical
     screen-based coordinates respectively. If the grid is in geographic
     coordinates, x will be longitude and y latitude. If the coordinates
     are cartesian, x will be the easting and y the norting coordinates.
-
     WARNING: This is opposite to the convention used for Fatiando.
     See io_surfer.py in cookbook.
-
     Parameters:
-
     * fname : str
         Name of the Surfer grid file
     * fmt : str
         File type, can be 'ascii' or 'binary'
-
     Returns:
-
     * x : 1d-array
         Value of the horizontal coordinate of each grid point.
     * y : 1d-array
@@ -72,7 +61,6 @@ def load_surfer(fname, fmt='ascii'):
     * shape : tuple = (ny, nx)
         The number of points in the vertical and horizontal grid dimensions,
         respectively
-
     """
     assert fmt in ['ascii', 'binary'], "Invalid grid format '%s'. Should be \
         'ascii' or 'binary'." % (fmt)
@@ -110,9 +98,7 @@ def load_surfer(fname, fmt='ascii'):
 def regular(area, shape, z=None):
     """
     Create a regular grid. Order of the output grid is x varies first, then y.
-
     Parameters:
-
     * area
         ``(x1, x2, y1, y2)``: Borders of the grid
     * shape
@@ -120,21 +106,21 @@ def regular(area, shape, z=None):
     * z
         Optional. z coordinate of the grid points. If given, will return an
         array with the value *z*.
-
     Returns:
-
     * ``[xcoords, ycoords]``
         Numpy arrays with the x and y coordinates of the grid points
     * ``[xcoords, ycoords, zcoords]``
         If *z* given. Numpy arrays with the x, y, and z coordinates of the grid
         points
-
     """
     ny, nx = shape
     x1, x2, y1, y2 = area
     dy, dx = spacing(area, shape)
     x_range = numpy.arange(x1, x2, dx)
     y_range = numpy.arange(y1, y2, dy)
+    print(x_range)
+    print('')
+    print(y_range)
     # Need to make sure that the number of points in the grid is correct
     # because of rounding errors in arange. Sometimes x2 and y2 are included,
     # sometimes not
