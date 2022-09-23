@@ -4,7 +4,7 @@ import geopandas as gpd
 #import xarray as xr
 import pandas as pd
 import fiona
-from verde_source import regular,interp_at
+from geologist.verde_source import regular,interp_at
 from tqdm import tqdm
 import verde as vd
 from shapely import geometry
@@ -33,7 +33,7 @@ def geometrias(camada=None, mapa=None):
 
     Retorna:
         Objeto GeoDataFrame.
-    Se houver seleçao de mapa retornara apenas as geometrias que possuem o nome 
+    Se houver seleçao de mapa retornara apenas as geometrias que possuem o nome
     escolhido na coluna ['MAPA']
     Se Retornar camada vazia recebera a lista das camadas veotoriais diposniveis
     Se mapa == False: retorna todos os objetos presente nesta camada vetorial
@@ -58,13 +58,13 @@ def import_malha_cartog(escala='25k',ID=None,IDs=None):
     mc = gpd.read_file(set_gdb('geodatabase.gpkg'),
                                  driver='GPKG',
                                  layer='mc_' + escala)
-                                 
+
     if IDs:
         mc_slct = gpd.GeoDataFrame()
         for id in tqdm(IDs):
             mc_slct = mc_slct.append(mc[mc['id_folha'] == id])
 
-    elif ID: 
+    elif ID:
         mc_slct = mc[mc['id_folha'].str.contains(ID)]
 
         return mc_slct
@@ -72,7 +72,7 @@ def import_malha_cartog(escala='25k',ID=None,IDs=None):
     else:
         return mc
 # -----------------------------------------------------------------------------
-def import_mc(escala=None,ID=None):
+def import_mc(escala="",ID=None):
     mc = gpd.read_file(set_gdb('geodatabase.gpkg'),driver='GPKG',layer='mc_'+escala)
     mc_slct = gpd.GeoDataFrame()
     if type(ID) == list:
@@ -92,15 +92,15 @@ def import_xyz(caminho):
 
     return dataframe
 # ----------------------------------------------------------------------------------------------------------------------
-def dado_bruto(camada=None, mapa=None, geof=None):
+def dado_bruto(camada="", mapa="", geof=""):
 
     '''
     Recebe:
         __camada : Camada vetorial presento no geopackage;
-        __mapa   : Nome da folha cartografica presenta na coluna 'MAPA' da 
-                   camada vetorial 
+        __mapa   : Nome da folha cartografica presenta na coluna 'MAPA' da
+                   camada vetorial
         (SE NAO INSERIR MAPA RETORNA TODOS OS VETORES DA CAMADA SELECIONADA);
-        __geof   : Dados dos aerolevantamentos. gama_tie, gama_line, 
+        __geof   : Dados dos aerolevantamentos. gama_tie, gama_line,
     '''
     print(f'Diretório de dados aerogeofisicos brutos: {set_gdb(geof)}')
     geof_dataframe = import_xyz(geof)
@@ -184,13 +184,13 @@ def set_EPSG(mc):
             EPSG.append('326'+str(i[2:4]))
     mc['EPSG']=EPSG
     return mc
-        
+
 # -----------------------------------------------------------------------------
 def nomeador_malha(gdf):
     df = pd.DataFrame(gdf)
     lista_malha = []
     for index, row in df.iterrows():
-        row['id_folha'] = (td.nomeador_grid(row.region[0], row.region[1],
+        row['id_folha'] = (nomeador_grid(row.region[0], row.region[1],
                                             row.region[3], row.region[2], escala=5))
         lista_malha.append(row.id_folha)
     gdf['id_folha'] = lista_malha
@@ -202,17 +202,17 @@ def regions(mc):
                                     left, right, bottom, top in
                                     zip(bounds['minx'],bounds['maxx'],
                                         bounds['miny'],bounds['maxy'])]
-        
+
         crs__= row.EPSG
         mc_proj=mc.to_crs("EPSG:"+str(crs__))
         bounds_proj = mc_proj.bounds
-        mc['region_proj'] = [(left, right, bottom, top) for 
-                                left, right, bottom, top in 
+        mc['region_proj'] = [(left, right, bottom, top) for
+                                left, right, bottom, top in
                                     zip(bounds['minx'], bounds['maxx'],
                                         bounds['miny'], bounds['maxy'])]
     return mc
 # -----------------------------------------------------------------------------
-def cartas(escala=None,ids=None):
+def cartas(escala="",ids=""):
     print('# --- Iniciando seleção de área de estudo')
     mc_select = import_malha_cartog(escala,ids)
     regions(mc_select)
@@ -229,7 +229,7 @@ def cartas(escala=None,ids=None):
     if len(dic_cartas['raw_data']) == 1:
         print(f"{len(dic_cartas['raw_data'])} folha cartográfica selecionada")
         print("")
-    
+
     return dic_cartas, mc_select
 # -----------------------------------------------------------------------------
 def lista_cols(geof):
@@ -300,7 +300,7 @@ def describe_geologico(gdf,columns=['SIGLA','NOME','LITOTIPOS','LEGENDA','AMBIEN
     else:
         columns=columns
     dic_lito_titles={}
-    for col in columns: 
+    for col in columns:
         lista = list(gdf[col].unique())
         dic_lito_titles.update({col:{'lista':lista,
                                      'len':len(lista)}})
@@ -351,7 +351,7 @@ def set_region(escala, id, geof, camada, mapa=None,crs__=None):
             print(f"A folha {index} possui apenas '{len(data)}' pontos coletados que devem ser adicionados a folha mais próxima")
             print(f" Atualizando dados geofísicos brutos em dic_cartas['raw_data']['{index}']")
             x = {index:data}
-            dict_cartas['raw_data'].update(x) 
+            dict_cartas['raw_data'].update(x)
             print(f" com {len(data)} pontos de amostragem")
         if len(data) >= 10000:
             print('')
@@ -400,7 +400,7 @@ def batch_verde(quadricula=None):
                               ('spline', vd.Spline())])
             for i in tqdm(lista_at_geof):
                 chain.fit(coordinates,data[i])
-                grid = chain.grid(spacing=200,data_names=[i],pixel_register=True)                
+                grid = chain.grid(spacing=200,data_names=[i],pixel_register=True)
                 y = {i:''}
                 dic_cartas['splines'][index].update(y)
                 dic_cartas['splines'][index][i]=vd.distance_mask(coordinates,maxdist=500,grid=grid)
@@ -410,7 +410,7 @@ def batch_verde(quadricula=None):
     print("Dicionário de cartas disponível")
 
     return dic_cartas, dic_raw_meta
-# ---------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------
 def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_cartas=None, dic_raw_meta=None):
     if splines:
         dic_cartas['splines'] = {}
@@ -450,7 +450,7 @@ def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_carta
                 print('__________________________________________')
             print(" ")
         print("Dicionário de cartas disponível")
-# ----------------------------------------------------------------------------------------------    
+# ----------------------------------------------------------------------------------------------
     if cubico:
         dic_cartas['cubic'] = {'': ''}
         print('# Inicio dos processos de interpolação pelo método cúbico')
@@ -491,7 +491,7 @@ def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_carta
                     # intialise data of lists.
                     data = {'X': xu, 'Y': yu, 'MAGIGRF': magr_, 'ALTE': alte_,
                             'CTC': ctc_, 'KC': kc_, 'UC': uc_, 'THC': thc_}
-                    # Create DataFrame 
+                    # Create DataFrame
                     # Atualizando chave 'cubic' com dados interpolados
                     y = {index: interpolado_cubico}
                     dic_cartas['cubic'].update(y)
@@ -503,12 +503,12 @@ def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_carta
                     altura_ = td.interp_at(x2, y2, ALTURA, xu, yu, algorithm='cubic', extrapolate=True)
                     mdt_ = td.interp_at(x2, y2, MDT, xu, yu, algorithm='cubic', extrapolate=True)
                     magigrf_ = td.interp_at(x2, y2, MAGIGRF, xu, yu, algorithm='cubic', extrapolate=True)
-                    # intialise data of lists. 
+                    # intialise data of lists.
                     data_interpolado = {'X': xu, 'Y': yu, 'MDT': mdt_,
                                         'KPERC': altura_, 'eU': magigrf_}
-                    # Create DataFrame 
+                    # Create DataFrame
                     interpolado_cubico = pd.DataFrame(data_interpolado)
-                    # Print the output 
+                    # Print the output
                     y = {index: interpolado_cubico}
                     dic_cartas['cubic'].update(y)
                 if gama:
@@ -529,11 +529,11 @@ def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_carta
                     uthrazao_ = td.interp_at(x2, y2, UTHRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
                     ukrazao_ = td.interp_at(x2, y2, UKRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
                     thkrazao_ = td.interp_at(x2, y2, THKRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
-                    # intialise data of lists. 
+                    # intialise data of lists.
                     data = {'X': xu, 'Y': yu, 'MDT': mdt_, 'CTCOR': ctcor_,
                             'KPERC': kperc_, 'eU': eu_, 'eTH': eTh_,
                             'UTHRAZAO': uthrazao_, 'UKRAZAO': ukrazao_, 'THKRAZAO': thkrazao_}
-                    # Create DataFrame 
+                    # Create DataFrame
                     interpolado_cubico = pd.DataFrame(data)
                     y = {index: interpolado_cubico}
                     dic_cartas['cubic'].update(y)
@@ -742,7 +742,7 @@ def sintetic_grid(quadricula,ID,spacing=0.001,projec='merc'):
         projection=pyproj.Proj(proj='merc',lat_ts=data.latitude.mean())
     xu, yu = regular(shape=(int((area[3]-area[2])/spacing),int((area[1]-area[0])/spacing)),area=area)
     return xu,yu
-# ------------------------------------------------------------------------------------------------- 
+# -------------------------------------------------------------------------------------------------
 def sintetic_grid(quadricula,ID,spacing=0.001,projec='merc'):
     if projec=='geog':
         area=quadricula[ID]['area']['area']
@@ -752,7 +752,7 @@ def sintetic_grid(quadricula,ID,spacing=0.001,projec='merc'):
         projection=pyproj.Proj(proj='merc',lat_ts=data.latitude.mean())
     xu, yu = regular(shape=(int((area[3]-area[2])/spacing),int((area[1]-area[0])/spacing)),area=area)
     return xu,yu
-# ------------------------------------------------------------------------------------------------- 
+# -------------------------------------------------------------------------------------------------
 def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
     mc = import_mc(escala,ID)
     mc.set_index('id_folha',inplace=True)
@@ -817,7 +817,7 @@ def Upload_geof_geografica(quadricula=None,gama_xyz=None,mag_xyz=None,extend_siz
             if len(mag) > 10000:
                 quadricula[id].update({mag_xyz:mag})
                 print(f' - {mag_xyz} atualizado na folha: {id} com {len(mag)} pontos')
-    return 
+    return
 #  -----------------------------------------------------------------------------
 def Upload_geof(quadricula=None,gama_xyz=None,mag_xyz=None,extend_size=0):
     gama_data = import_xyz(set_gdb('geof/')+gama_xyz)
@@ -861,16 +861,16 @@ def Upload_geof(quadricula=None,gama_xyz=None,mag_xyz=None,extend_size=0):
             if len(mag) > 10000:
                 quadricula[id].update({mag_xyz:mag})
                 print(f' - {mag_xyz} atualizado na folha: {id} com {len(mag)} pontos')
-    return 
+    return
 #  -----------------------------------------------------------------------------
 
-def traditional_interpolation(quadricula=None,mag_xyz=None,gama_xyz=None,algorithm='cubic',geof=None,projection="geog",extrapolate=False):
+def traditional_interpolation(quadricula='',mag_xyz=None,gama_xyz=None,algorithm='cubic',geof=None,projection="geog",extrapolate=False):
     for id in tqdm(list(quadricula.keys())):
         if mag_xyz and gama_xyz in list(quadricula[id].keys()):
             #print(f' - Folha: {id}')
             gama_data=remove_negative_values(quadricula[id][gama_xyz])
             mag_data=quadricula[id][mag_xyz]
-            CTCOR=np.array(gama_data.CTCOR) 
+            CTCOR=np.array(gama_data.CTCOR)
             eTh=np.array(gama_data.eTh)
             eU=np.array(gama_data.eU)
             KPERC=np.array(gama_data.KPERC)
@@ -901,7 +901,7 @@ def traditional_interpolation(quadricula=None,mag_xyz=None,gama_xyz=None,algorit
                 df=pd.DataFrame(data)
                 ds = df.set_index(['LATITUDE','LONGITUDE']).to_xarray()
                 quadricula[id].update({geof+'_'+algorithm:ds})
-                 
+
             else:
                 MAGIGRF=np.array(mag_data.MAGIGRF)
                 MDT=np.array(gama_data.MDT)
@@ -932,7 +932,7 @@ for f, t in zip(mag_FEAT, mag_titles):
 # Percentiles
 percentiles=(0.001,0.01,0.05,0.25,0.5,0.75,0.9995)
 # ColorMap
-cmap=cm.get_cmap('rainbow',15)
+#cmap=cm.get_cmap('rainbow',15)
 # -----------------------------------------------------------------------------
 def plot_raw_mag_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%'):
     fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize = (19,9),sharex='all',sharey='all')
@@ -962,12 +962,12 @@ def plot_filtered_values(quadricula,c='MDT',cmap='terrain'):
         plt.axis('scaled')
         for data in list(carta.keys())[2:]:
             data=quadricula[id][data]
-            print(data)            
+            print(data)
             if 'geof' in data:
                 print(' - passou "geof_data"')
                 pass
             if 'gama' in list(data.columns):
-                plt.scatter(carta[data].LONGITUDE,carta[data].LATITUDE,c=carta[data][c],cmap=cmap,s=1,marker='H')    
+                plt.scatter(carta[data].LONGITUDE,carta[data].LATITUDE,c=carta[data][c],cmap=cmap,s=1,marker='H')
             else:
                 pass
     plt.suptitle('Área de cobertura dos levantamentos aerogeofísicos')
@@ -1032,7 +1032,7 @@ def plot_interpolated_histograms(dataframe=None,bins=100,suptitle='Distribuiçã
                 bar.set_facecolor("red")
                 ax.axvline(x=0,linestyle='--',linewidth=0.1,color='red')
         ax.set_title(str(gama_dic_titles[f]))
-    plt.suptitle(suptitle) 
+    plt.suptitle(suptitle)
     plt.tight_layout()
 # -----------------------------------------------------------------------------------
 
@@ -1066,7 +1066,7 @@ def plot_histograms(dataframe=None,bins=100,suptitle='Distribuição de Contagen
                 bar.set_facecolor("red")
                 ax.axvline(x=0,linestyle='--',linewidth=0.1,color='red')
         ax.set_title(str(gama_dic_titles[f]))
-    plt.suptitle(suptitle) 
+    plt.suptitle(suptitle)
     plt.tight_layout()
 # -----------------------------------------------------------------------------------
 def plotBoxplots(df, cols = None):
