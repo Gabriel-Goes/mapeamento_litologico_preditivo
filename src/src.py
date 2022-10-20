@@ -4,7 +4,7 @@ import geopandas as gpd
 #import xarray as xr
 import pandas as pd
 import fiona
-from geologist.verde_source import regular,interp_at
+from verde_source import regular,interp_at
 from tqdm import tqdm
 import verde as vd
 from shapely import geometry
@@ -648,26 +648,7 @@ def pop_nodata(quadricula):
         if len(quadricula[id]) <= 2:
             quadricula.pop(id)
     return quadricula
-# -----------------------------------------------------------------o
-def batch_grid_coordinates(quadricula,spacing=0.001, pixel_register=True):
-    list_id = list(quadricula.keys())
-    #print(f' Folhas disponíveis: {list_id}')
-    for id in list_id:
-        folha = quadricula[id]
-        print(f' Folha {id}')
-
-        df = quadricula[id]['area']
-        area = (df['geometry'].bounds[0],df['geometry'].bounds[2],
-                df['geometry'].bounds[1],df['geometry'].bounds[3])
-        xu,yu = grid_coordinates(region=area,spacing=spacing, pixel_register=pixel_register)
-
-        df['coords'] = xu,yu
-        df['area'] = area
-        x = {'area':df}
-        quadricula[id].update(x)
-        print('Quadricula atualizada')
-
-# -----------------------------------------------------------------
+# -----------------------------------------------------------------------------
 def Upload_litologia(quadricula=None,camada=None):
     lito=geometrias(camada)
     ids = list(quadricula.keys())
@@ -675,7 +656,6 @@ def Upload_litologia(quadricula=None,camada=None):
         carta=quadricula[id]['folha']['geometry']
         region = carta.bounds
         lito_id = lito.cx[region[0]:region[2],region[1]:region[3]]
-        lito_id = lito_id[['LITOTIPOS','SIGLA','NOME','MAPA','geometry']]
         quadricula[id].update({camada:lito_id})
         if len(lito_id) > 0:
             print(f' - {camada} atualizado na folha: {id}')
@@ -753,14 +733,23 @@ def transform_to_carta_utm(carta):
     carta_utm=transform(project,carta_wgs84)
     return carta_utm
 # -----------------------------------------------------------------------------
-def sintetic_grid(quadricula,ID,spacing=0.001,projec='geog'):
+def sintetic_grid(quadricula,ID,spacing=0.001,projec='merc'):
     if projec=='geog':
         area=quadricula[ID]['area']['area']
     elif projec=='proj':
         area=transform_to_carta_utm(quadricula[ID]['folha']).bounds
     elif projec=='merc':
         projection=pyproj.Proj(proj='merc',lat_ts=data.latitude.mean())
-    spacing=0.001
+    xu, yu = regular(shape=(int((area[3]-area[2])/spacing),int((area[1]-area[0])/spacing)),area=area)
+    return xu,yu
+# -------------------------------------------------------------------------------------------------
+def sintetic_grid(quadricula,ID,spacing=0.001,projec='merc'):
+    if projec=='geog':
+        area=quadricula[ID]['area']['area']
+    elif projec=='proj':
+        area=transform_to_carta_utm(quadricula[ID]['folha']).bounds
+    elif projec=='merc':
+        projection=pyproj.Proj(proj='merc',lat_ts=data.latitude.mean())
     xu, yu = regular(shape=(int((area[3]-area[2])/spacing),int((area[1]-area[0])/spacing)),area=area)
     return xu,yu
 # -------------------------------------------------------------------------------------------------
@@ -770,7 +759,6 @@ def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
     quadricula = {}
     wgs84 = pyproj.CRS('EPSG:4326')
     ids = list(quadricula.keys())
-    print(f' - Folhas selecionadas:')
     for index,row in tqdm(mc.iterrows()):
         carta_wgs84 = row['geometry']
         utm = pyproj.CRS('EPSG:'+row['EPSG'])
@@ -778,10 +766,10 @@ def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
         project = pyproj.Transformer.from_crs(wgs84,utm,always_xy=True).transform
         carta_utm = transform(project,carta_wgs84)
         row['geometry_proj'] = carta_utm
-        y = {index:{'folha':row}}
+        y = {index:{'area':row}}
         quadricula.update(y)
         if verbose:
-            print(f'"{index}"')
+            print(f' - Folha "{index}" adicionada.')
     if verbose:
         print('')
         print(f'  {len(quadricula.keys())} folhas adicionadas.')
@@ -876,7 +864,7 @@ def Upload_geof(quadricula=None,gama_xyz=None,mag_xyz=None,extend_size=0):
     return
 #  -----------------------------------------------------------------------------
 
-def traditional_interpolation(quadricula='',mag_xyz=None,gama_xyz=None,algorithm='cubic',geof=None,projec="geog",extrapolate=False):
+def traditional_interpolation(quadricula='',mag_xyz=None,gama_xyz=None,algorithm='cubic',geof=None,projection="geog",extrapolate=False):
     for id in tqdm(list(quadricula.keys())):
         if mag_xyz and gama_xyz in list(quadricula[id].keys()):
             #print(f' - Folha: {id}')
@@ -892,7 +880,7 @@ def traditional_interpolation(quadricula='',mag_xyz=None,gama_xyz=None,algorithm
                 UTHRAZAO=np.array(gama_data.UTHRAZAO)
                 MAGIGRF=np.array(mag_data.MAGIGRF)
                 MDT=np.array(mag_data.MDT)
-                xu,yu=sintetic_grid(quadricula,id,projec)
+                xu,yu=sintetic_grid(quadricula,id,projection=projection)
                 x1,y1=np.array(gama_data.LONGITUDE),np.array(gama_data.LATITUDE)
                 x2,y2=np.array(mag_data.LONGITUDE),np.array(mag_data.LATITUDE)
                 df_xu_yu = pd.DataFrame(np.array([xu,yu]))

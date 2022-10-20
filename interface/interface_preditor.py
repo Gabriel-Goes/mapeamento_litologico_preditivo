@@ -1,8 +1,8 @@
-from src import set_gdb, import_mc, Build_mc,Upload_mc
+from src import set_gdb, import_mc, Build_mc, Upload_geof, Upload_litologia
 from shapely import geometry
 from shapely.ops import transform
 import pyproj
-from tkinter import * 
+from tkinter import *
 from tkinter import ttk
 import geopandas as gpd
 from tqdm import tqdm
@@ -11,12 +11,13 @@ from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationTool
 import warnings
 warnings.filterwarnings("ignore")
 import matplotlib.pyplot as plt
-#-----------------------------Main Frame---------------------------- 
+#-----------------------------Main Frame----------------------------
 janela=Tk()
 janela.title('Preditor de Litologias')
 titulo=Label(text='Preditor de Litologias', font=('Arial',12))
 titulo.pack()
-#-----------------------------Funçõees------------------------------- 
+
+#-----------------------------Funçõees-------------------------------
 def list_id():
     mc = import_mc(cmb_escala.get())
     lista_id = list(mc['id_folha'])
@@ -28,7 +29,7 @@ def build_dic():
     escala = cmb_escala.get()
     ID = cmb_folhas.get()
     quadricula = Build_mc(escala,[ID],verbose=True)
-    folha=quadricula[ID]['folha']
+    folha=quadricula[ID]['area']
     fig = Figure(figsize=(5,5),dpi=100)
     wgs84 = pyproj.CRS('EPSG:4326')
     EPSG = folha['EPSG']
@@ -46,10 +47,10 @@ def build_dic():
     return quadricula, ID, escala
 def upload_dic():
     quadricula,ID,escala=build_dic()
-    Upload_mc(quadricula,gama_xyz='gama_line_1105',mag_xyz='mag_line_1105',camada='socorro_250k') 
+    Upload_mc(quadricula,gama_xyz='gama_line_1105',mag_xyz='mag_line_1105',camada='socorro_250k')
     df = quadricula[ID]['gama']
     coords = [df.X,df.Y]
-    
+
     scatter = FigureCanvasTkAgg(fig,janela)
     scatter.get_tk_widget().pack()
     plt.scatter(coords[0],coords[1],s=1.5,c=df.MDT,cmap='terrain')
@@ -82,7 +83,7 @@ lbl_quadricula = ttk.Label(frame_quadricula,text='Malha Cartográfica')
 lbl_quadricula.grid(row=0,column=0,padx=5,pady=5)
 frame_quadricula['relief']='sunken'
 frame_quadricula['borderwidth']=2
-# --- Botão Construtor de Quadriculas 
+# --- Botão Construtor de Quadriculas
 btn_build=ttk.Button(frame_quadricula,command=build_dic)
 btn_build.grid(row=0,column=1)
 build_lbl=ttk.Label(frame_quadricula,text='Construir')
@@ -101,34 +102,3 @@ cmb_folhas.set('SF23_YA_III')
 cmb_escala.set('100k')
 # -----------------------------------------------------------------------------
 janela.mainloop()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
