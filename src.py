@@ -1,20 +1,47 @@
 # Imports
+
 import seaborn as sns
 import geopandas as gpd
 import pandas as pd
 import fiona
-from verde_source import regular,interp_at
-from tqdm import tqdm
 import verde as vd
-from shapely import geometry
 import numpy as np
 import matplotlib.pyplot as plt
 import math
 import pyproj
+
+from verde_source import regular, interp_at
+from tqdm import tqdm
+from shapely import geometry
 from shapely.ops import transform
-from pylab import *
+from pylab import cm
+
+
+# Gama Titulos
+gama_FEAT = ['CTCOR', 'eTh', 'eU', 'KPERC',
+             'UTHRAZAO', 'UKRAZAO', 'THKRAZAO', 'MDT']
+
+gama_titles = ['Contagem Total', 'Th (ppm)', 'U (ppm)', 'K (%)',
+               'U/Th', 'U/K', 'Th/K', 'MDT (m)']
+gama_dic_titles = {}
+for f, t in zip(gama_FEAT, gama_titles):
+    gama_dic_titles[f] = t
+
+# Mag Titulos
+mag_FEAT = ['MAGIGRF', 'MDT']
+mag_titles = ['GMT (nT)', 'MDT (m)']
+mag_dic_titles = {}
+for f, t in zip(mag_FEAT, mag_titles):
+    mag_dic_titles[f] = t
+
+# Percentiles
+percentiles = (0.001, 0.01, 0.05, 0.25, 0.5, 0.75, 0.9995)
+# ColorMap
+cmap = cm.get_cmap('rainbow', 15)
 
 # -----------------------------------------------------------------------------
+
+
 def set_gdb(path=''):
     '''
     Diretório raíz dos dados : '/home/ggrl/database/'
@@ -24,6 +51,8 @@ def set_gdb(path=''):
     gdb = '/home/ggrl/database/' + path
     return gdb
 # -----------------------------------------------------------------------------
+
+
 def importar_geometrias(camada=None, mapa=None):
     '''
     Recebe:
@@ -32,9 +61,9 @@ def importar_geometrias(camada=None, mapa=None):
 
     Retorna:
         Objeto GeoDataFrame.
-    Se houver seleçao de mapa retornara apenas as geometrias que possuem o nome 
+    Se houver seleçao de mapa retornara apenas as geometrias que possuem o nome
     escolhido na coluna ['MAPA']
-    Se Retornar camada vazia recebera a lista das camadas veotoriais diposniveis
+    Retornando camada vazia recebera a lista das camadas veotoriais diposniveis
     Se mapa == False: retorna todos os objetos presente nesta camada vetorial
     '''
     lito = gpd.read_file(set_gdb('geodatabase.gpkg'),
@@ -43,8 +72,8 @@ def importar_geometrias(camada=None, mapa=None):
     if mapa:
         folha = lito[lito.MAPA == 'Carta geológica da folha ' + mapa]
         if len(folha) == 0:
-            print("O mapa escolhido nao est'a presente na coluna MAPA da camada veotiral. Os mapas disponiveis serao listados a seguir.")
-            print('# Selecionando apenas os caracteres apos ''folha'' (SEM ESPAÇO)')
+            print("O mapa escolhido nao est'a presente na coluna MAPA da\
+             camada veotiral. Os mapas disponiveis serao listados a seguir.")
             print(f"# -- Lista de mapas: {list(lito.MAPA.unique())}")
             lista_mapas = list(lito.MAPA.unique())
             return lista_mapas
@@ -52,17 +81,19 @@ def importar_geometrias(camada=None, mapa=None):
     else:
         return lito
 # -----------------------------------------------------------------------------
-def import_malha_cartog(escala='25k',ID=None,IDs=None):
+
+
+def import_malha_cartog(escala='25k', ID=None, IDs=None):
     mc = gpd.read_file(set_gdb('geodatabase.gpkg'),
-                                 driver='GPKG',
-                                 layer='mc_' + escala)
-                                 
+                       driver='GPKG',
+                       layer='mc_'+escala)
+
     if IDs:
         mc_slct = gpd.GeoDataFrame()
         for id in tqdm(IDs):
             mc_slct = mc_slct.append(mc[mc['id_folha'] == id])
 
-    elif ID: 
+    elif ID:
         mc_slct = mc[mc['id_folha'].str.contains(ID)]
 
         return mc_slct
@@ -70,8 +101,12 @@ def import_malha_cartog(escala='25k',ID=None,IDs=None):
     else:
         return mc
 # -----------------------------------------------------------------------------
-def import_mc(escala=None,ID=None):
-    mc = gpd.read_file(set_gdb('geodatabase.gpkg'),driver='GPKG',layer='mc_'+escala)
+
+
+def import_mc(escala=None, ID=None):
+    mc = gpd.read_file(set_gdb('geodatabase.gpkg'),
+                       driver='GPKG',
+                       layer='mc_'+escala)
     mc_slct = gpd.GeoDataFrame()
     if ID:
         for id in tqdm(ID):
@@ -80,6 +115,8 @@ def import_mc(escala=None,ID=None):
     else:
         return mc
 # -----------------------------------------------------------------------------
+
+
 def import_xyz(caminho):
     '''
     '''
@@ -87,15 +124,16 @@ def import_xyz(caminho):
 
     return dataframe
 # ----------------------------------------------------------------------------------------------------------------------
-def dado_bruto(camada=None, mapa=None, geof=None):
 
+
+def dado_bruto(camada=None, mapa=None, geof=None):
     '''
     Recebe:
         __camada : Camada vetorial presento no geopackage;
-        __mapa   : Nome da folha cartografica presenta na coluna 'MAPA' da 
-                   camada vetorial 
+        __mapa   : Nome da folha cartografica presenta na coluna 'MAPA' da
+                   camada vetorial
         (SE NAO INSERIR MAPA RETORNA TODOS OS VETORES DA CAMADA SELECIONADA);
-        __geof   : Dados dos aerolevantamentos. gama_tie, gama_line, 
+        __geof   : Dados dos aerolevantamentos. gama_tie, gama_line,
     '''
     print(f'Diretório de dados aerogeofisicos brutos: {set_gdb(geof)}')
     geof_dataframe = import_xyz(geof)
@@ -105,111 +143,124 @@ def dado_bruto(camada=None, mapa=None, geof=None):
                          driver='GPKG',
                          layer=camada)
     print('')
-    print(f"# -- Lista de camadas vetoriais disponíveis: {fiona.listlayers(path_lito)}")
+    print(f"# -- Lista de camadas vetoriais disponíveis:\
+            {fiona.listlayers(path_lito)}")
     if lito.empty:
         raise "# FALHA : A camada escolhida nao está presente no geopackage."
     if mapa:
         folha = lito[lito.MAPA == 'Carta geológica da folha ' + mapa]
         if folha.empty:
             print('')
-            print("O mapa escolhido não está presente na coluna MAPA da camada veotiral.")
+            print("O mapa escolhido não está presente na coluna MAPA.")
             print(f"# -- Lista de mapas: {list(lito.MAPA.unique())}")
         else:
             return folha, geof_dataframe
     else:
         return lito, geof_dataframe
 # -----------------------------------------------------------------------------
-def nomeador_grid(left,right,top,bottom,escala=5):
-    e1kk=['A','B','C','D','E','F','G','H','I','J','K','L','M','N']
-    e500k=[['V','Y'],['X','Z']]
-    e250k=[['A','C'],['B','D']]
-    e100k=[['I','IV'],['II','V'],['III','VI']]
-    e50k=[['2','3'],['2','4']]
-    e25k=[['NW','SW'],['NE','SE']]
-    if left>right:
+
+
+def nomeador_grid(left, right, top, bottom, escala=5):
+    e1kk = ['A', 'B', 'C', 'D', 'E', 'F', 'G',
+            'H', 'I', 'J', 'K', 'L', 'M', 'N']
+    e500k = [['V', 'Y'], ['X', 'Z']]
+    e250k = [['A', 'C'], ['B', 'D']]
+    e100k = [['I', 'IV'], ['II', 'V'], ['III', 'VI']]
+    e50k = [['2', '3'], ['2', '4']]
+    e25k = [['NW', 'SW'], ['NE', 'SE']]
+    if left > right:
         print('Oeste deve ser menor que leste')
-    if top<bottom:
+    if top < bottom:
         print('Norte deve ser maior que Sul')
     else:
-        id_folha=''
-        if top<=0:
-            id_folha+='S'
-            index=math.floor(-top/4)
+        id_folha = ''
+        if top <= 0:
+            id_folha += 'S'
+            index = math.floor(-top/4)
         else:
-            id_folha+='N'
-            index=math.floor(bottom/4)
-        numero=math.ceil((180+right)/6)
+            id_folha += 'N'
+            index = math.floor(bottom/4)
+        numero = math.ceil((180+right)/6)
         print(numero)
-        id_folha+=e1kk[index]+str(numero)
-        lat_gap=abs(top-bottom)
-        #p500k-----------------------
-        if (lat_gap<=2) & (escala>=1):
-            LO=math.ceil(right/3)%2==0
-            NS=math.ceil(top/2)%2!=0
-            id_folha+='_'+e500k[LO][NS]
-        #p250k-----------------------
-        if (lat_gap<=1) & (escala>=2):
-            LO=math.ceil(right/1.5)%2==0
-            NS=math.ceil(top)%2!=0
-            id_folha+=e250k[LO][NS]
-        #p100k-----------------------
-        if (lat_gap<=0.5) & (escala>=3):
-            LO=(math.ceil(right/0.5)%3)-1
-            NS=math.ceil(top/0.5)%2!=0
-            id_folha+='_'+e100k[LO][NS]
-        #p50k------------------------
-        if (lat_gap<=0.25) & (escala>=4):
-            LO=math.ceil(right/0.25)%2==0
-            NS=math.ceil(top/0.25)%2!=0
-            id_folha+='_'+e50k[LO][NS]
-        #p25k------------------------
-        if (lat_gap<=0.125) & (escala>=5):
-            LO=math.ceil(right/0.125)%2==0
-            NS=math.ceil(top/0.125)%2!=0
-            id_folha+=e25k[LO][NS]
-
+        id_folha += e1kk[index]+str(numero)
+        lat_gap = abs(top-bottom)
+        # p500k-----------------------
+        if (lat_gap <= 2) & (escala >= 1):
+            LO = math.ceil(right/3) % 2 == 0
+            NS = math.ceil(top/2) % 2 != 0
+            id_folha += '_'+e500k[LO][NS]
+        # p250k-----------------------
+        if (lat_gap <= 1) & (escala >= 2):
+            LO = math.ceil(right/1.5) % 2 == 0
+            NS = math.ceil(top) % 2 != 0
+            id_folha += e250k[LO][NS]
+        # p100k-----------------------
+        if (lat_gap <= 0.5) & (escala >= 3):
+            LO = (math.ceil(right/0.5) % 3)-1
+            NS = math.ceil(top/0.5) % 2 != 0
+            id_folha += '_'+e100k[LO][NS]
+        # p50k------------------------
+        if (lat_gap <= 0.25) & (escala >= 4):
+            LO = math.ceil(right/0.25) % 2 == 0
+            NS = math.ceil(top/0.25) % 2 != 0
+            id_folha += '_'+e50k[LO][NS]
+        # p25k------------------------
+        if (lat_gap <= 0.125) & (escala >= 5):
+            LO = math.ceil(right/0.125) % 2 == 0
+            NS = math.ceil(top/0.125) % 2 != 0
+            id_folha += e25k[LO][NS]
         return id_folha
+
 # -----------------------------------------------------------------------------
+
+
 def set_EPSG(mc):
-    EPSG=[]
+    EPSG = []
     for i in mc['id_folha']:
         if i[:1] == 'S':
             EPSG.append('327'+str(i[2:4]))
         else:
             EPSG.append('326'+str(i[2:4]))
-    mc['EPSG']=EPSG
+    mc['EPSG'] = EPSG
     return mc
-        
+
+
 # -----------------------------------------------------------------------------
+
 def nomeador_malha(gdf):
     df = pd.DataFrame(gdf)
     lista_malha = []
     for index, row in df.iterrows():
-        row['id_folha'] = (td.nomeador_grid(row.region[0], row.region[1],
-                                            row.region[3], row.region[2], escala=5))
+        row['id_folha'] = (nomeador_grid(row.region[0], row.region[1],
+                                         row.region[3], row.region[2],
+                                         escala=5))
         lista_malha.append(row.id_folha)
     gdf['id_folha'] = lista_malha
 # -----------------------------------------------------------------------------
+
+
 def regions(mc):
     bounds = mc.bounds
-    for index,row in mc.iterrows():
+    for index, row in mc.iterrows():
         mc['region'] = [(left, right, bottom, top) for
-                                    left, right, bottom, top in
-                                    zip(bounds['minx'],bounds['maxx'],
-                                        bounds['miny'],bounds['maxy'])]
-        
-        crs__= row.EPSG
-        mc_proj=mc.to_crs("EPSG:"+str(crs__))
-        bounds_proj = mc_proj.bounds
-        mc['region_proj'] = [(left, right, bottom, top) for 
-                                left, right, bottom, top in 
-                                    zip(bounds['minx'], bounds['maxx'],
-                                        bounds['miny'], bounds['maxy'])]
+                        left, right, bottom, top in
+                        zip(bounds['minx'], bounds['maxx'],
+                            bounds['miny'], bounds['maxy'])]
+#        crs__ = row.EPSG
+#        mc_proj = mc.to_crs("EPSG:"+str(crs__))
+#        bounds_proj = mc_proj.bounds
+        mc['region_proj'] = [(left, right, bottom, top) for
+                             left, right, bottom, top in
+                             zip(bounds['minx'], bounds['maxx'],
+                                 bounds['miny'], bounds['maxy'])]
     return mc
+
 # -----------------------------------------------------------------------------
-def cartas(escala=None,ids=None):
+
+
+def cartas(escala=None, ids=None):
     print('# --- Iniciando seleção de área de estudo')
-    mc_select = import_malha_cartog(escala,ids)
+    mc_select = import_malha_cartog(escala, ids)
     regions(mc_select)
     mc_select.set_index('id_folha', inplace=True)
     # CRIANDO UM DICIONÁRIO DE CARTAS
@@ -218,15 +269,18 @@ def cartas(escala=None,ids=None):
     dic_cartas = mc_select.to_dict()
     # MAIS DE UMA FOLHA DE CARTA SELECIONADA
     if len(dic_cartas['raw_data']) > 1:
-        print(f"{len(dic_cartas['raw_data'])} folhas cartográfica selecionadas")
+        print(f"{len(dic_cartas['raw_data'])}\
+                    folhas cartográfica selecionadas")
         print("")
     # APENAS UMA FOLHA DE CARTA SELECIONADA
     if len(dic_cartas['raw_data']) == 1:
         print(f"{len(dic_cartas['raw_data'])} folha cartográfica selecionada")
         print("")
-    
+
     return dic_cartas, mc_select
 # -----------------------------------------------------------------------------
+
+
 def lista_cols(geof):
     print('Listando atributos dos dados geofisicos')
     atributos_geof = list(geof.columns)  # DataFrame.columns
@@ -252,27 +306,34 @@ def lista_cols(geof):
             lista_atributo_proj.append(atributo)
         else:
             lista_atributo_geof.append(atributo)
-    codigo = str(geof)
-    print(f"# --- # Listagem de dados do aerolevantamento:  ")
+#    codigo = str(geof)
+    print("# --- # Listagem de dados do aerolevantamento:  ")
     print(f"Lista de atributos geofísicos = {lista_atributo_geof}")
     print(f"lista de atributos geograficos = {lista_atributo_geog}")
     print(f"lista de atributos projetados = {lista_atributo_proj}")
 
     return lista_atributo_geof, lista_atributo_geog, lista_atributo_proj
 # ----------------------------------------------------------------------------------------------------------------------
+
+
 def descricao(geof):
     lista_at_geof, lista_at_geog, lista_at_proj = lista_cols(geof)
+
     metadatadict = pd.DataFrame(geof.dtypes)
     metadatadict["Valores Faltantes"] = geof.isnull().sum()
     metadatadict["Valores Únicos"] = geof.nunique()
     metadatadict["Valores Negativos"] = sum(n < 0 for n in geof.values)
     metadatadict["Amostragem"] = geof.count()
     metadatadict = metadatadict.rename(columns={0: 'dType'})
+
     geof_df = geof.drop(axis=0, columns=lista_at_geog)
     geof_df.drop(axis=0, columns=lista_at_proj, inplace=True)
-    geof_descrito = geof_df.describe(percentiles=[0.001, 0.1, 0.25, 0.5, 0.75, 0.995])
+    geof_descrito = geof_df.describe(percentiles=[0.001, 0.1, 0.25, 0.5,
+                                                  0.75, 0.995])
+    return metadatadict, lista_at_geof, \
+        lista_at_geog, lista_at_proj, geof_descrito
 
-    return metadatadict, lista_at_geof, lista_at_geog, lista_at_proj, geof_descrito
+
 # ----------------------------------------------------------------------------------------------------------------------
 def metadataframe(GeoDataFrame):
     '''
@@ -289,22 +350,27 @@ def metadataframe(GeoDataFrame):
 
     return meta_lito
 # ----------------------------------------------------------------------------------------------------------------------
-def describe_geologico(gdf,columns=['SIGLA','NOME','LITOTIPOS','LEGENDA','AMBIENTE_T']):
-    if columns==None:
-        columns=list(gdf.columns)
+
+
+def describe_geologico(gdf, columns=['SIGLA', 'NOME',
+                                     'LITOTIPOS', 'LEGENDA', 'AMBIENTE_T']):
+    if columns is None:
+        columns = list(gdf.columns)
     else:
-        columns=columns
-    dic_lito_titles={}
-    for col in columns: 
+        columns = columns
+    dic_lito_titles = {}
+    for col in columns:
         lista = list(gdf[col].unique())
-        dic_lito_titles.update({col:{'lista':lista,
-                                     'len':len(lista)}})
+        dic_lito_titles.update({col: {'lista': lista,
+                                      'len': len(lista)}})
     return dic_lito_titles
 # ----------------------------------------------------------------------------------------------
-def set_region(escala, id, geof, camada, mapa=None,crs__=None):
+
+
+def set_region(escala, id, geof, camada, mapa=None, crs__=None):
     '''
     Recebe:
-        escala : Escalas disponíveis para recorte: '50k', '100k', '250k', '1kk'.
+        escala : Escalas disponíveis para recorte: '50k', '100k', '250k', '1kk'
             id : ID da folha cartográfica (Articulação Sistemática de Folhas Cartográficas)
           geof : Dado aerogeofísico disponível na base de dados (/home/ggrl/database/geof/)
         camada : Litologias disponíveis na base de dados (/home/ggrl/database/geodatabase.gpkg)
@@ -323,10 +389,10 @@ def set_region(escala, id, geof, camada, mapa=None,crs__=None):
     print('')
     print('# -- Contruindo dicionario de metadados')
     metadatadict,\
-    lista_at_geof,\
-    lista_at_geog,\
-    lista_at_proj,\
-    geof_descrito=descricao(geof_df)
+        lista_at_geof,\
+        lista_at_geog,\
+        lista_at_proj,\
+        geof_descrito = descricao(geof_df)
     dic_raw_meta = {'Metadata': metadatadict,
                     'Lista_at_geof': lista_at_geof,
                     'Lista_at_geog': lista_at_geog,
@@ -334,19 +400,19 @@ def set_region(escala, id, geof, camada, mapa=None,crs__=None):
                     'Percentiles': geof_descrito,
                     'Malha_cartografica': mc_select}
     print('')
-    print(f"# --- Início da iteração entre as folhas cartográficas #")
+    print("# --- Início da iteração entre as folhas cartográficas #")
     for index, row in tqdm(mc_select.iterrows()):
         data = geof_df[vd.inside((geof_df.X,
-                                  geof_df.Y),
-                                  region=row.region_proj)]
-        crs__= row.EPSG
+                                  geof_df.Y), region=row.region_proj)]
+
+        crs__ = row.EPSG
         if len(data) < 10000 & len(data) > 0:
-            y = {index:litologia}
+            y = {index: litologia}
             dict_cartas['litologia'].update(y)
             print(f"A folha {index} possui apenas '{len(data)}' pontos coletados que devem ser adicionados a folha mais próxima")
             print(f" Atualizando dados geofísicos brutos em dic_cartas['raw_data']['{index}']")
-            x = {index:data}
-            dict_cartas['raw_data'].update(x) 
+            x = {index: data}
+            dict_cartas['raw_data'].update(x)
             print(f" com {len(data)} pontos de amostragem")
         if len(data) >= 10000:
             print('')
@@ -357,11 +423,12 @@ def set_region(escala, id, geof, camada, mapa=None,crs__=None):
             print(f" com {len(data)} pontos de amostragem.")
             litologia.to_crs('EPSG:'+crs__, inplace=True)
             lito_cut = litologia.cx[row.region_proj[0]:row.region_proj[1],
-                                     row.region_proj[2]:row.region_proj[3]]
-            print(f" - Atualizando dados litológicos em dic_cartas['litologia']['{index}']")
+                                    row.region_proj[2]:row.region_proj[3]]
+            print(f" - Atualizando dados litológicos em \
+                    dic_cartas['litologia']['{index}']")
             print(f" com {lito_cut.shape[0]} polígonos descritos por: {lito_cut.shape[1]} atributos geológicos ")
             print(lito_cut.crs)
-            y={index:lito_cut}
+            y = {index: lito_cut}
             dict_cartas['litologia'].update(y)
         elif data.empty:
             None
@@ -370,12 +437,14 @@ def set_region(escala, id, geof, camada, mapa=None,crs__=None):
 
     return dict_cartas, dic_raw_meta
 # --------------------------------------------------------------------------------------
+
+
 def batch_verde(dic_cartas=None, dic_raw_meta=None):
     lista_at_geof = dic_raw_meta['Lista_at_geof']
     dic_cartas['splines'] = {}
     for index, row in tqdm(dic_raw_meta['Malha_cartografica'].iterrows()):
         data = dic_cartas['raw_data'][index]
-        y = {index:{}}
+        y = {index: {}}
         dic_cartas['splines'].update(y)
         if len(data) == 0:
             None
@@ -389,23 +458,29 @@ def batch_verde(dic_cartas=None, dic_raw_meta=None):
             print(f" Retirando dados brutos em dic_cartas['raw_data']['{index}']")
             print(f" com {len(data)} pontos de contagens radiométricas coletados com linhas de voo de 500 metros")
             coordinates = (data.X.values.astype(float), data.Y.values.astype(float))
-            #region = dic_cartas['region_proj'][index]
+            # region = dic_cartas['region_proj'][index]
             chain = vd.Chain([('trend',  vd.Trend(degree=1)),
                               ('reduce', vd.BlockReduce(np.mean, spacing=1000)),
                               ('spline', vd.Spline())])
             for i in tqdm(lista_at_geof):
-                chain.fit(coordinates,data[i])
-                grid = chain.grid(spacing=200,data_names=[i],pixel_register=True)                
-                y = {i:''}
+                chain.fit(coordinates, data[i])
+                grid = chain.grid(spacing=200,
+                                  data_names=[i],
+                                  pixel_register=True)
+
+                y = {i: ''}
                 dic_cartas['splines'][index].update(y)
-                dic_cartas['splines'][index][i]=vd.distance_mask(coordinates,maxdist=500,grid=grid)
+                dic_cartas['splines'][index][i] = \
+                    vd.distance_mask(coordinates, maxdist=500, grid=grid)
                 print(f" Atualizando dic_cartas['splines']['{index}']['{i}']")
                 print('__________________________________________')
         print(" ")
     print("Dicionário de cartas disponível")
 
     return dic_cartas, dic_raw_meta
-# ---------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------
+
+
 def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_cartas=None, dic_raw_meta=None):
     if splines:
         dic_cartas['splines'] = {}
@@ -445,7 +520,7 @@ def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_carta
                 print('__________________________________________')
             print(" ")
         print("Dicionário de cartas disponível")
-# ----------------------------------------------------------------------------------------------    
+# ----------------------------------------------------------------------------------------------
     if cubico:
         dic_cartas['cubic'] = {'': ''}
         print('# Inicio dos processos de interpolação pelo método cúbico')
@@ -467,7 +542,7 @@ def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_carta
                 crs = "+proj=utm +zone="+crs__+" +south +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
                 gdf_geof = gpd.GeoDataFrame(data, geometry='geometry', crs=crs)
                 area = dic_cartas['region_proj'][index]
-                xu, yu = td.regular(shape=(1272, 888),
+                xu, yu = vd.regular(shape=(1272, 888),
                                     area=area)
                 if geof:
                     CTC = np.array(gdf_geof.CTC)
@@ -477,16 +552,16 @@ def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_carta
                     MAGR = np.array(gdf_geof.MAGR)
                     ALTE = np.array(gdf_geof.ALTE)
                     x2, y2 = np.array(gdf_geof.X), np.array(gdf_geof.Y)
-                    alte_ = td.interp_at(x2, y2, ALTE, xu, yu, algorithm='cubic', extrapolate=True)
-                    uc_ = td.interp_at(x2, y2, UC, xu, yu, algorithm='cubic', extrapolate=True)
-                    kc_ = td.interp_at(x2, y2, KC, xu, yu, algorithm='cubic', extrapolate=True)
-                    ctc_ = td.interp_at(x2, y2, CTC, xu, yu, algorithm='cubic', extrapolate=True)
-                    thc_ = td.interp_at(x2, y2, THC, xu, yu, algorithm='cubic', extrapolate=True)
-                    magr_ = td.interp_at(x2, y2, MAGR, xu, yu, algorithm='cubic', extrapolate=True)
+                    alte_ = vd.interp_at(x2, y2, ALTE, xu, yu, algorithm='cubic', extrapolate=True)
+                    uc_ = vd.interp_at(x2, y2, UC, xu, yu, algorithm='cubic', extrapolate=True)
+                    kc_ = vd.interp_at(x2, y2, KC, xu, yu, algorithm='cubic', extrapolate=True)
+                    ctc_ = vd.interp_at(x2, y2, CTC, xu, yu, algorithm='cubic', extrapolate=True)
+                    thc_ = vd.interp_at(x2, y2, THC, xu, yu, algorithm='cubic', extrapolate=True)
+                    magr_ = vd.interp_at(x2, y2, MAGR, xu, yu, algorithm='cubic', extrapolate=True)
                     # intialise data of lists.
                     data = {'X': xu, 'Y': yu, 'MAGIGRF': magr_, 'ALTE': alte_,
                             'CTC': ctc_, 'KC': kc_, 'UC': uc_, 'THC': thc_}
-                    # Create DataFrame 
+                    # Create DataFrame
                     # Atualizando chave 'cubic' com dados interpolados
                     y = {index: interpolado_cubico}
                     dic_cartas['cubic'].update(y)
@@ -495,15 +570,15 @@ def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_carta
                     MAGIGRF = np.array(gdf_geof.MAGIGRF)
                     MDT = np.array(gdf_geof.MDT)
                     x2, y2 = np.array(gdf_geof.X), np.array(gdf_geof.Y)
-                    altura_ = td.interp_at(x2, y2, ALTURA, xu, yu, algorithm='cubic', extrapolate=True)
-                    mdt_ = td.interp_at(x2, y2, MDT, xu, yu, algorithm='cubic', extrapolate=True)
-                    magigrf_ = td.interp_at(x2, y2, MAGIGRF, xu, yu, algorithm='cubic', extrapolate=True)
-                    # intialise data of lists. 
+                    altura_ = vd.interp_at(x2, y2, ALTURA, xu, yu, algorithm='cubic', extrapolate=True)
+                    mdt_ = vd.interp_at(x2, y2, MDT, xu, yu, algorithm='cubic', extrapolate=True)
+                    magigrf_ = vd.interp_at(x2, y2, MAGIGRF, xu, yu, algorithm='cubic', extrapolate=True)
+                    # intialise data of lists.
                     data_interpolado = {'X': xu, 'Y': yu, 'MDT': mdt_,
                                         'KPERC': altura_, 'eU': magigrf_}
-                    # Create DataFrame 
+                    # Create DataFrame
                     interpolado_cubico = pd.DataFrame(data_interpolado)
-                    # Print the output 
+                    # Print the output
                     y = {index: interpolado_cubico}
                     dic_cartas['cubic'].update(y)
                 if gama:
@@ -516,19 +591,19 @@ def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_carta
                     UKRAZAO = np.array(gdf_geof.UKRAZAO)
                     UTHRAZAO = np.array(gdf_geof.UTHRAZAO)
                     x2, y2 = np.array(gdf_geof.X), np.array(gdf_geof.Y)
-                    eTh_ = td.interp_at(x2, y2, eTh, xu, yu, algorithm='cubic', extrapolate=True)
-                    eu_ = td.interp_at(x2, y2, eU, xu, yu, algorithm='cubic', extrapolate=True)
-                    kperc_ = td.interp_at(x2, y2, KPERC, xu, yu, algorithm='cubic', extrapolate=True)
-                    ctcor_ = td.interp_at(x2, y2, CTCOR, xu, yu, algorithm='cubic', extrapolate=True)
-                    mdt_ = td.interp_at(x2, y2, MDT, xu, yu, algorithm='cubic', extrapolate=True)
-                    uthrazao_ = td.interp_at(x2, y2, UTHRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
-                    ukrazao_ = td.interp_at(x2, y2, UKRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
-                    thkrazao_ = td.interp_at(x2, y2, THKRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
-                    # intialise data of lists. 
+                    eTh_ = vd.interp_at(x2, y2, eTh, xu, yu, algorithm='cubic', extrapolate=True)
+                    eu_ = vd.interp_at(x2, y2, eU, xu, yu, algorithm='cubic', extrapolate=True)
+                    kperc_ = vd.interp_at(x2, y2, KPERC, xu, yu, algorithm='cubic', extrapolate=True)
+                    ctcor_ = vd.interp_at(x2, y2, CTCOR, xu, yu, algorithm='cubic', extrapolate=True)
+                    mdt_ = vd.interp_at(x2, y2, MDT, xu, yu, algorithm='cubic', extrapolate=True)
+                    uthrazao_ = vd.interp_at(x2, y2, UTHRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
+                    ukrazao_ = vd.interp_at(x2, y2, UKRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
+                    thkrazao_ = vd.interp_at(x2, y2, THKRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
+                    # intialise data of lists.
                     data = {'X': xu, 'Y': yu, 'MDT': mdt_, 'CTCOR': ctcor_,
                             'KPERC': kperc_, 'eU': eu_, 'eTH': eTh_,
                             'UTHRAZAO': uthrazao_, 'UKRAZAO': ukrazao_, 'THKRAZAO': thkrazao_}
-                    # Create DataFrame 
+                    # Create DataFrame
                     interpolado_cubico = pd.DataFrame(data)
                     y = {index: interpolado_cubico}
                     dic_cartas['cubic'].update(y)
@@ -539,7 +614,7 @@ def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_carta
     return dic_cartas, dic_raw_meta
 # --------------------------------------------------------------------------------------
 # RETIRANDO VALORES DE LITOLOGIA DE CADA PIXEL
-def describe(dic_cartas, dic_raw_data, crs__, tdm, ):
+def describe(dic_cartas, dic_raw_data, crs__, vdm, ):
     print("")
     print(f"# --- Inicio da análise geoestatística")
     lista_interpolado = list()
@@ -556,7 +631,7 @@ def describe(dic_cartas, dic_raw_data, crs__, tdm, ):
             print(f" lito: {litologia.crs}")
         # -------------------------------------------
         # GRID POR CUBICO
-        if tdm:
+        if vdm:
             for i in tqdm(dic_raw_data['lista_atributo_geof']):
                 df = dic_cartas['interpolado_cubico'][i].to_dataframe()
                 lista_interpolado.append(df[i])
@@ -620,7 +695,7 @@ def labels(escala=None,ids=None):
         plt.annotate(text=row['id_folha'], xy=row['centroid'], horizontalalignment='center')
 # ----------------------------------------------------------------------------------------------------------------------
 def plot_boxplots(folha, atributos):
-    fig, axs = plt.subplots(nrows = 2, ncols = 4)
+    fig, axs = plt.subplots(figsize=(14,21),nrows = 2, ncols = 4)
     for ax, atributo in zip(axs.flat, atributos):
         g = ax.boxplot(folha[atributo])
         ax.set_title(atributo)
@@ -795,24 +870,11 @@ def transform_to_carta_utm(carta):
     project=pyproj.Transformer.from_crs(wgs84,utm,always_xy=True).transform
     carta_utm=transform(project,carta_wgs84)
     return carta_utm
+
 # -----------------------------------------------------------------------------
-# Gama Titulos
-gama_FEAT=['CTCOR','eTh','eU','KPERC','UTHRAZAO','UKRAZAO','THKRAZAO','MDT']
-gama_titles=['Contagem Total', 'Th (ppm)', 'U (ppm)','K (%)','U/Th', 'U/K', 'Th/K', 'MDT (m)']
-gama_dic_titles = {}
-for f, t in zip(gama_FEAT, gama_titles):
-    gama_dic_titles[f] = t
-# Mag Titulos
-mag_FEAT=['MAGIGRF','MDT']
-mag_titles=['GMT (nT)', 'MDT (m)']
-mag_dic_titles = {}
-for f, t in zip(mag_FEAT, mag_titles):
-    mag_dic_titles[f] = t
-# Percentiles
-percentiles=(0.001,0.01,0.05,0.25,0.5,0.75,0.9995)
-# ColorMap
-cmap=cm.get_cmap('rainbow',15)
-# -----------------------------------------------------------------------------
+
+
+
 def plot_raw_mag_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%'):
     fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize = (19,9),sharex='all',sharey='all')
     raw_data_describe = raw_data.describe(percentiles=percentiles)
@@ -832,9 +894,11 @@ def plot_raw_mag_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%'
             ax.axis('scaled')
     fig.suptitle(suptitle)
     plt.tight_layout()
+
 # ---------------------------------------------------------------------------------------------------
+
 def plot_raw_gama_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%',orientation='horizontal',figsize=(26,16)):
-    fig, axs = plt.subplots(nrows = 4, ncols = 2, figsize =figsize,sharex='all',sharey='all')
+    fig, axs = plt.subplots(nrows = 2, ncols = 4, figsize =figsize,sharex='all',sharey='all')
     raw_data_describe = raw_data.describe(percentiles=percentiles)
     X, Y = raw_data.X, raw_data.Y
     for ax, f in zip(axs.flat, gama_dic_titles):
@@ -854,7 +918,7 @@ def plot_raw_gama_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%
     plt.tight_layout()
 # -----------------------------------------------------------------------------
 def plot_histograms(dataframe=None,bins=500,suptitle='Distribuição de Contagens Radiométricas'):
-    fig, axs = plt.subplots(nrows = 2, ncols = 4, figsize = (21, 9))
+    fig, axs = plt.subplots(nrows = 2, ncols = 4, figsize = (26, 13))
     print(dataframe[['CTCOR','eTh','eU','KPERC','MDT','THKRAZAO','UTHRAZAO','UKRAZAO']].describe(percentiles).T)
     for ax, f in zip(axs.flat, gama_FEAT):
         _,_,bars = ax.hist(dataframe[f],color='blue',bins=bins)
@@ -863,7 +927,7 @@ def plot_histograms(dataframe=None,bins=500,suptitle='Distribuição de Contagen
                 bar.set_facecolor("red")
                 ax.axvline(x=0,linestyle='--',linewidth=0.1,color='red')
         ax.set_title(str(gama_dic_titles[f]))
-    plt.suptitle(suptitle) 
+    plt.suptitle(suptitle)
     plt.tight_layout()
 # -----------------------------------------------------------------------------------
 def plotBoxplots(df, cols = None):
@@ -896,7 +960,7 @@ def traditional_interpolation(quadricula=None,mag_xyz=None,gama_xyz=None,algorit
             mag_data=remove_negative_values(quadricula[id][mag_xyz])
             gama_data=remove_negative_values(quadricula[id][gama_xyz])
             print(mag_data.columns)
-            CTCOR=np.array(gama_data.CTCOR) 
+            CTCOR=np.array(gama_data.CTCOR)
             eTh=np.array(gama_data.eTh)
             eU=np.array(gama_data.eU)
             KPERC=np.array(gama_data.KPERC)
@@ -926,7 +990,7 @@ def traditional_interpolation(quadricula=None,mag_xyz=None,gama_xyz=None,algorit
                       'UTHRAZAO':uthrazao_,'UKRAZAO':ukrazao_,'THKRAZAO':thkrazao_}
                 df=pd.DataFrame(data)
                 quadricula[id].update({geof+'_'+algorithm:df})
- 
+
             else:
                 MAGIGRF=np.array(mag_data.MAGIGRF)
                 MDT=np.array(gama_data.MDT)
@@ -946,52 +1010,4 @@ def traditional_interpolation(quadricula=None,mag_xyz=None,gama_xyz=None,algorit
                       'KPERC': kperc_,'eU':eu_,'eTh':eth_,'GMT':mag_}
                 df=pd.DataFrame(data)
                 quadricula[id].update({geof+'_'+algorithm:df})
-          
-            
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
