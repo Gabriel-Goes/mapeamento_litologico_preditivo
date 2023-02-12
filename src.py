@@ -481,7 +481,7 @@ def batch_verde(dic_cartas=None, dic_raw_meta=None):
 # ----------------------------------------------------------------------------
 
 
-def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_cartas=None, dic_raw_meta=None):
+def interpolar(splines=None, cubico=None, mag=None, gama=None, geof=None, dic_cartas=None, dic_raw_meta=None):
     if splines:
         dic_cartas['splines'] = {}
         print('# Inicio dos processos de interpolação pelo método cúbico')
