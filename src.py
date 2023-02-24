@@ -16,11 +16,10 @@ from shapely import geometry
 from shapely.ops import transform
 from pylab import cm
 
-
+# -----------------------------------------------------------------------------
 # Gama Titulos
 gama_FEAT = ['CTCOR', 'eTh', 'eU', 'KPERC',
              'UTHRAZAO', 'UKRAZAO', 'THKRAZAO', 'MDT']
-
 gama_titles = ['Contagem Total', 'Th (ppm)', 'U (ppm)', 'K (%)',
                'U/Th', 'U/K', 'Th/K', 'MDT (m)']
 gama_dic_titles = {}
