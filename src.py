@@ -711,6 +711,23 @@ def filtro(gdf, mineral):
     else:
         return filtrado
 # ---------------------------------------------------------------------------------------------------
+def plot_mc_base(quadricula=None):
+    for id in list(quadricula.keys()):
+        carta=quadricula[id]
+        plt.plot(*transform_to_carta_utm(carta['folha']).exterior.xy,color='black')
+        for data in list(carta.keys())[2:]:
+            if 'mag' in data:
+                pass
+            else:
+                plt.scatter(carta[data].X,carta[data].Y,
+                            c=carta[data].MDT,
+                            cmap='terrain',
+                            s=0.5,
+                            marker='H')
+                plt.axis('scaled')
+    plt.tight_layout()
+
+# ---------------------------------------------------------------------------------------------------
 def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
     mc = import_mc(escala,ID)
     mc.set_index('id_folha',inplace=True)
