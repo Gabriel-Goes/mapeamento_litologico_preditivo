@@ -664,15 +664,24 @@ def describe(dic_cartas, dic_raw_data, crs__, vdm, ):
             dic_cartas['lito_cubic'].update(x)
             print(dic_cartas['lito_cubic'][index].keys())
 # ----------------------------------------------------------------------------------------------------------------------
-# FUNÇOES DE PLOTAGEM COM GEOPANDAS
+def bounding_box(geometry):
+    recorte = [geometry.bounds['minx'].min(), geometry.bounds['maxx'].max(),
+               geometry.bounds['miny'].min(), geometry.bounds['maxy'].max()]
+
+    return recorte
+# ----------------------------------------------------------------------------------------------------------------------
+# FUNÇOES DE PLOTAGEM COM GEOPANDA
 def plot_brazil(gdf, atributo=None):
-    world = dado_bruto.gpd.read_file(dado_bruto.gpd.datasets.get_path('naturalearth_lowres'))
+    recorte = bounding_box(gdf)
+    world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
     brazil = world[world.name == 'Brazil']
+    recorte_brazil = brazil.clip(recorte[0], recorte[2],
+                                 recorte[1], recorte[3])
     if atributo:
-        ax = brazil.boundary.plot(color='black')
+        ax = recorte_brazil.boundary.plot(color='black')
         gdf.plot(atributo, ax=ax, color='black')
     else:
-        ax = brazil.boundary.plot(color='black')
+        ax = recorte_brazil.boundary.plot(color='black')
         gdf.plot(ax=ax, color='black')
 # ----------------------------------------------------------------------------------------------------------------------
 def plot_base(escala=None,ids=None,atributo=None, camada=None, mapa=None):
