@@ -856,8 +856,8 @@ def Upload_geof(quadricula=None,gama_xyz=None,mag_xyz=None,extend_size=0):
     wgs84 = pyproj.CRS('EPSG:4326')
     ids = list(quadricula.keys())
     for id in tqdm(ids):
-        utm = pyproj.CRS('EPSG:'+quadricula[id]['area']['EPSG'])
-        carta_wgs84 = quadricula[id]['area']['geometry']
+        utm = pyproj.CRS('EPSG:'+quadricula[id]['folha']['EPSG'])
+        carta_wgs84 = quadricula[id]['folha']['geometry']
         project = pyproj.Transformer.from_crs(wgs84,utm,always_xy=True).transform
         carta_utm = transform(project,carta_wgs84)
         region_utm = carta_utm.bounds[0],carta_utm.bounds[2],carta_utm.bounds[1],carta_utm.bounds[3]
