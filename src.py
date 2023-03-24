@@ -719,6 +719,7 @@ def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
         y = {index:{'folha':row,
                     'escala':escala}}
         quadricula.update(y)
+        print('')
         if verbose:
             print(f' - Folha "{index}" adicionada.')
     if verbose:

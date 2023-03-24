@@ -1,22 +1,28 @@
-from src import set_gdb, import_mc, Build_mc,Upload_mc
-from shapely import geometry
+from src import Upload_mc, Build_mc, import_mc
+#from shapely import geometry
 from shapely.ops import transform
 import pyproj
-from tkinter import * 
+from tkinter import Tk, Label
 from tkinter import ttk
-import geopandas as gpd
-from tqdm import tqdm
+#import geopandas as gpd
+#from tqdm import tqdm
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 import warnings
-warnings.filterwarnings("ignore")
+
+
 import matplotlib.pyplot as plt
-#-----------------------------Main Frame---------------------------- 
-janela=Tk()
+
+warnings.filterwarnings("ignore")
+
+
+# -----------------------------Main Frame----------------------------
+janela = Tk()
 janela.title('Preditor de Litologias')
-titulo=Label(text='Preditor de Litologias', font=('Arial',12))
+titulo = Label(text='Preditor de Litologias', font=('Arial', 12))
 titulo.pack()
-#-----------------------------Funçõees------------------------------- 
+# -----------------------------Funçõees------------------------------- 
+
 def list_id():
     mc = import_mc(cmb_escala.get())
     lista_id = list(mc['id_folha'])
@@ -27,21 +33,21 @@ def build_dic():
     print(' - CONSTRUINDO DICIONÁRIO DE CARTAS')
     escala = cmb_escala.get()
     ID = cmb_folhas.get()
-    quadricula = Build_mc(escala,[ID],verbose=True)
-    folha=quadricula[ID]['folha']
-    fig = Figure(figsize=(5,5),dpi=100)
+    quadricula = Build_mc(escala, [ID], verbose=True)
+    folha = quadricula[ID]['folha']
+    fig = Figure(figsize=(5, 5), dpi=100)
     wgs84 = pyproj.CRS('EPSG:4326')
     EPSG = folha['EPSG']
     utm = pyproj.CRS('EPSG:'+EPSG)
     carta_wgs84 = folha['geometry']
-    project = pyproj.Transformer.from_crs(wgs84,utm,always_xy=True).transform
-    carta_utm = transform(project,carta_wgs84)
-    plot1=fig.add_subplot(111)
+    project = pyproj.Transformer.from_crs(wgs84, utm, always_xy=True).transform
+    carta_utm = transform(project, carta_wgs84)
+    plot1 = fig.add_subplot(111)
     plot1.plot(*carta_utm.exterior.xy)
-    canvas = FigureCanvasTkAgg(fig,janela)
+    canvas = FigureCanvasTkAgg(fig, janela)
     canvas.draw()
     canvas.get_tk_widget().pack()
-    toolbar = NavigationToolbar2Tk(canvas,janela)
+    toolbar = NavigationToolbar2Tk(canvas, janela)
     toolbar.update()
     return quadricula, ID, escala
 def upload_dic():
