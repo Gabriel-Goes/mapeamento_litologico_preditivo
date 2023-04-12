@@ -24,6 +24,13 @@ def set_gdb(path=''):
     '''
     gdb = '/home/ggrl/database/' + path
     return gdb
+
+# -----------------------------------------------------------------------------
+def bounding_box(geometry):
+    recorte = [geometry.bounds['minx'].min(), geometry.bounds['maxx'].max(),
+               geometry.bounds['miny'].min(), geometry.bounds['maxy'].max()]
+
+    return recorte
 # -----------------------------------------------------------------------------
 def geometrias(camada=None, mapa=None):
     '''
