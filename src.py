@@ -219,9 +219,11 @@ def regions(mc):
                                         bounds['miny'], bounds['maxy'])]
     return mc
 # -----------------------------------------------------------------------------
-def cartas(escala="",ids=""):
+
+
+def cartas(escala="", ids=""):
     print('# --- Iniciando seleção de área de estudo')
-    mc_select = import_malha_cartog(escala,ids)
+    mc_select = import_malha_cartog(escala, ids)
     regions(mc_select)
     mc_select.set_index('id_folha', inplace=True)
     # CRIANDO UM DICIONÁRIO DE CARTAS
@@ -230,7 +232,8 @@ def cartas(escala="",ids=""):
     dic_cartas = mc_select.to_dict()
     # MAIS DE UMA FOLHA DE CARTA SELECIONADA
     if len(dic_cartas['raw_data']) > 1:
-        print(f"{len(dic_cartas['raw_data'])} folhas cartográfica selecionadas")
+        print(f"{len(dic_cartas['raw_data'])} \
+                folhas cartográfica selecionadas")
         print("")
     # APENAS UMA FOLHA DE CARTA SELECIONADA
     if len(dic_cartas['raw_data']) == 1:
@@ -239,6 +242,8 @@ def cartas(escala="",ids=""):
 
     return dic_cartas, mc_select
 # -----------------------------------------------------------------------------
+
+
 def lista_cols(geof):
     print('Listando atributos dos dados geofisicos')
     atributos_geof = list(geof.columns)  # DataFrame.columns
@@ -264,7 +269,7 @@ def lista_cols(geof):
             lista_atributo_proj.append(atributo)
         else:
             lista_atributo_geof.append(atributo)
-    codigo = str(geof)
+    codigo=str(geof)
     print(f"# --- # Listagem de dados do aerolevantamento:  ")
     print(f"Lista de atributos geofísicos = {lista_atributo_geof}")
     print(f"lista de atributos geograficos = {lista_atributo_geog}")
