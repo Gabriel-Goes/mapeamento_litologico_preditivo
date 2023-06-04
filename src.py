@@ -861,12 +861,14 @@ def parser_siglas(ID='SF23',quadricula=None):
     lista_periodos_set = list(set(lista_periodos))
     return lista_SIGLAS,lista_periodos,lista_periodos_set
 # ---------------------------------------------------------------------------------------------------
+
+
 def remove_negative_gama(df):
     df['K_pos'] = df['KPERC'] - df['KPERC'].min() + 0.01
     df['eU_pos'] = df['eU'] - df['eU'].min() + 0.01
     df['eTh_pos'] = df['eTh'] - df['eTh'].min() + 0.01
-    #excluindo os canais originais
-    df.drop(['KPERC','eU','eTh'], axis =1, inplace = True)
+    # excluindo os canais originais
+    df.drop(['KPERC', 'eU', 'eTh'], axis=1, inplace=True)
     #renomeando os positivos para os nomes dos originais
     df.rename(columns={'K_pos':'KPERC','eU_pos':'eU','eTh_pos':'eTh','CTCOR':'CT'}, inplace=True)
     df = df[['CT', 'eTh','eU','KPERC','UTHRAZAO','UKRAZAO','THKRAZAO','MDT','X','Y','LATITUDE','LONGITUDE']]
