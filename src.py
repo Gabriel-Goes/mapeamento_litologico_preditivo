@@ -109,7 +109,7 @@ def import_mc(escala=None, ID=None):
     mc_slct = gpd.GeoDataFrame()
     if ID:
         for id in tqdm(ID):
-            mc_slct = mc_slct.append(mc[mc['id_folha'].str.contains(id)])
+            mc_slct = pd.concat([mc_slct,mc[mc['id_folha'].str.contains(id)]])
         return mc_slct
     else:
         return mc
