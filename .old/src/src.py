@@ -12,7 +12,7 @@ def gdb(path=''):
 
         path : caminho até o arquivo desejado
     '''
-    gdb = '/home/ggrl/geodatabase/' + path
+    gdb = '/home/ggrl/database/' + path
     return gdb
 # ----------------------------------------------------------------------------------------------------------------------
 
