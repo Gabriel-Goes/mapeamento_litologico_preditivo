@@ -769,7 +769,10 @@ def Upload_geof(quadricula=None,gama_xyz=None,mag_xyz=None,extend_size=0):
 # -----------------------------------------------------------------------------
 def pop_nodata(quadricula):
     for id in tqdm(list(quadricula.keys())):
+        columns = list(quadricula[id].keys())
         if len(quadricula[id]) <= 2:
+            quadricula.pop(id)
+        elif len(quadricula[id][columns[2]]) < 5000:
             quadricula.pop(id)
     return quadricula
 # -----------------------------------------------------------------------------
@@ -897,8 +900,8 @@ def plot_raw_mag_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%'
 
 # ---------------------------------------------------------------------------------------------------
 
-def plot_raw_gama_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%',orientation='horizontal',figsize=(26,16)):
-    fig, axs = plt.subplots(nrows = 2, ncols = 4, figsize =figsize,sharex='all',sharey='all')
+def plot_raw_gama_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%',orientation='vertical',figsize=(16,26)):
+    fig, axs = plt.subplots(nrows = 4, ncols = 2, figsize =figsize,sharex='all',sharey='all')
     raw_data_describe = raw_data.describe(percentiles=percentiles)
     X, Y = raw_data.X, raw_data.Y
     for ax, f in zip(axs.flat, gama_dic_titles):
@@ -915,7 +918,7 @@ def plot_raw_gama_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%
             ax.set_title(str(gama_dic_titles[f]), size = 11)
             ax.axis('scaled')
     fig.suptitle(suptitle)
-    plt.tight_layout()
+#    plt.tight_layout()
 # -----------------------------------------------------------------------------
 def plot_histograms(dataframe=None,bins=500,suptitle='Distribuição de Contagens Radiométricas'):
     fig, axs = plt.subplots(nrows = 2, ncols = 4, figsize = (26, 13))
