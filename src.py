@@ -693,10 +693,10 @@ def labels(escala=None,ids=None):
     for index, row in gdf.iterrows():
         plt.annotate(text=row['id_folha'], xy=row['centroid'], horizontalalignment='center')
 # ----------------------------------------------------------------------------------------------------------------------
-def plot_boxplots(folha, atributos):
-    fig, axs = plt.subplots(figsize=(14,21),nrows = 2, ncols = 4)
+def plot_boxplots(folha, atributos, figsize=(21,14)):
+    fig, axs = plt.subplots(figsize=figsize,nrows = 2, ncols = 4)
     for ax, atributo in zip(axs.flat, atributos):
-        g = ax.boxplot(folha[atributo])
+        g = ax.boxplot(folha[atributo],vert=False)
         ax.set_title(atributo)
     plt.show()
 # ---------------------------------------------------------------------------------------------------

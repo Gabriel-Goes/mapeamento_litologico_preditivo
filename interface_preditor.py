@@ -1,4 +1,4 @@
-from src import Upload_mc, Build_mc, import_mc
+from src import Upload_geof, Build_mc,Upload_litologia, import_mc
 #from shapely import geometry
 from shapely.ops import transform
 import pyproj
@@ -9,6 +9,7 @@ from tkinter import ttk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 import warnings
+import os
 
 
 import matplotlib.pyplot as plt
@@ -22,7 +23,11 @@ janela.title('Preditor de Litologias')
 titulo = Label(text='Preditor de Litologias', font=('Arial', 12))
 titulo.pack()
 # -----------------------------Funçõees------------------------------- 
-
+def list_geof():
+    linhas_geof = os.listdir('/home/ggrl/database/geof/')
+    return linhas_geof
+def linha_select():
+    cmb_linhas['values'] = list_geof()
 def list_id():
     mc = import_mc(cmb_escala.get())
     lista_id = list(mc['id_folha'])
@@ -52,11 +57,10 @@ def build_dic():
     return quadricula, ID, escala
 def upload_dic():
     quadricula,ID,escala=build_dic()
-    Upload_mc(quadricula,gama_xyz='gama_line_1105',mag_xyz='mag_line_1105',camada='socorro_250k') 
-    df = quadricula[ID]['gama']
+    Upload_geof(quadricula,gama_xyz=cmb_gama.get(),mag_xyz=cmb_mag.get()) 
+    df = quadricula[ID][cmb_gama.get()]
     coords = [df.X,df.Y]
-    
-    scatter = FigureCanvasTkAgg(fig,janela)
+    scatter = FigureCanvasTkAgg(Figure(figsize=(9,9)),janela)
     scatter.get_tk_widget().pack()
     plt.scatter(coords[0],coords[1],s=1.5,c=df.MDT,cmap='terrain')
     plt.axis('scaled')
@@ -82,6 +86,26 @@ lbl_folhas.grid(row=2,column=0)
 cmb_folhas = ttk.Combobox(frame_seletor)
 cmb_folhas.grid(row=2,column=1)
 frame_seletor.pack()
+# --- Seletor de linhas geofísicas
+frame_seletor = ttk.Frame(janela)
+lbl_linhas = ttk.Label(frame_seletor,text='Aerogefísica',font=('Arial',9))
+lbl_linhas.grid(row=3,columns=1,padx=5,pady=5)
+frame_seletor['relief'] = 'sunken'
+frame_seletor['borderwidth'] = 2
+# --- Gamaespectrometria
+lbl_gama = ttk.Label(frame_seletor,text='Linhas disponíveis',font=('Arial',9))
+lbl_gama['relief'] = 'raised'
+lbl_gama.grid(row=4,column=0)
+cmb_gama= ttk.Combobox(frame_seletor,values=list_geof())
+cmb_gama.grid(row=4,column=1)
+frame_seletor.pack()
+# --- Magnetoespectrometria
+lbl_mag= ttk.Label(frame_seletor,text='Linhas disponíveis',font=('Arial',9))
+lbl_mag['relief'] = 'raised'
+lbl_mag.grid(row=5,column=0)
+cmb_mag= ttk.Combobox(frame_seletor,values=list_geof())
+cmb_mag.grid(row=5,column=1)
+frame_seletor.pack()
 # -------------------------Construtor de Quadriculas--------------------------
 frame_quadricula = ttk.Frame(janela)
 lbl_quadricula = ttk.Label(frame_quadricula,text='Malha Cartográfica')
@@ -103,38 +127,7 @@ lbl_upload.grid(row=1,column=1)
 # --------------------
 frame_quadricula.pack()
 # --- Set Start Parameters
-cmb_folhas.set('SF23_YA_III')
-cmb_escala.set('100k')
+cmb_folhas.set('SF23_YA_III4')
+cmb_escala.set('50k')
 # -----------------------------------------------------------------------------
 janela.mainloop()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
