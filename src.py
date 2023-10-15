@@ -212,7 +212,6 @@ def nomeador_grid(left, right, top, bottom, escala=5):
 
 # -----------------------------------------------------------------------------
 
-
 def set_EPSG(mc):
     EPSG = []
     for i in mc['id_folha']:
@@ -222,7 +221,6 @@ def set_EPSG(mc):
             EPSG.append('326'+str(i[2:4]))
     mc['EPSG'] = EPSG
     return mc
-
 
 # -----------------------------------------------------------------------------
 
@@ -255,7 +253,6 @@ def regions(mc):
     return mc
 
 # -----------------------------------------------------------------------------
-
 
 def cartas(escala=None, ids=None):
     print('# --- Iniciando seleção de área de estudo')
@@ -370,7 +367,7 @@ def set_region(escala, id, geof, camada, mapa=None, crs__=None):
     '''
     Recebe:
         escala : Escalas disponíveis para recorte: '50k', '100k', '250k', '1kk'
-            id : ID da folha cartográfica (Articulação Sistemática de Folhas Cartográficas)
+            id : ID da folha cartográfica (Articulação Sistemática de Folhas Cartográficas);
           geof : Dado aerogeofísico disponível na base de dados (/home/ggrl/database/geof/)
         camada : Litologias disponíveis na base de dados (/home/ggrl/database/geodatabase.gpkg)
         mapa   : Nome do mapa caso necessário.
@@ -944,7 +941,7 @@ def plotBoxplots(df, cols = None):
     - Um boxplot por feature presente na lista cols
     """
     n = len(cols)
-    fig,axs=plt.subplots(n,1,figsize=(16,n*2.5))
+    fig,axs=plt.subplots(n,1,figsize=(26,n*2.5))
     for ax, f in zip(axs, cols):
         sns.boxplot(y=f,x='closest_unid',data=df,ax=ax)
         if f!=cols[n-1]:
