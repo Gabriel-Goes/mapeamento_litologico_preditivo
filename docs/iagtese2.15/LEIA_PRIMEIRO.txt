@@ -1,0 +1,191 @@
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+%----------------------------------------------------------- AUTORES (em ordem alfabetica) ---------------------------------------------------------
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+
+- Oscar Cavichia  (cavichia@astro.iag.usp.br)
+- Vinicius Placco (vmplacco@astro.iag.usp.br)
+
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+%----------------------------------------------------------------------- VERSAO --------------------------------------------------------------------
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+
+- data da primeira versao (1.00): 24.10.2.08
+- data da versao atual    (2.15): 10.07.2014
+
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+%----------------------------------------------------------------------- AVISOS --------------------------------------------------------------------
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+
+- Esta classe de latex foi criada com o intuito de padronizar as dissertacoes/teses do IAG, de acordo com as normas e diretrizes da USP.
+- Foi criada uma subclasse "relatorio", com formato bem simples e limpo para relatorios semestrais de departamento
+- O arquivo "iagtese.cls" tem como base o arquivo "thesis.cls", que foi (e esta sendo) alterado com autorizacao do autor.
+- Qualquer pessoa pode distribuir e alterar o arquivo, desde que mantenha os cabecalhos originais e devidas referencias aos autores.
+- Divulgue, use, de sugestoes e colabore para que tenhamos trabalhos cada vez melhores!
+- Caso encontre erros na formatacao por favor entre em contato com os autores por e-mail.
+- Citacoes e Agradecimentos aos autores do template em seu trabalho serao muito bem-vindos!
+
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+%---------------------------------------------------------------- NOTA SOBRE INSTALACAO ------------------------------------------------------------
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+
+- Para instalar o iagtese em seu sistema (necessario senha de root para Linux e MacOS): seguir roteiro INSTALA na pasta instala/
+- Para uso local (todos os sistemas operacionais): copiar todos os arquivos da pasta instala/ para a pasta de trabalho
+- A classe iagtese funciona normalmente em sistemas Windows, desde que o MikTeX esteja instalado
+
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+%------------------------------------------------------------------- AGRADECIMENTOS ----------------------------------------------------------------
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+
+- Mairan Teodoro (dicas na implementacao do bibTeX)
+- Thiago Matheus (implementacao da subsubsecao e script para o windows)
+- Marcio Avellar (correcoes na versao em ingles)
+- Vinicius Busti (dicas para o funcionamento da hifenizacao em portugues)
+- A todos que apontaram erros e deram sugestoes
+
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+%---------------------------------------------------------------------- CONTEUDO -------------------------------------------------------------------
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+
+A pasta iagtese/ contem os seguintes arquivos:
+
+=====================================================================================================================================================
+
+01) LEIA_PRIMEIRO - este arquivo
+
+02) instala/
+
+	INSTALAR - instrucoes para fazer o arquivo .cls funcionar
+	instala.sh - script para copiar os arquivos para o sistema e criar os links necessarios (somente para linux)
+	iagtese.cls - arquivo de classe, necessario para formatacao do texto (ver arquivo INSTALAR para instrucoes)
+        iagtese_en.cls - arquivo de classe no idioma ingles, necessario para formatacao do texto (ver arquivo INSTALAR para instrucoes)
+	fancyhdr.sty - - arquivo de estilo necessario para que o iagtese funcione (ver arquivo INSTALAR para instrucoes)
+	fncychap.sty - arquivo de estilo necessario para que o iagtese funcione (ver arquivo INSTALAR para instrucoes)
+	bibliografia.sty - formatacao da bibliografia (arquivo base: natbib.sty)
+	iag.bst - arquivo de formatacao da bibilografia, seguindo os padroes ABNT
+        iag_en.bst - arquivo de formatacao da bibilografia no idioma ingles, seguindo os padroes ABNT 
+	deluxetable.sty - arquivo de estilo para tabelas longas, com quebra automatica de pagina
+	caption.sty - arquivo de estilo para formatar legendas
+	caption3.sty - arquivo de estilo para formatar legendas 
+	longtable.dtx - arquivo de estilo para tabelas longas, com quebra automatica de pagina (ver exemplo na pasta tex/)
+
+03) tese/
+
+	tese.tex - arquivo fonte do documento (mais detalhes abaixo)
+	tese.pdf - exemplo de tese compilada com iagtese
+	tese.sh - script para compilar o documento e gerar uma saida em .pdf (somente para linux e mac os) - nao inclui bibTeX
+        tese.bat - script para compliar o documento e gerar uma saida em .pdf 
+        (somente para Windows) - nao inclui o bibTeX
+	tesebib.sh - script para compilar o documento e gerar uma saida em .pdf (somente para linux e mac os) - inclui bibTeX
+	tex/ - pasta com arquivos .tex que devem ser alterados/adicionados de acordo com seu trabalho
+	fig/ - pasta onde sao colocadas as figuras do trabalho. Atencao para comando exemplo de como adicionar a figura, no arquivo analise.tex
+
+03) relatorio/
+
+	relatorio.tex - arquivo fonte do documento (mais detalhes abaixo)
+	relatorio.pdf - exemplo de relatorio compilado com iagtese (opcao relatorio)
+	relatorio.sh - script para compilar o documento e gerar uma saida em .pdf (somente para linux e mac os) - inclui bibTeX
+	tex/ - pasta com arquivos .tex que devem ser alterados/adicionados de acordo com seu trabalho
+	fig/ - pasta onde sao colocadas as figuras do trabalho. Atencao para comando exemplo de como adicionar a figura, no arquivo analise.tex
+
+
+04) apostilas/ - pasta com 4 tutoriais para edicao de textos em LaTeX
+	
+	aassym.pdf - comandos de atalho para revistas cientificas, utilizados pelo bibTeX para referencias retiradas direto do ADS
+        latexemportugues.pdf - introducao ao LaTeX em portugues
+        latex_figures.pdf - tutorial em ingles sobre como incluir figuras em LaTeX
+        latex_tables.pdf - tutorial em ingles sobre como construir tabelas em LaTeX
+        manLaTeX.pdf - outra apostila introdutoria sobre o LaTeX
+        natbib.pdf -  apostila sobre como usar o pacote natbib para fazer citacoes bibliograficas no LaTeX
+        symbols-a4.pdf - apostila de simbolos em LaTeX
+     
+
+=====================================================================================================================================================
+
+Apos compilar o arquivo .tex ou rodar o script .sh, alguns arquivos serao gerados. Os arquivos para ver o texto compilado sao o .dvi e .pdf. 
+Os demais arquivos sao arquivos internos do latex que em 99.99999\% dos casos podem ser esquecidos pelo usuario. Sao eles:
+
+*.aux - arquivo auxiliar, com info sobre sumario, idioma, secoes e citacoes, necessario para o bibTeX funcionar
+*.toc - contem comandos para o sumario
+*.lof - contem comandos para lista de figuras
+*.log - contem o log de compilacao do .tex
+*.lot - contem comandos para lista de tabelas
+*.bbl - cria a formatacao da bibliografia, incluindo apenas as referencias citadas no texto
+*.blg - arquivo gerado pelo bibTeX, com estatisticas da parte bibliografica
+
+E os arquivos finais:
+
+*.dvi - arquivo dvi (device independent) para visualizar o texto
+*.pdf - arquivo .pdf gerado para impressao
+
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+%-------------------------------------------------------- informacoes sobre a formatacao -----------------------------------------------------------
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+
+A formatacao da classe "iagtese" esta de acordo com as diretrizes da USP para teses/dissertacoes. 
+Assim, o comando \documentclass{iagtese} nao necessita de opcoes extras, pois ja contem opcoes padrao como: 
+
+- tamanho de fonte
+- espacamento
+- margens
+- formatacao para referencias
+- impressao frente e verso
+- capa
+- folha de rosto
+- numeracao de paginas
+- bibliografia
+- etc.
+
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+%----------------------------------------------- como utilizar os exemplos e compilar um documento -------------------------------------------------
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+
+Para utilizar os exemplos:
+
+No arquivo .tex, todos os comandos \input fazem referencia a pasta tex/. Nela voce encontra todos os arquivos necessarios para fazer seu trabalho. 
+Basta edita-los e compilar o .tex. Para adicionar mais capitulos, edite o arquivo .tex e insira o capitulo no local correspondente.
+
+Para compilar:
+
+Se voce usa algum editor de .tex (Kyle, TeXshop, WinEdt, etc), pode compilar o arquivo .tex e gerar um .pdf utilizando as teclas de atalho
+(Para gerar e atualizar o sumario e necessario compilar mais de uma vez o arquivo)
+
+Se voce compila o documento pelo terminal, pode utilizar os scripts "tese.sh" e "relatorio.sh", que compila 3x o arquivo .tex e gera um .pdf automaticamente:
+
+user@iag > ./tese.sh (para quem nao usa o bibTeX)
+
+user@iag > ./tesebib.sh (para quem usa o bibTeX)
+
+user@iag > ./relatorio.sh (para quem usa o bibTeX)
+
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+%------------------------------------------ como obter as referencias bibliograficas diretamente do ADS --------------------------------------------
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+
+com bibTeX:
+
+clicar no link "Bibtex entry for this abstract" e copiar o conteudo para o arquivo bibliografia.bib, na pasta tex/
+
+sem bibTeX:
+
+clicar no link "Preferred format for this abstract" e copiar o conteudo para o arquivo bibliografia.tex, na pasta tex/
+
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+%------------------------------------------ Utilizando hiperlinks em referencias de tabelas, figuras, citacoes -------------------------------------
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+
+Os links para referencias de tabelas, figuras, citacoes bibliograficas, etc, sao habilitados por padrao no iagtese. 
+Contudo, para estes links funcionarem, a conversao do DVI em PDF deve ser feita com o comando dvipdf. Se voce utiliza
+o Kile para gerar o PDF, va em Configure Kile > Tools > Build e procure no menu 'Select a tool' a ferramenta 'DVItoPDF'
+Em 'Command' certifique-se que o comando utilizado eh o 'dvipdf'
+
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+%------------------------------------------------------- Hifenizacao ------------------------------------------------------------------------------
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+
+Caso ocorram problemas com hifenizacao, verifique se o pacote lang-portuguese esta instalado. No Ubuntu use: 
+
+sudo apt-get install texlive-lang-portuguese
+
+%---------------------------------------------------------------------------------------------------------------------------------------------------
+%-------------------------------------------------------------------------- FIM --------------------------------------------------------------------
+%---------------------------------------------------------------------------------------------------------------------------------------------------

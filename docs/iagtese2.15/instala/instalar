@@ -1,0 +1,51 @@
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+COMO UTILIZAR A CLASSE IAGTESE (Para instrucoes de como criar os documentos dessa classe, leia o arquivo LEIA_PRIMEIRO)
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+A classe IAGTESE pode ser utilizada de duas formas: localmente, na sua conta de usuario, ou fazer com que os arquivos sejam visiveis de qualquer pasta do sistema e esteja disponivel para todos os usuarios do seu computador (nesse caso e necessario possuir a senha de root). Uma desvantagem do sistema local e que para cada novo arquivo .tex em uma pasta diferente, o arquivo de classe devera ser copiado para aquela pasta. A instalacao de sistema evita esse problema.
+
+1) uso local (valido para todos os sistemas operacionais com alguma distribuicao do latex previamente instalada, como teTeX, mikTeX ou gwTeX).
+
+nesse caso, os arquivos "iagtese.cls" (que contem todas as formatacoes), os arquivos de estilo "*.sty(dtx)", e o arquivo "iag.bst" (formatacao da bibliografia) DEVEM estar no mesmo diretorio do arquivo .tex principal do seu trabalho para que o texto seja compilado corretamente. Lembre-se que, a cada nova versao do IAGTESE, os arquivos devem ser atualizados.
+
+OBS: se você ja utiliza os arquivos .sty listados acima (que nao estao na instalacao padrao do LaTeX), você deve substitui-los por esses, visto que foram adicionados alguns comandos. Porem, o conteudo original foi mantido e eventuais arquivos que facam referência aos arquivos .sty nao serao alterados. 
+
+2) instalacao no sistema do latex (necessario senha de root). Como root, copiar os arquivos "iagtese.cls", "*.sty(dtx)" e "iag.bst" para pasta onde o latex procura os arquivos de estilo. Esse local pode variar de acordo com seu OS, mas os mais comuns sao listados abaixo. Para usuarios do linux, e possivel copiar os arquivos automaticamente e atualizar o latex utilizando o script "instala.sh". Lembre-se que, a cada nova versao do IAGTESE, o script deve ser executado novamente para atualizar os arquivos (Obs: para utilizar o script de instalacao eh preciso ter o dialog instalado - ele eh padrao na maioria das distribuicoes de LINUX).
+
+2.1)Linux/Unix: No terminal (e no diretorio onde se encontra o arquivo .cls):
+
+seulogin@iag > su
+senha: ______
+root@iag > ./instala.sh
+root@iag > exit
+
+ou ainda:
+
+seulogin@iag > sudo ./instala.sh
+
+2.2)Mac OS: No terminal (e no diretorio onde se encontra o arquivo .cls):
+
+seulogin@iag > su
+senha: ______
+root@iag > cp iagtese.cls /usr/local/gwTeX/texmf.texlive/tex/latex/base/ (ou /usr/local/teTeX/share/texmf/tex/latex/base/)
+root@iag > cp *.sty(dtx) (exceto caption*.sty(dtx), em ../tex/latex/caption/) /usr/local/gwTeX/texmf.texlive/tex/latex/base/ (ou /usr/local/teTeX/share/texmf/tex/latex/base/)
+root@iag > cp iag.bst /usr/local/gwTeX/texmf.texlive/bibtex/bst/base/ (ou /usr/local/teTeX/share/texmf/bibtex/bst/base/)
+root@iag > texhash
+root@iag > exit
+
+O comando texhash (ou mktexlsr) procura por novos arquivos adicionados e cria links para os mesmos, e funciona apenas com senha de root. 
+Se esse comando nao for digitado, o arquivo nao vai ser encontrado pelo latex.
+
+2.3)Windows: Com as permissoes necessarias e o MiKTeX instalado:
+
+copiar os arquivos "iagtese.cls", "*.sty(dtx)" para o diretorio:
+c:\texmf\tex\latex\base\
+copiar os arquivos "caption*.sty(dtx)" para o diretorio:
+c:\texmf\tex\latex\caption\
+e o arquivo "iag.bst" para o diretorio:
+c:\tex\localtexmf\bibtex\
+
+Para atualizar os diretorios onde o latex procura os arquivos, você deve encontrar o update do MiKTeX, provavelmente em iniciar > programas > miktex > update ...
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,26 @@
+\documentclass[relatorio,oneside]{iagtese}	       % subclasse relatorio do iagtese
+										%
+%\documentclass[relatorio,oneside]{iagtese_en}	% subclasse relatorio do iagtese
+										% em ingles. Para escrever o 
+										% relatorio em ingles, descomente
+ 										% esta linha e comente a linha
+                                            					% anterior.
+\def\today{Março de 2010 a Agosto de \number\year}% período a que se refere o relatório
+										%
+										%	
+\begin{document}							% início do documento
+										% 				
+\input{tex/capa.tex}							% arquivo para inserir a capa
+										% 
+\titulo									% 
+										%
+\assinatura								% folha com assinaturas								
+										%
+\input{tex/capitulo01.tex}  	  					% inserir os capítulos do seu 							
+										% trabalho
+\input{tex/capitulo02.tex}  	      					% 
+										%
+\bibliography{tex/bibliografia}					% referencias com bibTeX
+										%
+										%
+\end{document}								% fim do documento
