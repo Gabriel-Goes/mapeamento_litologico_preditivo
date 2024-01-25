@@ -1297,8 +1297,7 @@
   ]{geometry}
 
 
-  \usepackage[brazil]{babel}
-  \usepackage[latin1]{inputenc}
+  \usepackage[brazilian]{babel}
   \usepackage{epsfig}
   \usepackage{graphicx}  
   \usepackage{float}
@@ -1405,7 +1404,7 @@
   ]{geometry}
  \usepackage{epstopdf}
   \usepackage[brazil]{babel}
-  \usepackage[latin1]{inputenc}
+%  \usepackage[latin1]{inputenc}
   \usepackage{epsfig}
   \usepackage{graphicx}  
   \usepackage{float}

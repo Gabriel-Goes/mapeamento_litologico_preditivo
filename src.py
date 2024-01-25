@@ -941,6 +941,7 @@ def plotBoxplots(df, cols = None):
     - Um boxplot por feature presente na lista cols
     """
     n = len(cols)
+    print(n)
     fig,axs=plt.subplots(n,1,figsize=(26,n*2.5))
     for ax, f in zip(axs, cols):
         sns.boxplot(y=f,x='closest_unid',data=df,ax=ax)
