@@ -21,7 +21,10 @@ def float_range(start, stop, step):
 
 
 # Abre o arquivo de shapefile e define como brasil
-with fiona.open('/home/ggrl/database/shapefiles/IBGE/ANMS2010_06_grandesregioes.shp', 'r', encoding='utf-8') as brasil_shapefile:
+database = '/home/ggrl/database/'
+with fiona.open(database + 'shapefiles/IBGE/ANMS2010_06_grandesregioes.shp',
+                'r',
+                encoding='utf-8') as brasil_shapefile:
     regioes = [shape(feature['geometry']) for feature in brasil_shapefile]
 
 brasil = unary_union(regioes)
@@ -44,24 +47,23 @@ class ConstroiMalhaCartografica:
             '50k': (0.25, 0.25),
             '25k': (0.125, 0.125),
         }
-        lat_incremento, lon_incremento = incrementos[escala]
+        lat_incremen, lon_incremen = incrementos[escala]
+        (lon_min_brasil, lat_min_brasil,
+         lon_max_brasil, lat_max_brasil) = brasil.bounds
 
-        lon_min_brasil, lat_min_brasil, lon_max_brasil, lat_max_brasil = brasil.bounds
-
-        # Arredonde os limites para os múltiplos mais próximos do incremento de latitude e longitude
-        lat_min = self.arredondar_para_multiplo(lat_min_brasil, lat_incremento)
-        lon_min = self.arredondar_para_multiplo(lon_min_brasil, lon_incremento)
-        lat_max = self.arredondar_para_multiplo(lat_max_brasil, lat_incremento,
+        # Arredonde os limites para os múltiplos mais próximos do incremento
+        lat_min = self.arredondar_para_multiplo(lat_min_brasil, lat_incremen)
+        lon_min = self.arredondar_para_multiplo(lon_min_brasil, lon_incremen)
+        lat_max = self.arredondar_para_multiplo(lat_max_brasil, lat_incremen,
                                                 True)
-        lon_max = self.arredondar_para_multiplo(lon_max_brasil, lon_incremento,
+        lon_max = self.arredondar_para_multiplo(lon_max_brasil, lon_incremen,
                                                 True)
-
-        lat_ranges = [(i, i + lat_incremento) for i in float_range(lat_min,
-                                                                   lat_max,
-                                                                   lat_incremento)]
-        lon_ranges = [(i, i + lon_incremento) for i in float_range(lon_min,
-                                                                   lon_max,
-                                                                   lon_incremento)]
+        lat_ranges = [(i, i + lat_incremen) for i in float_range(lat_min,
+                                                                 lat_max,
+                                                                 lat_incremen)]
+        lon_ranges = [(i, i + lon_incremen) for i in float_range(lon_min,
+                                                                 lon_max,
+                                                                 lon_incremen)]
         for lat_range in tqdm(lat_ranges):
             for lon_range in lon_ranges:
                 polygon = Polygon([(lon_range[0], lat_range[0]),
@@ -98,41 +100,42 @@ class ConstroiMalhaCartografica:
             id_folha = ''
             if top <= 0:
                 id_folha += 'S'
-                index = math.floor(-top/4)
+                index = math.floor(-top / 4)
             else:
                 id_folha += 'N'
-                index = math.floor(bottom/4)
-            numero = math.ceil((180+right)/6)
-            id_folha += e1kk[index]+str(numero)
-            lat_gap = abs(top-bottom)
+                index = math.floor(bottom / 4)
+            numero = math.ceil((180 + right) / 6)
+            id_folha += e1kk[index] + str(numero)
+            lat_gap = abs(top - bottom)
             # p500k-----------------------
             if lat_gap <= 2:
-                LO = math.ceil(right/3) % 2 == 0
-                NS = math.ceil(top/2) % 2 != 0
-                id_folha += '_'+e500k[LO][NS]
+                LO = math.ceil(right / 3) % 2 == 0
+                NS = math.ceil(top / 2) % 2 != 0
+                id_folha += '_' + e500k[LO][NS]
             # p250k-----------------------
             if lat_gap <= 1:
-                LO = math.ceil(right/1.5) % 2 == 0
+                LO = math.ceil(right / 1.5) % 2 == 0
                 NS = math.ceil(top) % 2 != 0
                 id_folha += e250k[LO][NS]
             # p100k-----------------------
             if lat_gap <= 0.5:
-                LO = (math.ceil(right/0.5) % 3)-1
-                NS = math.ceil(top/0.5) % 2 != 0
-                id_folha += '_'+e100k[LO][NS]
+                LO = (math.ceil(right / 0.5) % 3) - 1
+                NS = math.ceil(top / 0.5) % 2 != 0
+                id_folha += '_' + e100k[LO][NS]
             # p50k------------------------
             if lat_gap <= 0.25:
-                LO = math.ceil(right/0.25) % 2 == 0
-                NS = math.ceil(top/0.25) % 2 != 0
-                id_folha += '_'+e50k[LO][NS]
+                LO = math.ceil(right / 0.25) % 2 == 0
+                NS = math.ceil(top / 0.25) % 2 != 0
+                id_folha += '_' + e50k[LO][NS]
             # p25k------------------------
             if lat_gap <= 0.125:
-                LO = math.ceil(right/0.125) % 2 == 0
-                NS = math.ceil(top/0.125) % 2 != 0
+                LO = math.ceil(right / 0.125) % 2 == 0
+                NS = math.ceil(top / 0.125) % 2 != 0
                 id_folha += e25k[LO][NS]
             return id_folha
 
-    def arredondar_para_multiplo(self, numero, multiplo, arredondar_para_cima=False):
+    def arredondar_para_multiplo(
+            self, numero, multiplo, arredondar_para_cima=False):
         if arredondar_para_cima:
             return math.ceil(numero / multiplo) * multiplo
         else:
@@ -173,7 +176,7 @@ class ConstroiMalhaCartografica:
         # Nome da camada baseada na escala
         layer_name = f'folhas_cartograficas_{escala}'
         # Cria o geopackage
-        with fiona.open(file_name, 'w', driver='GPKG', crs=crs,
+        with fiona.open(database + file_name, 'w', driver='GPKG', crs=crs,
                         layer=layer_name, schema=schema) as layer:
             for folha_id, poligono in self.folhas_cartograficas.items():
                 epsg_code = self.get_EPSG(folha_id)
@@ -195,16 +198,16 @@ class ConstroiMalhaCartografica:
 
 # ------------------------------ MAIN ---------------------------------------
 # Uso da classe
-folhas_cartograficas = ConstroiMalhaCartografica()
-folhas_cartograficas.criar_folhas('1kk')
-folhas_cartograficas.salvar_folhas_cartograficas_geopackage('/home/ggrl/database/folhas_cartograficas.gpkg')
-folhas_cartograficas.criar_folhas('500k')
-folhas_cartograficas.salvar_folhas_cartograficas_geopackage('/home/ggrl/database/folhas_cartograficas.gpkg')
-folhas_cartograficas.criar_folhas('250k')
-folhas_cartograficas.salvar_folhas_cartograficas_geopackage('/home/ggrl/database/folhas_cartograficas.gpkg')
-folhas_cartograficas.criar_folhas('100k')
-folhas_cartograficas.salvar_folhas_cartograficas_geopackage('/home/ggrl/database/folhas_cartograficas.gpkg')
-folhas_cartograficas.criar_folhas('50k')
-folhas_cartograficas.salvar_folhas_cartograficas_geopackage('/home/ggrl/database/folhas_cartograficas.gpkg')
-folhas_cartograficas.criar_folhas('25k')
-folhas_cartograficas.salvar_folhas_cartograficas_geopackage('/home/ggrl/database/folhas_cartograficas.gpkg')
+fc = ConstroiMalhaCartografica()
+fc.criar_folhas('1kk')
+fc.salvar_folhas_cartograficas_geopackage('folhas_cartograficas.gpkg')
+fc.criar_folhas('500k')
+fc.salvar_folhas_cartograficas_geopackage('folhas_cartograficas.gpkg')
+fc.criar_folhas('250k')
+fc.salvar_folhas_cartograficas_geopackage('folhas_cartograficas.gpkg')
+fc.criar_folhas('100k')
+fc.salvar_folhas_cartograficas_geopackage('folhas_cartograficas.gpkg')
+fc.criar_folhas('50k')
+fc.salvar_folhas_cartograficas_geopackage('folhas_cartograficas.gpkg')
+fc.criar_folhas('25k')
+fc.salvar_folhas_cartograficas_geopackage('folhas_cartograficas.gpkg')
