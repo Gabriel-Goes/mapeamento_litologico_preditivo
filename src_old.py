@@ -83,19 +83,17 @@ def importar_geometrias(camada=None, mapa=None):
 
 
 def import_malha_cartog(escala='25k', ID=None, IDs=None):
-    mc = gpd.read_file(set_gdb('folhas_cartograficas.gpkg'),
+    mc = gpd.read_file(set_gdb('geodatabase.gpkg'),
                        driver='GPKG',
-                       layer='folhas_cartograficas_'+escala)
+                       layer='mc_'+escala)
 
     if IDs:
         mc_slct = gpd.GeoDataFrame()
         for id in tqdm(IDs):
             mc_slct = mc_slct.append(mc[mc['id_folha'] == id])
-            del mc
 
     elif ID:
         mc_slct = mc[mc['id_folha'].str.contains(ID)]
-        del mc
 
         return mc_slct
 
@@ -105,9 +103,9 @@ def import_malha_cartog(escala='25k', ID=None, IDs=None):
 
 
 def import_mc(escala=None, ID=None):
-    mc = gpd.read_file(set_gdb('folhas_cartograficas.gpkg'),
+    mc = gpd.read_file(set_gdb('geodatabase.gpkg'),
                        driver='GPKG',
-                       layer='folhas_cartograficas_'+escala)
+                       layer='mc_'+escala)
     mc_slct = gpd.GeoDataFrame()
     if ID:
         for id in tqdm(ID):
@@ -369,7 +367,7 @@ def set_region(escala, id, geof, camada, mapa=None, crs__=None):
     '''
     Recebe:
         escala : Escalas disponíveis para recorte: '50k', '100k', '250k', '1kk'
-            id : ID da folha cartográfica (Articulação Sistemática de Folhas Cartográficas)
+            id : ID da folha cartográfica (Articulação Sistemática de Folhas Cartográficas);
           geof : Dado aerogeofísico disponível na base de dados (/home/ggrl/database/geof/)
         camada : Litologias disponíveis na base de dados (/home/ggrl/database/geodatabase.gpkg)
         mapa   : Nome do mapa caso necessário.
@@ -537,7 +535,7 @@ def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_carta
                 print(f" Retirando dados brutos em dic_cartas['raw_data']['{index}']")
                 print(f" com {len(data)} pontos de contagens radiométricas coletados com linhas de voo de 500 metros")
                 data['geometry'] = [geometry.Point(x, y) for x, y in zip(data['X'], data['Y'])]
-                crs = "+proj=utm +zone="+crs__+" +south +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+                crs = "+proj=utm +zone=" +crs__+" +south +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
                 gdf_geof = gpd.GeoDataFrame(data, geometry='geometry', crs=crs)
                 area = dic_cartas['region_proj'][index]
                 xu, yu = vd.regular(shape=(1272, 888),
@@ -710,9 +708,9 @@ def filtro(gdf, mineral):
     else:
         return filtrado
 # ---------------------------------------------------------------------------------------------------
-def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
-    mc = import_mc(escala,ID)
-    mc.set_index('id_folha',inplace=True)
+def build_mc(escala='50k',id=['sf23_ya'],verbose=none):
+    mc = import_mc(escala,id)
+    mc.set_index('id_folha',inplace=true)
     quadricula = {}
     for index,row in tqdm(mc.iterrows()):
         y = {index:{'folha':row,
@@ -720,7 +718,7 @@ def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
         quadricula.update(y)
         print('')
         if verbose:
-            print(f' - Folha "{index}" adicionada.')
+            print(f' - folha "{index}" adicionada.')
     if verbose:
         print('')
         print(f'  {len(quadricula.keys())} folhas adicionadas.')
@@ -873,8 +871,10 @@ def transform_to_carta_utm(carta):
     carta_utm=transform(project,carta_wgs84)
     return carta_utm
 
-
 # -----------------------------------------------------------------------------
+
+
+
 def plot_raw_mag_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%'):
     fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize = (19,9),sharex='all',sharey='all')
     raw_data_describe = raw_data.describe(percentiles=percentiles)
@@ -941,7 +941,8 @@ def plotBoxplots(df, cols = None):
     - Um boxplot por feature presente na lista cols
     """
     n = len(cols)
-    fig,axs=plt.subplots(n,1,figsize=(16,n*2.5))
+    print(n)
+    fig,axs=plt.subplots(n,1,figsize=(26,n*2.5))
     for ax, f in zip(axs, cols):
         sns.boxplot(y=f,x='closest_unid',data=df,ax=ax)
         if f!=cols[n-1]:
@@ -954,7 +955,7 @@ def sintetic_grid(quadricula,ID,psize=100):
     return xu,yu
 # -----------------------------------------------------------------------------
 def traditional_interpolation(quadricula=None,mag_xyz=None,gama_xyz=None,algorithm='cubic',geof=None):
-    for id in tqdm(list(quadricula.keys())):
+    for id in list(quadricula.keys()):
         if mag_xyz and gama_xyz in list(quadricula[id].keys()):
             print(f' - Folha: {id}')
             mag_data=remove_negative_values(quadricula[id][mag_xyz])
@@ -1010,3 +1011,5 @@ def traditional_interpolation(quadricula=None,mag_xyz=None,gama_xyz=None,algorit
                       'KPERC': kperc_,'eU':eu_,'eTh':eth_,'GMT':mag_}
                 df=pd.DataFrame(data)
                 quadricula[id].update({geof+'_'+algorithm:df})
+
+# ---------------------------------------------------------------------------------------------------
