@@ -83,9 +83,19 @@ def importar_geometrias(camada=None, mapa=None):
 
 
 def import_malha_cartog(escala='25k', ID=None, IDs=None):
+    '''
+    Recebe:
+        escala : Escalas disponíveis para recorte: '50k', '100k', '250k', '1kk'
+        ID     : ID da folha cartográfica (Articulação Sistemática de Folhas
+    Cartográficas)
+
+    Retorna:
+        mc_slct : GeoDataFrame com as folhas cartográficas selecionadas
+    '''
+
     mc = gpd.read_file(set_gdb('folhas_cartograficas.gpkg'),
                        driver='GPKG',
-                       layer='folhas_cartograficas_'+escala)
+                       layer='folhas_cartograficas_' + escala)
 
     if IDs:
         mc_slct = gpd.GeoDataFrame()
@@ -107,11 +117,11 @@ def import_malha_cartog(escala='25k', ID=None, IDs=None):
 def import_mc(escala=None, ID=None):
     mc = gpd.read_file(set_gdb('folhas_cartograficas.gpkg'),
                        driver='GPKG',
-                       layer='folhas_cartograficas_'+escala)
+                       layer='folhas_cartograficas_' + escala)
     mc_slct = gpd.GeoDataFrame()
     if ID:
         for id in tqdm(ID):
-            mc_slct = pd.concat([mc_slct,mc[mc['id_folha'].str.contains(id)]])
+            mc_slct = pd.concat([mc_slct, mc[mc['id_folha'].str.contains(id)]])
         return mc_slct
     else:
         return mc
@@ -161,7 +171,7 @@ def dado_bruto(camada=None, mapa=None, geof=None):
 # -----------------------------------------------------------------------------
 
 
-def nomeador_grid(left, right, top, bottom, escala=5):
+def nomeador_grid(left, right, top, bottom):
     e1kk = ['A', 'B', 'C', 'D', 'E', 'F', 'G',
             'H', 'I', 'J', 'K', 'L', 'M', 'N']
     e500k = [['V', 'Y'], ['X', 'Z']]
@@ -177,54 +187,54 @@ def nomeador_grid(left, right, top, bottom, escala=5):
         id_folha = ''
         if top <= 0:
             id_folha += 'S'
-            index = math.floor(-top/4)
+            index = math.floor(-top / 4)
         else:
             id_folha += 'N'
-            index = math.floor(bottom/4)
-        numero = math.ceil((180+right)/6)
+            index = math.floor(bottom / 4)
+        numero = math.ceil((180 + right) / 6)
         print(numero)
-        id_folha += e1kk[index]+str(numero)
-        lat_gap = abs(top-bottom)
+        id_folha += e1kk[index] + str(numero)
+        lat_gap = abs(top - bottom)
         # p500k-----------------------
-        if (lat_gap <= 2) & (escala >= 1):
-            LO = math.ceil(right/3) % 2 == 0
-            NS = math.ceil(top/2) % 2 != 0
-            id_folha += '_'+e500k[LO][NS]
+        if (lat_gap <= 2):
+            LO = math.ceil(right / 3) % 2 == 0
+            NS = math.ceil(top / 2) % 2 != 0
+            id_folha += '_' + e500k[LO][NS]
         # p250k-----------------------
-        if (lat_gap <= 1) & (escala >= 2):
-            LO = math.ceil(right/1.5) % 2 == 0
+        if (lat_gap <= 1):
+            LO = math.ceil(right / 1.5) % 2 == 0
             NS = math.ceil(top) % 2 != 0
             id_folha += e250k[LO][NS]
         # p100k-----------------------
-        if (lat_gap <= 0.5) & (escala >= 3):
-            LO = (math.ceil(right/0.5) % 3)-1
-            NS = math.ceil(top/0.5) % 2 != 0
-            id_folha += '_'+e100k[LO][NS]
+        if (lat_gap <= 0.5):
+            LO = (math.ceil(right / 0.5) % 3) - 1
+            NS = math.ceil(top / 0.5) % 2 != 0
+            id_folha += '_' + e100k[LO][NS]
         # p50k------------------------
-        if (lat_gap <= 0.25) & (escala >= 4):
-            LO = math.ceil(right/0.25) % 2 == 0
-            NS = math.ceil(top/0.25) % 2 != 0
-            id_folha += '_'+e50k[LO][NS]
+        if (lat_gap <= 0.25):
+            LO = math.ceil(right / 0.25) % 2 == 0
+            NS = math.ceil(top / 0.25) % 2 != 0
+            id_folha += '_' + e50k[LO][NS]
         # p25k------------------------
-        if (lat_gap <= 0.125) & (escala >= 5):
-            LO = math.ceil(right/0.125) % 2 == 0
-            NS = math.ceil(top/0.125) % 2 != 0
+        if (lat_gap <= 0.125):
+            LO = math.ceil(right / 0.125) % 2 == 0
+            NS = math.ceil(top / 0.125) % 2 != 0
             id_folha += e25k[LO][NS]
         return id_folha
-
 # -----------------------------------------------------------------------------
+
 
 def set_EPSG(mc):
     EPSG = []
     for i in mc['id_folha']:
         if i[:1] == 'S':
-            EPSG.append('327'+str(i[2:4]))
+            EPSG.append('327' + str(i[2:4]))
         else:
-            EPSG.append('326'+str(i[2:4]))
+            EPSG.append('326' + str(i[2:4]))
     mc['EPSG'] = EPSG
     return mc
-
 # -----------------------------------------------------------------------------
+
 
 def nomeador_malha(gdf):
     df = pd.DataFrame(gdf)
@@ -253,10 +263,24 @@ def regions(mc):
                              zip(bounds['minx'], bounds['maxx'],
                                  bounds['miny'], bounds['maxy'])]
     return mc
-
 # -----------------------------------------------------------------------------
 
+
 def cartas(escala=None, ids=None):
+    '''
+    Recebe:
+        escala : Escalas disponíveis para recorte: '50k', '100k', '250k', '1kk'
+
+        id     : ID da folha cartográfica (Articulação Sistemática de Folhas
+
+    Cartográficas)
+
+    Retorna:
+        dic_cartas : Dicionário com as folhas cartográficas selecionadas
+
+        mc_select  : GeoDataFrame com as folhas cartográficas selecionadas
+    '''
+    # SELECIONANDO FOLHAS DE CARTA
     print('# --- Iniciando seleção de área de estudo')
     mc_select = import_malha_cartog(escala, ids)
     regions(mc_select)
@@ -336,15 +360,18 @@ def descricao(geof):
 def metadataframe(GeoDataFrame):
     '''
     Recebe: GeoDataFrame (Features and Geometry)
-        Retorna: An object Pandas DataFrame containing a MetaData description of the GeoPandas Object GeoDataFrame
+        Retorna: An object Pandas DataFrame containing a MetaData description
+        of the GeoPandas Object GeoDataFrame
     '''
-    meta_lito = pd.DataFrame(
-        GeoDataFrame.dtypes)  # Describe the dtype of each column from the DataFrame or, better saying, GeoDataFrame;
-    meta_lito['Valores null'] = GeoDataFrame.isnull().sum()  # Describe the sum of each null value from our object
-    meta_lito[
-        'Valores unicos'] = GeoDataFrame.nunique()  # Describe the number of unique values from our object, that is a GeoDataFrame
-    meta_lito = meta_lito.rename(
-        columns={0: 'dType'})  # Rename the first column to 'dtype', the name of the function we used.
+    # Describe the dtype of each column from the DataFrame or,
+    # better saying, GeoDataFrame;
+    meta_lito = pd.DataFrame(GeoDataFrame.dtypes)
+    # Describe the sum of each null value from our object
+    meta_lito['Valores null'] = GeoDataFrame.isnull().sum()
+    # Describe the number of unique values from our GeoDataFrame
+    meta_lito['Valores unicos'] = GeoDataFrame.nunique()
+    # Rename the first column to 'dtype', the name of the function we used.
+    meta_lito = meta_lito.rename(columns={0: 'dType'})
 
     return meta_lito
 # ----------------------------------------------------------------------------------------------------------------------
@@ -369,9 +396,12 @@ def set_region(escala, id, geof, camada, mapa=None, crs__=None):
     '''
     Recebe:
         escala : Escalas disponíveis para recorte: '50k', '100k', '250k', '1kk'
-            id : ID da folha cartográfica (Articulação Sistemática de Folhas Cartográficas)
-          geof : Dado aerogeofísico disponível na base de dados (/home/ggrl/database/geof/)
-        camada : Litologias disponíveis na base de dados (/home/ggrl/database/geodatabase.gpkg)
+            id : ID da folha cartográfica (Articulação Sistemática de Folhas
+    Cartográficas)
+          geof : Dado aerogeofísico disponível na base de dados (
+    /home/ggrl/database/geof/)
+        camada : Litologias disponíveis na base de dados (
+    /home/ggrl/database/geodatabase.gpkg)
         mapa   : Nome do mapa caso necessário.
     '''
     # LISTANDO REGIOES DAS FOLHAS DE CARTAS
@@ -407,7 +437,7 @@ def set_region(escala, id, geof, camada, mapa=None, crs__=None):
         if len(data) < 10000 & len(data) > 0:
             y = {index: litologia}
             dict_cartas['litologia'].update(y)
-            print(f"A folha {index} possui apenas '{len(data)}' pontos coletados que devem ser adicionados a folha mais próxima")
+            print(f"A folha {index} possui apenas '{len(data)}'pontos coletados que devem ser adicionados a folha mais próxima")
             print(f" Atualizando dados geofísicos brutos em dic_cartas['raw_data']['{index}']")
             x = {index: data}
             dict_cartas['raw_data'].update(x)
@@ -419,7 +449,7 @@ def set_region(escala, id, geof, camada, mapa=None, crs__=None):
             x = {index: data}
             dict_cartas['raw_data'].update(x)
             print(f" com {len(data)} pontos de amostragem.")
-            litologia.to_crs('EPSG:'+crs__, inplace=True)
+            litologia.to_crs('EPSG:' + crs__, inplace=True)
             lito_cut = litologia.cx[row.region_proj[0]:row.region_proj[1],
                                     row.region_proj[2]:row.region_proj[3]]
             print(f" - Atualizando dados litológicos em \
@@ -479,7 +509,9 @@ def batch_verde(dic_cartas=None, dic_raw_meta=None):
 # ----------------------------------------------------------------------------
 
 
-def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_cartas=None, dic_raw_meta=None):
+def interpolar(splines=None, cubico=None,
+               mag=None, gama=None, geof=None,
+               dic_cartas=None, dic_raw_meta=None):
     if splines:
         dic_cartas['splines'] = {}
         print('# Inicio dos processos de interpolação pelo método cúbico')
@@ -500,15 +532,15 @@ def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_carta
                 print(f" Retirando dados brutos em dic_cartas['raw_data']['{index}']")
                 print(f" com {len(data)} pontos de contagens radiométricas coletados com linhas de voo de 500 metros")
                 coordinates = (data.X.values, data.Y.values)
-                region = dic_cartas['region_proj'][index]
+                # region = dic_cartas['region_proj'][index]
                 chain = vd.Chain([('trend',  vd.Trend(degree=1)),
                                   ('reduce', vd.BlockReduce(np.mean, spacing=1000)),
                                   ('spline', vd.Spline())])
                 print(f"# Folha de código: {index}")
-                print(f" Atualizando dados brutos em dic_cartas['raw_data']")
-                cv     = vd.BlockKFold(spacing=1000,
-                                       n_splits=5,
-                                       shuffle=True)
+                print(f" Atualizando dados brutos em {dic_cartas['raw_data']}")
+                # cv = vd.BlockKFold(spacing=1000,
+                #                    n_splits=5,
+                #                    shuffle=True)
                 for i in lista_at_geof:
                     chain.fit(coordinates,data[i])
                     grid = chain.grid(spacing=200,data_names=[i],pixel_register=True)
@@ -710,13 +742,15 @@ def filtro(gdf, mineral):
     else:
         return filtrado
 # ---------------------------------------------------------------------------------------------------
-def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
-    mc = import_mc(escala,ID)
-    mc.set_index('id_folha',inplace=True)
+
+
+def Build_mc(escala='50k', ID=['SF23_YA'], verbose=None):
+    mc = import_mc(escala, ID)
+    mc.set_index('id_folha', inplace=True)
     quadricula = {}
-    for index,row in tqdm(mc.iterrows()):
-        y = {index:{'folha':row,
-                    'escala':escala}}
+    for index, row in tqdm(mc.iterrows()):
+        y = {index: {'folha': row,
+                     'escala': escala}}
         quadricula.update(y)
         print('')
         if verbose:
@@ -726,46 +760,53 @@ def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
         print(f'  {len(quadricula.keys())} folhas adicionadas.')
     return quadricula
 # ---------------------------------------------------------------------------------------------------
-def Upload_geof(quadricula=None,gama_xyz=None,mag_xyz=None,extend_size=0):
-    gama_data = import_xyz('/home/ggrl/database/geof/'+gama_xyz)
-    mag_data = import_xyz('/home/ggrl/database/geof/'+mag_xyz)
-    list_atri=gama_data.columns
+
+
+def Upload_geof(quadricula=None, gama_xyz=None, mag_xyz=None, extend_size=0):
+    gama_data = import_xyz('/home/ggrl/database/geof/' + gama_xyz)
+    mag_data = import_xyz(set_gdb('geof') + mag_xyz)
+    list_atri = gama_data.columns
     if 'LAT_WGS' in list_atri:
-        gama_data.rename(columns={'LAT_WGS':'LATITUDE','LONG_WGS':'LONGITUDE'},inplace=True)
+        gama_data.rename(columns={'LAT_WGS': 'LATITUDE',
+                                  'LONG_WGS': 'LONGITUDE'}, inplace=True)
     if 'eTH' in list_atri:
-        gama_data.rename(columns={'eTH':'eTh'},inplace=True)
-    list_atri=mag_data.columns
+        gama_data.rename(columns={'eTH': 'eTh'}, inplace=True)
+    list_atri = mag_data.columns
     if 'LAT_WGS' in list_atri:
-        mag_data.rename(columns={'LAT_WGS':'LATITUDE','LONG_WGS':'LONGITUDE'},inplace=True)
+        mag_data.rename(columns={'LAT_WGS': 'LATITUDE',
+                                 'LONG_WGS': 'LONGITUDE'}, inplace=True)
 
-
-    gama_coords=(gama_data.X,gama_data.Y)
-    mag_coords=(mag_data.X,mag_data.Y)
+    gama_coords = (gama_data.X, gama_data.Y)
+    mag_coords = (mag_data.X, mag_data.Y)
     wgs84 = pyproj.CRS('EPSG:4326')
     ids = list(quadricula.keys())
-    gama_df=pd.DataFrame()
-    mag_df=pd.DataFrame()
+    gama_df = pd.DataFrame()
+    mag_df = pd.DataFrame()
     for id in tqdm(ids):
         utm = pyproj.CRS('EPSG:'+quadricula[id]['folha']['EPSG'])
         carta_wgs84 = quadricula[id]['folha']['geometry']
-        project = pyproj.Transformer.from_crs(wgs84,utm,always_xy=True).transform
-        carta_utm = transform(project,carta_wgs84)
+        project = pyproj.Transformer.from_crs(wgs84, utm,
+                                              always_xy=True).transform
+        carta_utm = transform(project, carta_wgs84)
         region_utm = carta_utm.bounds
-        reg =(region_utm[0]-extend_size,region_utm[2]+extend_size,region_utm[1]-extend_size,region_utm[3]+extend_size)
+        reg = (region_utm[0] - extend_size, region_utm[2] + extend_size,
+               region_utm[1] - extend_size, region_utm[3] + extend_size)
         if gama_xyz:
-            gama = gama_data[vd.inside(gama_coords,reg)]
+            gama = gama_data[vd.inside(gama_coords, reg)]
             if len(gama) > 1000:
-                quadricula[id].update({gama_xyz:gama})
-                gama_df=pd.concat([gama,gama_df])
+                quadricula[id].update({gama_xyz: gama})
+                gama_df = pd.concat([gama, gama_df])
                 print(f' - {gama_xyz} atualizado na folha: {id} com {len(gama_df)} pontos')
         if mag_xyz:
-            mag = mag_data[vd.inside(mag_coords,reg)]
+            mag = mag_data[vd.inside(mag_coords, reg)]
             if len(mag) > 1000:
-                quadricula[id].update({mag_xyz:mag})
-                mag_df=pd.concat([mag,mag_df])
+                quadricula[id].update({mag_xyz: mag})
+                mag_df = pd.concat([mag, mag_df])
                 print(f' - {mag_xyz} atualizado na folha: {id} com {len(mag_df)} pontos')
     return gama_df, mag_df
 # -----------------------------------------------------------------------------
+
+
 def pop_nodata(quadricula):
     for id in tqdm(list(quadricula.keys())):
         columns = list(quadricula[id].keys())

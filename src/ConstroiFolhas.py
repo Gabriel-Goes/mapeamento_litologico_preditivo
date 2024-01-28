@@ -1,27 +1,31 @@
 # Autor: Gabriel Góes Rocha de Lima
 # Data: 20/04/2021
 # ---------------------------------------------------------------------------
+# Esta classe é responsável por criar geometrias de folhas de cartas de acordo
+# com a escala, salvar cada uma das cartas como uma layer em um geoPackage.
+# Ela só será executada apenas uma vez para criar as folhas de cartas e o
+# geopackage.
 
 # ------------------------------ IMPORTS ------------------------------------
 import math
-from shapely.geometry import Polygon, shape
-from shapely.ops import unary_union
+import geopandas as gpd
+from geodatasets import get_path
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import fiona
-from shapely.geometry import mapping
+from shapely.geometry import mapping, Polygon
 from fiona.crs import CRS
 
-from utils import set_gdb
+from utils import set_gdb, float_range
 
 
-# Abre o arquivo de shapefile e define como brasil
-ibge = set_gdb('shapefiles/IBGE/')
-with fiona.open(ibge + 'ANMS2010_06_grandesregioes.shp',
-                'r',
-                encoding='utf-8') as brasil_shapefile:
-    regioes = [shape(feature['geometry']) for feature in brasil_shapefile]
-brasil = unary_union(regioes)
+# define geometria do Brasil
+path = get_path('natural_earth.land')
+world = gpd.read_file(path)
+
+brasil = world[world['name'] == 'Brazil']
+
+
 escalas = {
     '1kk': '1:1.000.000',
     '500k': '1:500.000',
@@ -32,25 +36,52 @@ escalas = {
 }
 
 
-# Criar gerador de intervalos
-def float_range(start, stop, step):
-    while start < stop:
-        yield start
-        start += step
-
-
 # ------------------------------ CLASSES ------------------------------------
 class CartografiaSistematica:
     '''
     Esta classe é responsável por criar as folhas de cartas de acordo com a
     escala.
+
+    Exemplo:
+        cs = CartografiaSistematica()
+        cs.criar_folhas_de_cartas('1kk')
+        carta_1kk = cs.folhas
+        cs.criar_folhas_de_cartas('500k')
+        carta_500k = cs.folhas
+        cs.criar_folhas_de_cartas('250k')
+        folhas_250k = cs.folhas
+        cs.criar_folhas_de_cartas('100k')
+        carta_100k = cs.folhas
+        cs.criar_folhas_de_cartas('50k')
+        carta_50k = cs.folhas
+        cs.criar_folhas_de_cartas('25k')
+        carta_25k = cs.folhas
+
+        # lista de cartas
+        lista_cartas = [carta_1kk, carta_500k, carta_250k,
+                        carta_100k, carta_50k, carta_25k]
+
+        # Salvar folhas de cartas
+        [cs.salvar_folhas_de_cartas(carta) for carta in lista_cartas]
+
     '''
 
+    # Construtor da classe CartografiaSistematica
     def __init__(self):
         self.folhas = {}
         self.carta = None
+        print('Cartografia Sistematica')
+        print('-----------------------')
+        print('1kk: 1:1.000.000')
+        print('500k: 1:500.000')
+        print('250k: 1:250.000')
+        print('100k: 1:100.000')
+        print('50k: 1:50.000')
+        print('25k: 1:25.000')
+        print('-----------------------')
 
 # ------------------------------ FUNÇÕES ------------------------------------
+    # Método para criar as folhas de cartas
     def criar_folhas_de_cartas(self, carta):
         '''
         Cria as folhas de cartas de acordo com a escala (Carta).
@@ -193,13 +224,15 @@ class CartografiaSistematica:
         plt.show()
 
     # Método para salvar as camadas em um geopackage com fiona
-    def salvar_folhas_de_cartas(self, file_name):
+    def salvar_folhas_de_cartas(self, folhas=None, file_name='fc.gpkg'):
         '''
         Salva as folhas de cartas em um geopackage.
         '''
-        if self.carta is None:
+        if self.folhas is None:
             print('Crie as folhas cartográficas primeiro')
             return
+        if folhas is None:
+            folhas = self.folhas
         carta = self.carta
         # Esquema para geopackage
         schema = {
@@ -215,7 +248,7 @@ class CartografiaSistematica:
         with fiona.open(set_gdb(file_name), 'w', driver='GPKG',
                         crs=crs, layer=layer_name, schema=schema) as layer:
 
-            for folha_id, poligono in self.folhas.items():
+            for folha_id, poligono in folhas.items():
                 epsg_code = self.get_EPSG(folha_id)
                 # Adiciona o poligono e o id da folha no geopackage
                 element = {
@@ -231,20 +264,3 @@ class CartografiaSistematica:
             return '327' + folha_id[2:4]
         else:
             return '326' + folha_id[2:4]
-
-
-# ------------------------------ MAIN ---------------------------------------
-# Uso da classe
-# cs = CartografiaSistematica()
-# cs.criar_folhas_de_cartas('1kk')
-# cs.salvar_folhas_de_cartas('fc.gpkg')
-# cs.criar_folhas_de_cartas('500k')
-# cs.salvar_folhas_de_cartas('fc.gpkg')
-# cs.criar_folhas_de_cartas('250k')
-# cs.salvar_folhas_de_cartas('fc.gpkg')
-# cs.criar_folhas_de_cartas('100k')
-# cs.salvar_folhas_de_cartas('fc.gpkg')
-# cs.criar_folhas_de_cartas('50k')
-# cs.salvar_folhas_de_cartas('fc.gpkg')
-# cs.criar_folhas_de_cartas('25k')
-# cs.salvar_folhas_de_cartas('fc.gpkg')
