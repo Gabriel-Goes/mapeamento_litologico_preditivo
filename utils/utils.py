@@ -5,6 +5,7 @@ import geopandas as gpd
 
 # funções e variáveis úteis podem ser adicionadas aqui conforme necessário
 # Configura diretório da base de dados
+
 def set_gdb(path=''):
     '''
     Diretório raíz dos dados : '/home/ggrl/database/'
@@ -43,6 +44,8 @@ def plotar(folhas, carta):
     '''
     fig, ax = plt.subplots()
     for folha_id, poligono in folhas.items():
+        print(f' Folha: {folha_id}')
+        print(f' Poligono: {poligono}')
         x, y = poligono['geometry'].exterior.xy
         ax.plot(x, y, color='#6699cc', alpha=0.7, linewidth=0.3,
                 solid_capstyle='round', zorder=2)
@@ -58,10 +61,40 @@ def plotar(folhas, carta):
     ax.set_title(f'Folhas da Carta {cartas[carta]["escala"]}')
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
-    ax.set_xlim(-180, 180)
-    ax.set_ylim(-80, 80)
+    ax.set_xlim(-80, -40)
+    ax.set_ylim(-70, 10)
     ax.axis('scaled')
     plt.show()
+
+
+def plotar_inicial(carta):
+    '''
+    Plota a carta de 1:1.000.000.
+    '''
+    fig, ax = plt.subplots(figsize=(11.5, 7.7))
+    for _, row in carta.iterrows():
+        folha_id = row['id_folha']
+        poligono = row['geometry']
+        x, y = poligono.exterior.xy
+        ax.plot(x, y, color='#6699cc', alpha=0.7, linewidth=0.3,
+                solid_capstyle='round', zorder=2)
+        centro = poligono.centroid
+        ax.annotate(folha_id, (centro.x, centro.y), color='black',
+                    weight='bold', fontsize=6, ha='center', va='center')
+
+    for geom in brasil.geoms:
+        x, y = geom.exterior.xy
+        ax.plot(x, y, color='black', alpha=0.7, linewidth=0.3,
+                solid_capstyle='round', zorder=2)
+
+    ax.set_title('Folhas da Carta 1:1.000.000')
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.set_xlim(-80, -40)
+    ax.set_ylim(-70, 10)
+    ax.axis('scaled')
+
+    return fig
 
 
 cartas = {
@@ -87,4 +120,18 @@ cartas = {
             'codigos': [['NW', 'SW'], ['NE', 'SE']]}
 }
 
-[print(f" --> carta: {k}: {v}\n") for k, v in cartas.items()]
+'''
+def carregar_mapa_folium(self):
+    mapa_html = criar_mapa_folium()
+    print(f' Mapa HTML: {mapa_html}')
+    html_frame = HtmlFrame(self.plot_frame, horizontal_scrollbar="auto",
+                            vertical_scrollbar="auto",
+                            width=1200, height=800)
+    with open(mapa_html, 'r') as f:
+        html = f.read()
+    html_frame.set_content(html)
+    html_frame.place(relx=0.5, rely=0.5, anchor='center')
+    print('Mapa carregado')
+'''
+
+# [print(f" --> carta: {k}: {v}\n") for k, v in cartas.items()]

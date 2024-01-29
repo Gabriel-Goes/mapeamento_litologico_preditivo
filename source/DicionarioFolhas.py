@@ -11,7 +11,7 @@ from tqdm import tqdm
 import geopandas as gpd
 
 # Minhas Classes
-from source.utils import set_gdb
+from geologist.utils.utils import set_gdb
 
 
 # ------------------------------ CLASSES ------------------------------------
@@ -85,10 +85,10 @@ class DicionarioFolhas:
 
 # ------------------------------ MAIN ---------------------------------------
 if __name__ == "__main__":
-    from utils import plotar
+    from geologist.utils import plotar
     dicionariofolhas = DicionarioFolhas()
     carta_25k = dicionariofolhas.gera_dicionario_de_folhas('25k', 'SF23')
-    # plotar(carta_25k, '25k')
+    plotar(carta_25k, '25k')
 
     carta_50k = dicionariofolhas.gera_dicionario_de_folhas('50k', 'SF23_YA_I')
-    plotar(carta_50k, '50k')
+    # plotar(carta_50k, '50k')
