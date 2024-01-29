@@ -11,7 +11,7 @@ import pyproj
 from shapely.ops import transform
 from verde import inside
 
-from utils import set_gdb
+from source.utils import set_gdb
 
 
 # ------------------------------ CLASSES ------------------------------------

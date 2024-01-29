@@ -13,7 +13,7 @@ import fiona
 from shapely.geometry import mapping, Polygon
 from fiona.crs import CRS
 
-from utils import set_gdb, float_range, cartas, brasil
+from source.utils import set_gdb, float_range, cartas, brasil
 
 
 # ------------------------------ CLASSES ------------------------------------

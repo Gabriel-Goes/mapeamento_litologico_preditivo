@@ -8,8 +8,10 @@
 #
 # # ------------------------------ IMPORTS ------------------------------------
 from tqdm import tqdm
-from utils import set_gdb
 import geopandas as gpd
+
+# Minhas Classes
+from source.utils import set_gdb
 
 
 # ------------------------------ CLASSES ------------------------------------
