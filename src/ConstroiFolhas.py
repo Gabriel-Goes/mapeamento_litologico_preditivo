@@ -8,32 +8,12 @@
 
 # ------------------------------ IMPORTS ------------------------------------
 import math
-import geopandas as gpd
-from geodatasets import get_path
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 import fiona
 from shapely.geometry import mapping, Polygon
 from fiona.crs import CRS
 
-from utils import set_gdb, float_range
-
-
-# define geometria do Brasil
-path = get_path('natural_earth.land')
-world = gpd.read_file(path)
-
-brasil = world[world['name'] == 'Brazil']
-
-
-escalas = {
-    '1kk': '1:1.000.000',
-    '500k': '1:500.000',
-    '250k': '1:250.000',
-    '100k': '1:100.000',
-    '50k':  '1:50.000',
-    '25k':  '1:25.000',
-}
+from utils import set_gdb, float_range, cartas, brasil
 
 
 # ------------------------------ CLASSES ------------------------------------
@@ -70,15 +50,6 @@ class CartografiaSistematica:
     def __init__(self):
         self.folhas = {}
         self.carta = None
-        print('Cartografia Sistematica')
-        print('-----------------------')
-        print('1kk: 1:1.000.000')
-        print('500k: 1:500.000')
-        print('250k: 1:250.000')
-        print('100k: 1:100.000')
-        print('50k: 1:50.000')
-        print('25k: 1:25.000')
-        print('-----------------------')
 
 # ------------------------------ FUNÇÕES ------------------------------------
     # Método para criar as folhas de cartas
@@ -87,15 +58,7 @@ class CartografiaSistematica:
         Cria as folhas de cartas de acordo com a escala (Carta).
         '''
         self.carta = carta
-        incrementos = {
-            '1kk': (4, 6),
-            '500k': (2, 3),
-            '250k': (1, 1.5),
-            '100k': (0.5, 0.5),
-            '50k': (0.25, 0.25),
-            '25k': (0.125, 0.125),
-        }
-        lat_incremen, lon_incremen = incrementos[carta]
+        lat_incremen, lon_incremen = cartas[carta]['incrementos']
         (lon_min_brasil, lat_min_brasil,
          lon_max_brasil, lat_max_brasil) = brasil.bounds
 
@@ -125,24 +88,21 @@ class CartografiaSistematica:
                     folha_id = self.gerar_id_folha(left,
                                                    right,
                                                    top,
-                                                   bottom,
-                                                   5)
+                                                   bottom)
                     self.folhas[folha_id] = polygon
 
     @staticmethod
-    def gerar_id_folha(left, right, top, bottom, carta=5):
+    def gerar_id_folha(left, right, top, bottom):
         '''
         Gera o id da folha de acordo com a escala (Carta).
         '''
         # Adquire o valor de carta do método criar_folhas
-        e1kk = ['A', 'B', 'C', 'D', 'E', 'F', 'G',
-                'H', 'I', 'J', 'K', 'L', 'M', 'N',
-                'O', 'P', 'Q', 'R', 'S', 'T']
-        e500k = [['V', 'Y'], ['X', 'Z']]
-        e250k = [['A', 'C'], ['B', 'D']]
-        e100k = [['I', 'IV'], ['II', 'V'], ['III', 'VI']]
-        e50k = [['1', '3'], ['2', '4']]
-        e25k = [['NW', 'SW'], ['NE', 'SE']]
+        e1kk = cartas['1kk']['codigos']
+        e500k = cartas['500k']['codigos']
+        e250k = cartas['250k']['codigos']
+        e100k = cartas['100k']['codigos']
+        e50k = cartas['50k']['codigos']
+        e25k = cartas['25k']['codigos']
         if left > right:
             print('Oeste deve ser menor que leste')
         if top < bottom:
@@ -177,7 +137,7 @@ class CartografiaSistematica:
             if lat_gap <= 0.25:
                 LO = math.ceil(right / 0.25) % 2 == 0
                 NS = math.ceil(top / 0.25) % 2 != 0
-                id_folha += '_' + e50k[LO][NS]
+                id_folha += e50k[LO][NS]
             # p25k------------------------
             if lat_gap <= 0.125:
                 LO = math.ceil(right / 0.125) % 2 == 0
@@ -191,37 +151,6 @@ class CartografiaSistematica:
             return math.ceil(numero / multiplo) * multiplo
         else:
             return math.floor(numero / multiplo) * multiplo
-
-    def plotar(self, brasil=brasil):
-        '''
-        Plota as folhas de cartas.
-        '''
-        if self.carta is None:
-            print('Crie as folhas cartográficas primeiro')
-            return
-
-        fig, ax = plt.subplots()
-        for folha_id, poligono in self.folhas.items():
-            x, y = poligono.exterior.xy
-            ax.plot(x, y, color='#6699cc', alpha=0.7, linewidth=0.3,
-                    solid_capstyle='round', zorder=2)
-            centro = poligono.centroid
-            ax.annotate(folha_id, (centro.x, centro.y), color='black',
-                        weight='bold', fontsize=6, ha='center', va='center')
-
-        for geom in brasil.geoms:
-            x, y = geom.exterior.xy
-            ax.plot(x, y, color='black', alpha=0.7, linewidth=0.3,
-                    solid_capstyle='round', zorder=2)
-
-        a = escalas[self.carta]
-        ax.set_title(f'Folhas da Carta {a}')
-        ax.set_xlabel('Longitude')
-        ax.set_ylabel('Latitude')
-        ax.set_xlim(-180, 180)
-        ax.set_ylim(-80, 80)
-        ax.axis('scaled')
-        plt.show()
 
     # Método para salvar as camadas em um geopackage com fiona
     def salvar_folhas_de_cartas(self, folhas=None, file_name='fc.gpkg'):
@@ -264,3 +193,39 @@ class CartografiaSistematica:
             return '327' + folha_id[2:4]
         else:
             return '326' + folha_id[2:4]
+
+
+# ----------------------- MAIN -----------------------------------------------
+if __name__ == "__main__":
+    cs = CartografiaSistematica()
+# Teste da classe DicionarioFolhas
+# 1 : 1.000.000
+    folhas_1kk = cs()
+    folhas_1kk.criar_folhas_de_cartas('1kk')
+
+# 1 : 500.000
+    folhas_500k = cs()
+    folhas_500k.criar_folhas_de_cartas('500k')
+
+# 1 : 250.000
+    folhas_250k = cs()
+    folhas_250k.criar_folhas_de_cartas('250k')
+
+# 1 : 100.000
+    folhas_100k = cs()
+    folhas_100k.criar_folhas_de_cartas('100k')
+
+# 1 : 50.000
+    folhas_50k = cs()
+    folhas_50k.criar_folhas_de_cartas('50k')
+
+# 1 : 25.000
+    folhas_25k = cs()
+    folhas_25k.criar_folhas_de_cartas('25k')
+
+# Lista de cartas
+    lista_cartas = [folhas_1kk, folhas_500k, folhas_250k,
+                    folhas_100k, folhas_50k, folhas_25k]
+
+# Salvar cartas
+    [carta.salvar_folhas_de_cartas() for carta in lista_cartas]

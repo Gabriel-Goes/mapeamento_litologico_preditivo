@@ -79,3 +79,14 @@ class DicionarioFolhas:
     def filtrar_mc_partes(self, df, parte_ID):
         return df[df['id'].str.startswith(parte_ID)]
     '''
+
+
+# ------------------------------ MAIN ---------------------------------------
+if __name__ == "__main__":
+    from utils import plotar
+    dicionariofolhas = DicionarioFolhas()
+    carta_25k = dicionariofolhas.gera_dicionario_de_folhas('25k', 'SF23')
+    # plotar(carta_25k, '25k')
+
+    carta_50k = dicionariofolhas.gera_dicionario_de_folhas('50k', 'SF23_YA_I')
+    plotar(carta_50k, '50k')
