@@ -71,20 +71,23 @@ def plotar_inicial(carta):
     '''
     Plota a carta de 1:1.000.000.
     '''
+    # print(f' Iniciando plotagem da carta: {carta}')
+    # print('---------------------------------------------------')
+    plt.style.use('dark_background')
     fig, ax = plt.subplots(figsize=(11.5, 7.7))
     for _, row in carta.iterrows():
         folha_id = row['id_folha']
         poligono = row['geometry']
         x, y = poligono.exterior.xy
-        ax.plot(x, y, color='#6699cc', alpha=0.7, linewidth=0.3,
+        ax.plot(x, y, color='white', alpha=0.7, linewidth=0.3,
                 solid_capstyle='round', zorder=2)
         centro = poligono.centroid
-        ax.annotate(folha_id, (centro.x, centro.y), color='black',
+        ax.annotate(folha_id, (centro.x, centro.y), color='white',
                     weight='bold', fontsize=6, ha='center', va='center')
 
     for geom in brasil.geoms:
         x, y = geom.exterior.xy
-        ax.plot(x, y, color='black', alpha=0.7, linewidth=0.3,
+        ax.plot(x, y, color='white', alpha=0.7, linewidth=0.3,
                 solid_capstyle='round', zorder=2)
 
     ax.set_title('Folhas da Carta 1:1.000.000')
@@ -94,7 +97,10 @@ def plotar_inicial(carta):
     ax.set_ylim(-70, 10)
     ax.axis('scaled')
 
-    return fig
+    # print(f' Axis: {ax}')
+    # print('---------------------------------------------------')
+
+    return fig, ax
 
 
 cartas = {

@@ -34,8 +34,9 @@ class DicionarioFolhas:
     # Método para importar a malha cartográfica
     def gera_dicionario_de_folhas(self, carta='1kk', id_folha=None):
         '''
-        Gera um dicionário com as folhas de cartas de acordo com a escala e o
-        id_folha. Utilizamos a bounding box da folha 1kk para filtrar as folhas
+        Método responsável por gerar construir um dicionário python que será
+        populado com folhas de carta contidas na área de estudo na escala
+        escolhida.
         '''
         # Cria um dicionário vazio
         folhas = {}
