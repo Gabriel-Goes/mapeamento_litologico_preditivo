@@ -92,14 +92,17 @@ class SeletorFolhas:
     # Gerar Dicionário de Folhas
     def e_gerar_dicionario_folhas(self):
         dic_f = self.dicionario_folhas
-        folha_selecionada = self.combobox_folha.get()
+        id_folha_selecionada = self.folha_estudo['id_folha']
+        folhas = self.combobox_folha.get()
         print('======================================================')
+        print(f'ID da Folha Selecionada: {id_folha_selecionada}')
         print(f'Carta: {self.carta_selecionada}')
-        print(f'Folha(s): {folha_selecionada}')
+        print(f'Folha(s): {folhas}')
         print('======================================================')
         print('')
-        dicionario = dic_f.gera_dicionario_de_folhas(self.carta_selecionada,
-                                                     folha_selecionada)
+        dicionario = dic_f.gera_dicionario_de_folhas(id_folha_selecionada,
+                                                     self.carta_selecionada,
+                                                     folhas)
         # Agora podemos usar o dicionário para plotar e filtrar informaçoes etc
         print('Dicionário de Folhas:', dicionario)
         return dicionario

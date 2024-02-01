@@ -32,37 +32,37 @@ class DicionarioFolhas:
         self.bbox = None
 
     # Método para importar a malha cartográfica
-    def gera_dicionario_de_folhas(self, carta='1kk', id_folha=None):
+    def gera_dicionario_de_folhas(self, id_folha_estudo, carta, folhas):
         '''
         Método responsável por gerar construir um dicionário python que será
         populado com folhas de carta contidas na área de estudo na escala
         escolhida.
         '''
         # Cria um dicionário vazio
-        folhas = {}
+        dicionariofolhas = {}
         # Define a máscara de acordo com a carta
         # a mascara é a bounding box da folha 1kk da escala escolhida. Esta é
         # a carta formada pelas 4 primeiras letras da id_folha.
-        folha_1kk_id = id_folha[:4]
-        folha_1kk = self.carta_1kk[self.carta_1kk['id_folha'] == folha_1kk_id]
-        minx, miny = folha_1kk.bounds.minx, folha_1kk.bounds.miny
-        maxx, maxy = folha_1kk.bounds.maxx, folha_1kk.bounds.maxy
+        folha_estudo = self.carta_1kk[
+            self.carta_1kk['id_folha'] == id_folha_estudo]
+        minx, miny = folha_estudo.bounds.minx, folha_estudo.bounds.miny
+        maxx, maxy = folha_estudo.bounds.maxx, folha_estudo.bounds.maxy
         self.bbox = (minx + 0.125, miny + 0.125, maxx - 0.125, maxy - 0.125)
         # Lê o arquivo geopackage
         macro_gdf = gpd.read_file(self.file, layer=f'fc_{carta}',
                                   driver='GPKG', bbox=self.bbox)
         # Filtra macro_gdf pr id_folha
-        gdf = macro_gdf[macro_gdf['id_folha'].str.contains(id_folha)]
+        gdf = macro_gdf[macro_gdf['id_folha'].str.contains(folhas)]
 
         # transforma a gdf em um dicionário python neste modelo:
         # {'folha_id: {'geometry': Polygon,
         #              'EPSG': 'str'}
-        folhas = {row['id_folha']: {'geometry': row['geometry'],
-                                    'EPSG': row['EPSG']}
-                  for index, row in tqdm(gdf.iterrows())}
+        dicionariofolhas = {row['id_folha']: {'geometry': row['geometry'],
+                                              'EPSG': row['EPSG']}
+                            for index, row in tqdm(gdf.iterrows())}
 
         # Retorna o dicionário
-        return folhas
+        return dicionariofolhas
 
     # Métodos de filtragem de folhas de cartas para serem adicionados no futuro
     # Método para filtrar a malha cartográfica por ID exato

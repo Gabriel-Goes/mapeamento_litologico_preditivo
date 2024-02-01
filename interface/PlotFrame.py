@@ -2,7 +2,7 @@
 # Data: 20/04/2021
 # ---------------------------------------------------------------------------
 #
-# Canvas Para Visualização de Fohlas
+# Canvas Para Visualização de Folhas
 # ------------------------------ IMPORTS ------------------------------------
 from geologist.utils.utils import plotar_inicial
 from geologist.source.DicionarioFolhas import DicionarioFolhas as DictFolhas
