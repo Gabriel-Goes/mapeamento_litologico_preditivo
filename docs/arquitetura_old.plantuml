@@ -1,0 +1,66 @@
+@startuml
+
+package "Preditor Terra UI" {
+    class PreditorTerraUI {
+        - root: tk.Tk
+        - dicionarioFolhas: DicionarioFolhas()
+        - folhaEstudo: None
+        - seletorFolhas: SeletorFolhas
+        - plotFrame: PlotFrame
+        - style: ttk.Style
+        + __init__(root: tk.Tk)
+        + setup_ui(): void
+    }
+}
+
+package "Componentes da UI" {
+    class SeletorFolhas {
+        - mainFrame: ttk.Frame
+        - style: ttk.Style
+        + __init__(mainFrame: ttk.Frame, style: ttk.Style)
+        + criar_seletor_folhas(): void
+        + atualizar_valores_folhas(event): void
+        + atualizar_folha_estudo(folha_estudo): void
+        + e_gerar_dicionario_folhas(): void
+    }
+
+    class PlotFrame {
+        - main_frame: ttk.Frame
+        - dicionario_folhas: DicionarioFolhas
+        - folha_estudo: folha_estudo
+        - seletor_folhas: SeletorFolhas
+        - style: ttk.Style
+        + __init__(main_frame: ttk.Frame, seletor_folhas: SeletorFolhas, folha_estudo, style: ttk.Style)
+        + on_canvas_click(event): void
+        + determine_folha_clicada(ax_x, ax_y): folha_estudo
+        + plot_frame(): void
+        + plot_area_estudo(): void
+    }
+}
+
+package "Manipulação de Dados" {
+    class DicionarioFolhas {
+        - file: str
+        - carta_1kk: MultiPolygon
+        - bbox: None
+        + gera_dicionario(id_folha, carta, folhas): Dicionário
+        + filtrar_id_exato(dicionariofolhas, id_folha): Dicionário
+    }
+
+    abstract class CartografiaSistematica {
+        - folhas: {}
+        - carta: None
+        + criar_folhas(carta): void
+        + gerar_id(left, right, top, bottom): str
+        + salvar_folhas(folhas, file_name): void
+    }
+}
+
+PreditorTerraUI "1" -- "1" SeletorFolhas: contém
+PreditorTerraUI "1" -- "1" PlotFrame: contém
+PreditorTerraUI "1" -- "1" DicionarioFolhas: utiliza
+
+SeletorFolhas "1" -- "1" DicionarioFolhas: utiliza
+PlotFrame "1" -- "1" DicionarioFolhas: utiliza
+
+@enduml

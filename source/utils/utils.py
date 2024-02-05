@@ -6,15 +6,22 @@ import geopandas as gpd
 # funções e variáveis úteis podem ser adicionadas aqui conforme necessário
 # Configura diretório da base de dados
 
-def set_gdb(path=''):
+'''
+        # Atualizar labelFolhaEstudo
+        self.frameSeletor.atualizarLabelFolhaEstudo(self.folhaEstudo)
+'''
+
+
+def setDB(path=''):
     '''
     Diretório raíz dos dados : '/home/ggrl/database/'
         # $HOME/database/
 
         path : caminho até o  arquivo desejado
     '''
-    gdb = '/home/ggrl/database/' + path
-    return gdb
+    _DBpath = '/home/ggrl/database/' + path
+
+    return _DBpath
 
 
 # Lista os arquivos de um diretório
@@ -33,7 +40,7 @@ def float_range(start, stop, step):
 
 
 # define geometria do Brasil
-ibge = set_gdb('shapefiles/IBGE/')
+ibge = setDB('shapefiles/IBGE/')
 regioes = gpd.read_file(ibge + 'ANMS2010_06_grandesregioes.shp')
 brasil = regioes.unary_union
 
@@ -58,7 +65,7 @@ def plotar(folhas, carta):
         ax.plot(x, y, color='black', alpha=0.7, linewidth=0.3,
                 solid_capstyle='round', zorder=2)
 
-    ax.set_title(f'Folhas da Carta {cartas[carta]["escala"]}')
+    ax.set_title(f'Folhas da Carta {metaCartas[carta]["escala"]}')
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
     ax.set_xlim(-80, -40)
@@ -67,7 +74,7 @@ def plotar(folhas, carta):
     plt.show()
 
 
-def plotar_inicial(carta):
+def plotarInicial(carta):
     '''
     Plota a carta de 1:1.000.000.
     '''
@@ -103,7 +110,7 @@ def plotar_inicial(carta):
     return fig, ax
 
 
-cartas = {
+metaCartas = {
     '1kk': {'escala': '1:1.000.000',
             'incrementos': (4, 6),
             'codigos': ['A', 'B', 'C', 'D', 'E', 'F', 'G',
@@ -140,4 +147,4 @@ def carregar_mapa_folium(self):
     print('Mapa carregado')
 '''
 
-# [print(f" --> carta: {k}: {v}\n") for k, v in cartas.items()]
+# [print(f" --> carta: {k}: {v}\n") for k, v in metaCartas.items()]

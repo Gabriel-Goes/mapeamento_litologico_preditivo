@@ -1,0 +1,72 @@
+@startuml
+
+package "User Interface" {
+    class PreditorTerraUI {
+        - root : tk.Tk
+        - frameSeletor : FrameSeletor
+        - framePlot : FramePlot
+        - setup_ui() : void
+    }
+
+    class FrameSeletor {
+        - mainFrame: ttk.Frame
+        - dicionarioFolhas: DicionarioFolhas
+        - seletorFolhas: SeletorFolhas
+        - folhaEstudo: str
+        - setupSeletor(): void
+        - atualizarLabelFolhaEstudo(): void
+    }
+
+    class FramePlot {
+        - mainFrame: ttk.Frame
+        - plotFolhas: PlotFolhas
+        - dicionarioFolhas: DicionarioFolhas
+        - seletorFolhas: SeletorFolhas
+        - plotFrame(): void
+    }
+}
+
+package "Data Manipulation" {
+    class DicionarioFolhas {
+        - file: str
+        - carta_1kk: DataFrame
+        - bbox: Geometry
+        + gera_dicionario(): dict
+        + filtrarID(): dict
+    }
+
+    class ManipulaFolhas {
+        + someMethod(): void
+    }
+}
+
+package "Plotting and Events" {
+    class PlotFolhas {
+        - dicionarioFolhas: DicionarioFolhas
+        - seletorFolhas: SeletorFolhas
+        - ax: matplotlib.axes
+        + on_canvas_click(): void
+        + determine_folha_clicada(): FolhaEstudo
+    }
+}
+
+package "Selection and Configuration" {
+    class SeletorFolhas {
+        - frameSeletor: FrameSeletor
+        - dicionarioFolhas: DicionarioFolhas
+        + atualizarID(): void
+        + atualizarFolhaEstudo(): void
+    }
+}
+
+PreditorTerraUI --> FrameSeletor: "has-a"
+PreditorTerraUI --> FramePlot: "has-a"
+FramePlot --> PlotFolhas: "uses"
+FrameSeletor --> SeletorFolhas: "uses"
+PlotFolhas --> DicionarioFolhas: "uses"
+SeletorFolhas --> DicionarioFolhas: "uses"
+FramePlot --> DicionarioFolhas: "uses"
+FramePlot --> SeletorFolhas: "uses"
+SeletorFolhas --> FrameSeletor: "updates"
+
+@enduml

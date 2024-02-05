@@ -1,9 +1,10 @@
 # Autor: Gabriel Góes Rocha de Lima
 # Data: 20/04/2021
 # ---------------------------------------------------------------------------
-# Esta classe é responsável por criar geometrias de folhas de cartas de acordo
-# com a escala, salvar cada uma das cartas como uma layer em um geoPackage.
-# Ela só será executada apenas uma vez para criar as folhas de cartas e o
+# Esta classe é responsável por criar geometrias de folhas de metaCartas de
+# acordo com a escala, salvar cada uma das metaCartas como uma layer em um
+# geoPackage.
+# Ela só será executada apenas uma vez para criar as folhas de metaCartas e o
 # geopackage.
 
 # ------------------------------ IMPORTS ------------------------------------
@@ -13,36 +14,36 @@ import fiona
 from shapely.geometry import mapping, Polygon
 from fiona.crs import CRS
 
-from geologist.utils.utils import set_gdb, float_range, cartas, brasil
+from utils import setDB, float_range, metaCartas, brasil
 
 
 # ------------------------------ CLASSES ------------------------------------
 class CartografiaSistematica:
     '''
-    Esta classe é responsável por criar as folhas de cartas de acordo com a
+    Esta classe é responsável por criar as folhas de metaCartas de acordo com a
     escala.
 
     Exemplo:
         cs = CartografiaSistematica()
-        cs.criar_folhas_de_cartas('1kk')
+        cs.criar_folhas_de_metaCartas('1kk')
         carta_1kk = cs.folhas
-        cs.criar_folhas_de_cartas('500k')
+        cs.criar_folhas_de_metaCartas('500k')
         carta_500k = cs.folhas
-        cs.criar_folhas_de_cartas('250k')
+        cs.criar_folhas_de_metaCartas('250k')
         folhas_250k = cs.folhas
-        cs.criar_folhas_de_cartas('100k')
+        cs.criar_folhas_de_metaCartas('100k')
         carta_100k = cs.folhas
-        cs.criar_folhas_de_cartas('50k')
+        cs.criar_folhas_de_metaCartas('50k')
         carta_50k = cs.folhas
-        cs.criar_folhas_de_cartas('25k')
+        cs.criar_folhas_de_metaCartas('25k')
         carta_25k = cs.folhas
 
-        # lista de cartas
-        lista_cartas = [carta_1kk, carta_500k, carta_250k,
+        # lista de metaCartas
+        lista_metaCartas = [carta_1kk, carta_500k, carta_250k,
                         carta_100k, carta_50k, carta_25k]
 
-        # Salvar folhas de cartas
-        [cs.salvar_folhas_de_cartas(carta) for carta in lista_cartas]
+        # Salvar folhas de metaCartas
+        [cs.salvar_folhas_de_metaCartas(carta) for carta in lista_cartas]
 
     '''
 
@@ -52,23 +53,23 @@ class CartografiaSistematica:
         self.carta = None
 
 # ------------------------------ FUNÇÕES ------------------------------------
-    # Método para criar as folhas de cartas
-    def criar_folhas_de_cartas(self, carta):
+    # Método para criar as folhas de metaCartas
+    def criar_folhas(self, carta):
         '''
-        Cria as folhas de cartas de acordo com a escala (Carta).
+        Cria as folhas de metaCartas de acordo com a escala (Carta).
         '''
         self.carta = carta
-        lat_incremen, lon_incremen = cartas[carta]['incrementos']
+        lat_incremen, lon_incremen = metaCartas[carta]['incrementos']
         (lon_min_brasil, lat_min_brasil,
          lon_max_brasil, lat_max_brasil) = brasil.bounds
 
         # Arredonde os limites para os múltiplos mais próximos do incremento
-        lat_min = self.arredondar_para_multiplo(lat_min_brasil, lat_incremen)
-        lon_min = self.arredondar_para_multiplo(lon_min_brasil, lon_incremen)
-        lat_max = self.arredondar_para_multiplo(lat_max_brasil, lat_incremen,
-                                                True)
-        lon_max = self.arredondar_para_multiplo(lon_max_brasil, lon_incremen,
-                                                True)
+        lat_min = self.arredondar(lat_min_brasil, lat_incremen)
+        lon_min = self.arredondar(lon_min_brasil, lon_incremen)
+        lat_max = self.arredondar(lat_max_brasil, lat_incremen,
+                                  True)
+        lon_max = self.arredondar(lon_max_brasil, lon_incremen,
+                                  True)
         lat_ranges = [(i, i + lat_incremen) for i in float_range(lat_min,
                                                                  lat_max,
                                                                  lat_incremen)]
@@ -91,18 +92,20 @@ class CartografiaSistematica:
                                                    bottom)
                     self.folhas[folha_id] = polygon
 
+        return self.carta
+
     @staticmethod
-    def gerar_id_folha(left, right, top, bottom):
+    def gerar_id(left, right, top, bottom):
         '''
         Gera o id da folha de acordo com a escala (Carta).
         '''
         # Adquire o valor de carta do método criar_folhas
-        e1kk = cartas['1kk']['codigos']
-        e500k = cartas['500k']['codigos']
-        e250k = cartas['250k']['codigos']
-        e100k = cartas['100k']['codigos']
-        e50k = cartas['50k']['codigos']
-        e25k = cartas['25k']['codigos']
+        e1kk = metaCartas['1kk']['codigos']
+        e500k = metaCartas['500k']['codigos']
+        e250k = metaCartas['250k']['codigos']
+        e100k = metaCartas['100k']['codigos']
+        e50k = metaCartas['50k']['codigos']
+        e25k = metaCartas['25k']['codigos']
         if left > right:
             print('Oeste deve ser menor que leste')
         if top < bottom:
@@ -145,7 +148,7 @@ class CartografiaSistematica:
                 id_folha += e25k[LO][NS]
             return id_folha
 
-    def arredondar_para_multiplo(
+    def arredondar(
             self, numero, multiplo, arredondar_para_cima=False):
         if arredondar_para_cima:
             return math.ceil(numero / multiplo) * multiplo
@@ -153,9 +156,9 @@ class CartografiaSistematica:
             return math.floor(numero / multiplo) * multiplo
 
     # Método para salvar as camadas em um geopackage com fiona
-    def salvar_folhas_de_cartas(self, folhas=None, file_name='fc.gpkg'):
+    def salvar_folhas(self, folhas=None, file_name='fc.gpkg'):
         '''
-        Salva as folhas de cartas em um geopackage.
+        Salva as folhas de metaCartas em um geopackage.
         '''
         if self.folhas is None:
             print('Crie as folhas cartográficas primeiro')
@@ -174,7 +177,7 @@ class CartografiaSistematica:
         # Nome da camada baseada na carta
         layer_name = f'fc_{carta}'
         # Cria o geopackage
-        with fiona.open(set_gdb(file_name), 'w', driver='GPKG',
+        with fiona.open(setDB(file_name), 'w', driver='GPKG',
                         crs=crs, layer=layer_name, schema=schema) as layer:
 
             for folha_id, poligono in folhas.items():
@@ -201,31 +204,31 @@ if __name__ == "__main__":
 # Teste da classe DicionarioFolhas
 # 1 : 1.000.000
     folhas_1kk = cs()
-    folhas_1kk.criar_folhas_de_cartas('1kk')
+    folhas_1kk.criar_folhas('1kk')
 
 # 1 : 500.000
     folhas_500k = cs()
-    folhas_500k.criar_folhas_de_cartas('500k')
+    folhas_500k.criar_folhas('500k')
 
 # 1 : 250.000
     folhas_250k = cs()
-    folhas_250k.criar_folhas_de_cartas('250k')
+    folhas_250k.criar_folhas('250k')
 
 # 1 : 100.000
     folhas_100k = cs()
-    folhas_100k.criar_folhas_de_cartas('100k')
+    folhas_100k.criar_folhas('100k')
 
 # 1 : 50.000
     folhas_50k = cs()
-    folhas_50k.criar_folhas_de_cartas('50k')
+    folhas_50k.criar_folhas('50k')
 
 # 1 : 25.000
     folhas_25k = cs()
-    folhas_25k.criar_folhas_de_cartas('25k')
+    folhas_25k.criar_folhas('25k')
 
-# Lista de cartas
-    lista_cartas = [folhas_1kk, folhas_500k, folhas_250k,
-                    folhas_100k, folhas_50k, folhas_25k]
+# Lista de metaCartas
+    lista_metaCartas = [folhas_1kk, folhas_500k, folhas_250k,
+                        folhas_100k, folhas_50k, folhas_25k]
 
-# Salvar cartas
-    [carta.salvar_folhas_de_cartas() for carta in lista_cartas]
+# Salvar metaCartas
+    [carta.salvar_folhas() for carta in lista_metaCartas]

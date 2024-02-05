@@ -7,11 +7,10 @@
 #                      'litologia': litologia}}
 #
 # # ------------------------------ IMPORTS ------------------------------------
-from tqdm import tqdm
 import geopandas as gpd
 
 # Minhas Classes
-from geologist.utils.utils import set_gdb
+from utils import setDB, metaCartas
 
 
 # ------------------------------ CLASSES ------------------------------------
@@ -26,20 +25,20 @@ class DicionarioFolhas:
 
     # Construtor da classe
     def __init__(self):
-        self.file = set_gdb('fc.gpkg')
+        self.file = setDB('fc.gpkg')
         # Lê o arquivo geopackage
         self.carta_1kk = gpd.read_file(self.file, layer='fc_1kk')
         self.bbox = None
 
     # Método para importar a malha cartográfica
-    def gera_dicionario_de_folhas(self, id_folha_estudo, carta, folhas):
+    def gera_dicionario(self, id_folha_estudo, carta, folhas):
         '''
         Método responsável por gerar construir um dicionário python que será
         populado com folhas de carta contidas na área de estudo na escala
         escolhida.
         '''
         # Cria um dicionário vazio
-        dicionariofolhas = {}
+        dicionariofolhas = metaCartas
         # Define a máscara de acordo com a carta
         # a mascara é a bounding box da folha 1kk da escala escolhida. Esta é
         # a carta formada pelas 4 primeiras letras da id_folha.
@@ -48,26 +47,29 @@ class DicionarioFolhas:
         minx, miny = folha_estudo.bounds.minx, folha_estudo.bounds.miny
         maxx, maxy = folha_estudo.bounds.maxx, folha_estudo.bounds.maxy
         self.bbox = (minx + 0.125, miny + 0.125, maxx - 0.125, maxy - 0.125)
-        # Lê o arquivo geopackage
-        macro_gdf = gpd.read_file(self.file, layer=f'fc_{carta}',
-                                  driver='GPKG', bbox=self.bbox)
-        # Filtra macro_gdf pr id_folha
-        gdf = macro_gdf[macro_gdf['id_folha'].str.contains(folhas)]
-
-        # transforma a gdf em um dicionário python neste modelo:
-        # {'folha_id: {'geometry': Polygon,
-        #              'EPSG': 'str'}
-        dicionariofolhas = {row['id_folha']: {'geometry': row['geometry'],
-                                              'EPSG': row['EPSG']}
-                            for index, row in tqdm(gdf.iterrows())}
+        try:
+            # Lê o arquivo geopackage
+            macro_gdf = gpd.read_file(self.file, layer=f'fc_{carta}',
+                                      driver='GPKG', bbox=self.bbox)
+            # Filtra macro_gdf pr id_folha
+            gdf = macro_gdf[macro_gdf['id_folha'].str.contains(folhas)]
+            # transforma a gdf em um dicionário python neste modelo:
+            # {'folha_id: {'geometry': Polygon,
+            #              'EPSG': 'str'}
+            dicionariofolhas = {row['id_folha']: {'geometry': row['geometry'],
+                                                  'EPSG': row['EPSG']}
+                                for index, row in gdf.iterrows()}
+        # Retorna erro se não existir id_folha na gdf
+        except KeyError:
+            print("\\e2716 ---> Erro ao gerar dicionário de folhas!")
 
         # Retorna o dicionário
         return dicionariofolhas
 
-    # Métodos de filtragem de folhas de cartas para serem adicionados no futuro
+    # Métodos de filtragem de ID  para serem adicionados no futuro
     # Método para filtrar a malha cartográfica por ID exato
-    def filtrar_mc_exato(self, df, ID):
-        return df[df['id'].isin(ID)]
+    def filtrar_id(self, dicionariofolhas, ID):
+        return dicionariofolhas[dicionariofolhas['id'].isin(ID)]
 
     '''
     # Filtrar apenas ID que terminam com o padrão especificado
@@ -86,10 +88,13 @@ class DicionarioFolhas:
 
 # ------------------------------ MAIN ---------------------------------------
 if __name__ == "__main__":
-    from geologist.utils import plotar
-    dicionariofolhas = DicionarioFolhas()
-    carta_25k = dicionariofolhas.gera_dicionario_de_folhas('25k', 'SF23')
-    plotar(carta_25k, '25k')
+    # from geologist.utils.utils import plotar
+    dic_f = DicionarioFolhas()
+    carta_25k = dic_f.gera_dicionario('SF23',
+                                      '25k',
+                                      'SF23_YA_I')
+    # plotar(carta_25k, '25k')
 
-    carta_50k = dicionariofolhas.gera_dicionario_de_folhas('50k', 'SF23_YA_I')
+    # carta_50k = dicionariofolhas.gera_dicionario('50k',
+    #                                                        'SF23_YA_I')
     # plotar(carta_50k, '50k')
