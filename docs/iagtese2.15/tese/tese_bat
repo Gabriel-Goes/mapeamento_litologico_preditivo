@@ -1,5 +1,0 @@
-pdflatex tese.tex 
-bibtex tese
-pdflatex tese.tex 
-pdflatex tese.tex 
-tese.pdf
