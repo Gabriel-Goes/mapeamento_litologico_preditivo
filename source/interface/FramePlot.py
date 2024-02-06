@@ -1,13 +1,12 @@
 # Autor: Gabriel Góes Rocha de Lima
 # Data: 20/04/2021
+# source/interface/FramePlot.py
 # ---------------------------------------------------------------------------
 #
 # Canvas Para Visualização de Folhas
 # ------------------------------ IMPORTS ------------------------------------
 from utils import plotarInicial
 from DicionarioFolhas import DicionarioFolhas
-from SeletorFolhas import SeletorFolhas
-from PlotFolhas import PlotFolhas
 
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -22,22 +21,18 @@ class FramePlot:
     '''
     Esta classe é responsável por criar o Frame de Plotagem e métodos visuais.
 
-    Exemplo:
-        plotFrame = PlotFrame(mainFrame)
     '''
-
-    def __init__(self, mainFrame, frameSeletor, folhaEstudo, style=None):
+    def __init__(self, seletorFolhas, mainFrame, frameSeletor, style=None):
+        print(' --> Inicializando Frame de Plotagem')
+        self.seletorFolhas = seletorFolhas
         self.mainFrame = mainFrame
-        self.folhaEstudo = folhaEstudo
-        self.seletorFolhas = SeletorFolhas
-        self.frameSeletor = frameSeletor
         self.dicionarioFolhas = DicionarioFolhas()
-        self.ax = None
+        self.frameSeletor = frameSeletor
         self.style = style
-        self.plotFrame()
+        self.setupPlotFrame()
 
     # ------------------------- Frame - Plot Frame
-    def plotFrame(self):
+    def setupPlotFrame(self):
         '''
         Cria o Frame para plotar as cartas.
         Implementar reconhecimento de click na tela para pegar coords.
@@ -55,7 +50,7 @@ class FramePlot:
         # ------------------- Plot Carta 1:1.000.000
         # Plotar Carta 1:1.000.000
         map, ax = plotarInicial(self.dicionarioFolhas.carta_1kk)
-        self.ax = ax
+        self.seletorFolhas.ax = ax
         # plotar mapa no canvas
         canvas = FigureCanvasTkAgg(map, master=self.canvas)
         canvas.draw()
@@ -66,9 +61,5 @@ class FramePlot:
         toolbar.grid(row=1, column=0, padx=0, pady=0)
         canvas.get_tk_widget().grid(row=0, column=0, padx=0, pady=0)
         # ------------------- Evento de Click no Canvas
-        self.plotFolhas = PlotFolhas(self.dicionarioFolhas,
-                                     self.seletorFolhas,
-                                     self.frameSeletor,
-                                     self.ax)
-        map.canvas.mpl_connect('button_press_event',
-                               self.plotFolhas.on_canvas_click)
+        map.canvas.mpl_connect('button_press_event', lambda click_event:
+                               self.seletorFolhas.on_canvas_click(click_event))

@@ -1,92 +1,92 @@
 # Autor: Gabriel Góes Rocha de Lima
 # Data: 20/04/2021
 # ---------------------------------------------------------------------------
-# SeletorFolhas.py
+# source/interface/FrameSeletor.py
 # # ------------------------------ IMPORTS ------------------------------------
 from tkinter import ttk
 import tkinter as tk
 
 from DicionarioFolhas import DicionarioFolhas
-from SeletorFolhas import SeletorFolhas
 from utils import metaCartas
-
 # --------------------------------------------------------------------------- #
 
 
 # ------------------------------- CLASSES ------------------------------------
-class FrameSeletor:
+class FrameSeletor():
     '''
-    Esta classe é responsável por criar o seletor de folhas de cartas.
+    Esta classe é responsável por criar o Frame que contêm as ferramentas de
+    seleção e geração de folhas de cartas.
     '''
+
     # Construtor da classe Seletor de Folhas
-
-    def __init__(self, mainFrame, style):
+    def __init__(self, dicionario, seletorFolhas, mainFrame, style):
+        print(' --> Inicializando Frame de Seletor')
+        self.seletorFolhas = seletorFolhas
         self.mainFrame = mainFrame
-        self.DicionarioFolhas = DicionarioFolhas()
         self.style = style
-        self.seletorFolhas = SeletorFolhas
-        self.folhaEstudo = None
+        self.DicionarioFolhas = DicionarioFolhas()
         self.labelFolhaEstudo = None
-        self.setupSeletor()
+        self.setupFrameSeletor(dicionario=dicionario)
 
-# Função para criar o seletor de folhas de cartas
-    def setupSeletor(self):
+    def atualizarfolhaEstudo(self, folhaEstudo):
+        self.atualizarLabelFolhaEstudo(folhaEstudo)
+
+    # Método para criar o seletor de folhas de cartas
+    def setupFrameSeletor(self, dicionario):
         '''
         Cria o seletor de folhas de cartas.
         '''
-        # Label do topo - PREDITOR TERRA
+        # Label do topo - PREDITOR TERRA --------------------------------------
         labelMain = tk.Label(self.mainFrame, text='Preditor Terra',
                              font=('SourceCodePro', 12, 'bold'),
                              relief=tk.GROOVE, bd=2)
         labelMain.grid(row=0, column=1, padx=0, pady=0)
         labelMain.config(bg='black', fg='white')
-        # ------------------- Frame - Seletor de Folhas
+        # ------------------- Frame - Seletor de Folhas de Cartas -------------
         # Cria Frame para o Seletor
         self.seletorFrame = ttk.Frame(self.mainFrame,
                                       relief=tk.GROOVE,
                                       width=300, height=400,
                                       style="Custom.TFrame")
         self.seletorFrame.grid(row=0, column=1, padx=0, pady=0)
-        # ------------------- Label do Seletor de Folhas
+        # ------------------- Label do Seletor de Folhas ----------------------
         labelSeletor = tk.Label(self.seletorFrame,
                                 text='Seletor de Folhas',
                                 font=('SourceCodePro', 12, 'bold'),
                                 relief=tk.GROOVE, bd=2,
                                 bg='black', fg='white')
         labelSeletor.grid(row=0, column=0, padx=5, pady=5)
-        # ------------------- Combobox - Carta
+        # ------------------- Combobox - Carta --------------------------------
         self.comboboxCarta = ttk.Combobox(self.seletorFrame,
                                           values=[dados['escala'] for dados in
                                                   metaCartas.values()],
                                           width=10,
                                           style="Custom.TCombobox")
         self.comboboxCarta.grid(row=1, column=0, padx=5, pady=5)
-        self.comboboxCarta.bind('<<ComboboxSelected>>',
-                                self.seletorFolhas.atualizarID)
-        # ------------------- Combobox - Folha
+        self.comboboxCarta.set('1:25.000')
+        # ------------------- Combobox - Folha --------------------------------
         self.comboboxFolha = ttk.Combobox(self.seletorFrame, width=10,
                                           style="Custom.TCombobox")
         self.comboboxFolha.grid(row=2, column=0, padx=5, pady=5)
-        # ------------------ Botão - Gerar Dicionário de folhas
+        self.comboboxFolha.set('SF23_YA_III4')
+        # ------------------ Botão - Gerar Dicionário de folhas ---------------
         botao_gDicionario = ttk.Button(self.seletorFrame,
                                        text='Gerar Dicionário',
                                        command=lambda:
-                                       self.DicionarioFolhas.gera_dicionario(
-                                           self.folhaEstudo['id_folha'],
-                                           self.seletorFolhas.cartaSelec,
-                                           self.comboboxFolha.get()),
+                                       self.seletorFolhas.gDicionario(
+                                           dicionario),
                                        style="Custom.TButton")
         botao_gDicionario.grid(row=3, column=0, padx=5, pady=5)
-
-        # ------------------ Frame - Folha de Estudo
+        # ------------------ Frame - Folha de Estudo --------------------------
         self.frameFolhaEstudo = ttk.Frame(self.seletorFrame,
                                           relief=tk.GROOVE,
                                           width=300, height=400,
                                           style="Custom.TFrame")
         self.frameFolhaEstudo.grid(row=4, column=0, padx=0, pady=0)
-        # ------------------ Label - Folha de Estudo
+        # ------------------ Label - Folha de Estuda --------------------------
         self.atualizarLabelFolhaEstudo()
 
+    # ----------- Método para atualizar label de folha de estudo --------------
     def atualizarLabelFolhaEstudo(self, id_folha=None):
         ajuda = "Selecione uma área de estudo clicando"
         # Romva o label antigo se ele já existir
