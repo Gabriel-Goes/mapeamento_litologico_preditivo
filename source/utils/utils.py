@@ -133,6 +133,11 @@ metaCartas = {
             'codigos': [['NW', 'SW'], ['NE', 'SE']]}
 }
 
+reverseMetaCartas = {metaCartas[k]['escala']: k for k in metaCartas}
+# antoher way to reverse lookup
+# reverseMetaCartas = {v: k for k, v in metaCartas.items()}
+
+
 '''
 def carregar_mapa_folium(self):
     mapa_html = criar_mapa_folium()

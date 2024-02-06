@@ -2,7 +2,6 @@
 
     \usepackage[breakable]{tcolorbox}
     \usepackage{parskip} % Stop auto-indenting (to mimic markdown behaviour)
-    
 
     % Basic figure setup, for now with no caption control since it's done
     % automatically by Pandoc (which extracts ![](path) syntax from Markdown).
@@ -79,9 +78,6 @@
     \usepackage[normalem]{ulem} % ulem is needed to support strikethroughs (\sout)
                                 % normalem makes italics be italics, not underlines
     \usepackage{mathrsfs}
-    
-
-    
     % Colors for the hyperref package
     \definecolor{urlcolor}{rgb}{0,.145,.698}
     \definecolor{linkcolor}{rgb}{.71,0.21,0.01}
@@ -165,13 +161,6 @@
     % Document parameters
     % Document title
     \title{projeto}
-    
-    
-    
-    
-    
-    
-    
 % Pygments definitions
 \makeatletter
 \def\PY@reset{\let\PY@it=\relax \let\PY@bf=\relax%
@@ -365,9 +354,6 @@
     \newcommand{\prompt}[4]{
         {\ttfamily\llap{{\color{#2}[#3]:\hspace{3pt}#4}}\vspace{-\baselineskip}}
     }
-    
-
-    
     % Prevent overflowing lines due to hard-to-break entities
     \sloppy
     % Setup hyperref package
@@ -379,17 +365,11 @@
       citecolor=citecolor,
       }
     % Slightly bigger margins than the latex defaults
-    
     \geometry{verbose,tmargin=1in,bmargin=1in,lmargin=1in,rmargin=1in}
-    
-    
 
 \begin{document}
     
     \maketitle
-    
-    
-
     
     \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
 \prompt{In}{incolor}{3}{\boxspacing}
@@ -405,7 +385,7 @@
 \PY{k+kn}{import} \PY{n+nn}{verde} \PY{k}{as} \PY{n+nn}{vd}
 \PY{k+kn}{import} \PY{n+nn}{matplotlib}\PY{n+nn}{.}\PY{n+nn}{pyplot} \PY{k}{as} \PY{n+nn}{plt}
 \PY{k+kn}{import} \PY{n+nn}{pandas} \PY{k}{as} \PY{n+nn}{pd}
-\PY{k+kn}{import} \PY{n+nn}{numpy} \PY{k}{as} \PY{n+nn}{np} 
+\PY{k+kn}{import} \PY{n+nn}{numpy} \PY{k}{as} \PY{n+nn}{np}
 \PY{k+kn}{import} \PY{n+nn}{geopandas} \PY{k}{as} \PY{n+nn}{gpd}
 \PY{k+kn}{import} \PY{n+nn}{pyproj}
 \PY{k+kn}{import} \PY{n+nn}{os}
@@ -1246,7 +1226,7 @@ Quadrícula}\label{adicionando-dados-brutos-uxe0-quadruxedcula}}
 19812
 \end{Verbatim}
 \end{tcolorbox}
-        
+
     \begin{tcolorbox}[breakable, size=fbox, boxrule=1pt, pad at break*=1mm,colback=cellbackground, colframe=cellborder]
 \prompt{In}{incolor}{8}{\boxspacing}
 \begin{Verbatim}[commandchars=\\\{\}]

@@ -8,9 +8,7 @@
 #
 # # ------------------------------ IMPORTS ------------------------------------
 import geopandas as gpd
-
-# Minhas Classes
-from utils import setDB, metaCartas
+from utils import setDB
 
 
 # ------------------------------ CLASSES ------------------------------------
@@ -31,14 +29,12 @@ class DicionarioFolhas:
         self.bbox = None
 
     # Método para importar a malha cartográfica
-    def gera_dicionario(self, id_folha_estudo, carta, folhas):
+    def gera_dicionario(self, id_folha_estudo, carta, folhas, dicionario):
         '''
         Método responsável por gerar construir um dicionário python que será
         populado com folhas de carta contidas na área de estudo na escala
         escolhida.
         '''
-        # Cria um dicionário vazio
-        dicionariofolhas = metaCartas
         # Define a máscara de acordo com a carta
         # a mascara é a bounding box da folha 1kk da escala escolhida. Esta é
         # a carta formada pelas 4 primeiras letras da id_folha.
@@ -56,15 +52,18 @@ class DicionarioFolhas:
             # transforma a gdf em um dicionário python neste modelo:
             # {'folha_id: {'geometry': Polygon,
             #              'EPSG': 'str'}
-            dicionariofolhas = {row['id_folha']: {'geometry': row['geometry'],
-                                                  'EPSG': row['EPSG']}
-                                for index, row in gdf.iterrows()}
+            dicionario = {row['id_folha']: {'geometry': row['geometry'],
+                                            'EPSG': row['EPSG']}
+                          for index, row in gdf.iterrows()}
+            print(' --> Dicionário de folhas gerado com sucesso!')
+            print(f' --> {len(dicionario)} folhas encontradas.')
+            print(f' --> {dicionario.keys()}')
         # Retorna erro se não existir id_folha na gdf
         except KeyError:
             print("\\e2716 ---> Erro ao gerar dicionário de folhas!")
 
         # Retorna o dicionário
-        return dicionariofolhas
+        return dicionario
 
     # Métodos de filtragem de ID  para serem adicionados no futuro
     # Método para filtrar a malha cartográfica por ID exato
