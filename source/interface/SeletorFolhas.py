@@ -11,8 +11,8 @@ from utils import reverse_meta_cartas
 class SeletorFolhas:
     '''
     Classe para implementar métodos de seleção de folhas.
-        Será importado por FrameSeletor e utilizado para atualizar valores
-        de folhas, atualizar folha de estudo e gerar dicionário de folhas.
+        Será instanciado por FrameSeletor e utilizado para atualizar valores
+        de escala e atualizar folha de estudo e gerar dicionário de folhas.
     '''
     def __init__(self,
                  combobox_cartas, combobox_folha,
@@ -46,10 +46,36 @@ class SeletorFolhas:
         '''
         Método para atualizar valores de Combobox Folhas.
         '''
+        # Atualiza valores de Combobox Folhas
         id_folhas = self.cartas['id_folha'].tolist()
+        self.id_folhas_original = id_folhas
         self.combobox_folha['values'] = id_folhas
         if id_folhas:
-            self.combobox_folha.set(id_folhas[0])
+            self.combobox_folha.set(id_folhas[8])
+
+    # Filtra códigos de folhas com base no texto inserido
+    def filtrar_ids_folhas(self, event):
+        '''
+        Método para filtrar códigos de folhas do combobox_folha com base no
+        texto inserido.
+        '''
+        texto_filtro = self.combobox_folha.get()
+        if not texto_filtro:
+            print(' --> Nenhum valor inserido para filtro!')
+            print(f' --> IDs disponíveis: {self.id_folhas_original}')
+            print('')
+            id_filtrados = self.id_folhas_original
+        else:
+            print(' Texto inserido para filtro: ', texto_filtro)
+            print('')
+            id_filtrados = [id for id in self.combobox_folha['values'] if
+                            texto_filtro.lower() in id.lower()]
+        self.combobox_folha['values'] = id_filtrados
+        if not id_filtrados:
+            print(f' --> Nenhum valor encontrado para: {texto_filtro}')
+            print(f' IDs disponíveis: {self.id_folhas_original}')
+            print('')
+            self.combobox_folha['values'] = self.id_folhas_original
 
     # Seleciona Folhas a partir das esclas disponíveis em meta_cartas
     def selecionar_carta(self, escala):
@@ -61,12 +87,11 @@ class SeletorFolhas:
             carta = reverse_meta_cartas[escala]
             self.cartas = self.gerenciadorFolhas.seleciona_escala(carta)
             print(f' --> Folhas selecionadas: {len(self.cartas)}')
-            print(f' --> {self.cartas.head()}')
             self.atualizar_combobox_folha()
             print(' --> Combobox Folhas atualizado!')
+            print('')
         except Exception as e:
             print(f' --> Erro ao selecionar folhas! {e}')
-
         return self.cartas
 
     # Método para determinar folha clicada

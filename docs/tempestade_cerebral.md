@@ -46,40 +46,16 @@ Aplicativo
 │
 └── setup_ui() (chama
 
-    - aplicativo
-        - dicionario_folhas
-            - bbox
-            - carta_1kk
-            - filtgeo
-            - filtrar_mc_exato()
-            - gera_dicionario_folhas()
-        - folha_estudo = Nada
-        - plot_frame
-            - main_frame
-            - seletor_folhas
-            - folha_estudo
-            - dic_fCopy
-            - canvas
-            - ax
-            - style
-            - determine_folha_clicada()
-            - on_canvas_click()
-            - plot_frame()
-        - root(TKINTER ROOT)
-        - seletor_folhas
-                - main_frame
-                - frame_folha_estudo
-                - seletor_folhas_frame
-                - combobox_carta
-                - combobox_folha
-                - carta_selecionada
-                - dicionario_folhas
-                - dicionario
-                - folha_estudo
-                - style
-                - criar_seletor_folhas()
-                - e_gerar_dicionario_folhas()
-                - atualizar_valores_folhas()
-                - atualizar_folha_estudo()
-        - style(TKINTER STYLE)
-        - setup_ui() (CHAMA AS FUNÇÕES ACIMA)
+
+
+## Métodos Para Implementar
+
+### Parser de 'LITOLOGIA' e 'LEGENDA'
+    -> Um método que recebe uma 'str' os atributos que a contém.
+    -> Pode ser usado para procurar geometrias que contêm um mineral
+    -> Posso implementar algo como o Telescope LiveGrep
+
+### Lógica de cores de mapas litológicos
+    -> utilizar uma lógica de cores para escolher uma cor automaticamente \\
+        baseado na 'SIGLA ID'
+    -> SGB-CPRM tem um arquivo de estilo para QGIS, mas incomplete.

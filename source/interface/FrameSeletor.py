@@ -28,6 +28,8 @@ class FrameSeletor():
         self.setup_seletor_folhas()
         self.combobox_carta.bind('<<ComboboxSelected>>',
                                  self.seletor_folhas.evento_combobox_cartas)
+        self.combobox_folha.bind('<KeyRelease>',
+                                 self.seletor_folhas.filtrar_ids_folhas)
 
     # Configuração do seletor de folhas
     def setup_seletor_folhas(self):
@@ -51,9 +53,9 @@ class FrameSeletor():
         # Cria Frame para o Seletor
         self.seletor_frame = ttk.Frame(self.main_frame,
                                        relief=tk.GROOVE,
-                                       width=300, height=400,
+                                       width=600, height=400,
                                        style="Custom.TFrame")
-        self.seletor_frame.grid(row=0, column=1, padx=0, pady=0)
+        self.seletor_frame.grid(row=0, column=0, padx=0, pady=0)
         # ------------------- Label do Seletor de Folhas ----------------------
         label_seletor = tk.Label(self.seletor_frame,
                                  text='Seletor de Folhas',
@@ -70,12 +72,23 @@ class FrameSeletor():
         self.combobox_carta.grid(row=1, column=0, padx=5, pady=5)
         self.combobox_carta.set('1:1.000.000')
         # ------------------- Combobox - Folha --------------------------------
+        self.folha_var = tk.StringVar()
+        self.folha_var.trace('w', lambda name, index, mode,
+                             sv=self.folha_var: self.on_text_change(sv))
         self.combobox_folha = ttk.Combobox(self.seletor_frame,
-                                           values='',
-                                           width=10,
+                                           textvariable=self.folha_var,
+                                           values=[],
+                                           width=14,
                                            style="Custom.TCombobox")
         self.combobox_folha.grid(row=2, column=0, padx=5, pady=5)
-        self.combobox_folha.set('SF23')
+
+    # Transforma texto em maiúsculo
+    def on_text_change(self, sv):
+        '''
+        Método para transformar texto em maiúsculo.
+        '''
+        current_text = sv.get().upper()
+        sv.set(current_text)
 
     # ----------- Método para atualizar label de folha de estudo --------------
     def atualizarfolhaEstudo(self, folha_estudo):

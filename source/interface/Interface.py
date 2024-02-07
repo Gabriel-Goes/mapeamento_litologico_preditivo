@@ -50,16 +50,17 @@ class PreditorTerraUI:
         '''
         self.root.title('Preditor Terra')
         self.root.geometry('1440x900')
+        # Label do topo - PREDITOR TERRA --------------------------------------
+        label_root = tk.Label(self.root, text='Preditor Terra',
+                              font=('SourceCodePro', 12, 'bold'),
+                              relief=tk.GROOVE, bd=2)
+        # Centraliza label Root no topo central do ROOT
+        label_root.grid(row=0, column=0, padx=0, pady=0, sticky='nsew')
+        label_root.config(bg='black', fg='white')
         # ------------------- Main Frame
         self.main_frame = ttk.Frame(self.root, width=1420, height=880,
                                     relief=tk.GROOVE, style="Custom.TFrame")
-        self.main_frame.grid(row=0, column=0, padx=0, pady=0, sticky='nsew')
-        # Label do topo - PREDITOR TERRA --------------------------------------
-        label_main = tk.Label(self.main_frame, text='Preditor Terra',
-                              font=('SourceCodePro', 12, 'bold'),
-                              relief=tk.GROOVE, bd=2)
-        label_main.grid(row=0, column=1, padx=0, pady=0)
-        label_main.config(bg='black', fg='white')
+        self.main_frame.grid(row=1, column=0, padx=0, pady=0, sticky='nsew')
         # ------------------- Seletor de Folhas - Frame
         self.frame_seletor = FrameSeletor(self.gerenciador_folhas,
                                           self.main_frame,
@@ -81,11 +82,11 @@ class PreditorTerraUI:
 
 
 # ----------------------------- MAINLOOP
-def start():
+def start(className='Preditor_Terra'):
     '''
     Função principal para executar a interface do Preditor Terra.
     '''
-    root = tk.Tk(className='Preditor_Terra')
+    root = tk.Tk(className=className)
     app = PreditorTerraUI(root)
     root.mainloop()
     print(' Interface do Preditor Terra encerrada.')

@@ -40,8 +40,8 @@ class AbrirFolhas:
         try:
             # Lê o arquivo geopackage
             self.cartas = gpd.read_file(self.file, layer='fc_' + escala)
-
             return self.cartas
+
         except Exception as e:
             print(f' --> Erro ao importar a carta! {e}')
             print(' --> Escalas disponíveis: 25k, 50k, 100k, 250k, 500k e 1kk')
@@ -58,7 +58,6 @@ class AbrirFolhas:
         '''
         folha_ade = self.cartas[
             self.cartas['id_folha'] == id_folha_area_de_estudo]
-
         return folha_ade
 
     # Criar bounding box para a folha escolhida
@@ -91,7 +90,6 @@ class AbrirFolhas:
                                                   driver='GPKG',
                                                   bbox=bbox)
             return folhas_area_de_estudo
-
         except KeyError:
             print(' --> Erro ao segmentar a área de estudo!')
 
