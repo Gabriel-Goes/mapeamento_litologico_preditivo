@@ -3,12 +3,11 @@
 # source/interface/SeletorFolhas.py
 # Descrição: Classe para implementar métodos de seleção de folhas.
 # -----------------------------------------------------------------------------
-from typing import Any, Dict
 import shapely
-from DicionarioFolhas import DicionarioFolhas
-from utils import metaCartas, reverseMetaCartas
+from utils import reverse_meta_cartas
 
 
+# ------------------------------ CLASSES ------------------------------------
 class SeletorFolhas:
     '''
     Classe para implementar métodos de seleção de folhas.
@@ -16,30 +15,59 @@ class SeletorFolhas:
         de folhas, atualizar folha de estudo e gerar dicionário de folhas.
     '''
     def __init__(self,
-                 ax: Any,
-                 dicionarioFolhas: DicionarioFolhas,
-                 dicionario: Dict[str, Any],
-                 interface = None) -> None:
-        self.ax = ax
-        self.dicionarioFolhas = dicionarioFolhas
-        dicionario = dicionario
-        self.folhaEstudo = None
-        self.frameSeletor = None
-        self.interface = interface
-    def atualizarFolhaEstudo(self, folhaEstudo):
+                 combobox_cartas, combobox_folha,
+                 gerenciador_folhas):
         '''
-        Atualiza a folha de estudo.
+        Construtor da classe SeletorFolhas.
         '''
-        if folhaEstudo is None:
-            print(f'self.folhaEstudo: {self.folhaEstudo}')
-            print(' --> Selecione uma folha de estudo.')
-            print('======================================================')
-            print('')
-            return
-        self.folhaEstudo = folhaEstudo
-        print(f' --> Folha de estudo atualizada:\n {self.folhaEstudo}')
-        print('======================================================')
-        print('')
+        self.combobox_folha = combobox_folha
+        self.combobox_cartas = combobox_cartas
+        self.gerenciadorFolhas = gerenciador_folhas
+
+    # ---------------------------- Métodos ------------------------------------
+    # Visualiza valor de Combobox Cartas
+    def get_combobox_cartas(self):
+        '''
+        Método para visualizar valor de Combobox Cartas.
+        '''
+        print(f' --> Escala escolhida: {self.combobox_cartas.get()}')
+        self.escala = self.combobox_cartas.get()
+
+    # Evento de Combobox Cartas atualizado
+    def evento_combobox_cartas(self, event):
+        '''
+        Evento de Combobox Cartas atualizado.
+        '''
+        self.get_combobox_cartas()
+        self.selecionar_carta(self.escala)
+
+    # Atualiza valores de Combobox Folhas
+    def atualizar_combobox_folha(self):
+        '''
+        Método para atualizar valores de Combobox Folhas.
+        '''
+        id_folhas = self.cartas['id_folha'].tolist()
+        self.combobox_folha['values'] = id_folhas
+        if id_folhas:
+            self.combobox_folha.set(id_folhas[0])
+
+    # Seleciona Folhas a partir das esclas disponíveis em meta_cartas
+    def selecionar_carta(self, escala):
+        '''
+        Método para selecionar folhas a partir das escalas disponíveis em
+        meta_cartas.
+        '''
+        try:
+            carta = reverse_meta_cartas[escala]
+            self.cartas = self.gerenciadorFolhas.seleciona_escala(carta)
+            print(f' --> Folhas selecionadas: {len(self.cartas)}')
+            print(f' --> {self.cartas.head()}')
+            self.atualizar_combobox_folha()
+            print(' --> Combobox Folhas atualizado!')
+        except Exception as e:
+            print(f' --> Erro ao selecionar folhas! {e}')
+
+        return self.cartas
 
     # Método para determinar folha clicada
     def determine_folha_clicada(self, ax_x, ax_y):
@@ -76,36 +104,3 @@ class SeletorFolhas:
             self.frameSeletor.atualizarLabelFolhaEstudo(
                 self.folhaEstudo.id_folha)
             self.interface.plotFolhas.plot_folha_estudo()
-
-    # Gerar Dicionário de Folhas
-    def gDicionario(self, dicionario) -> Dict[str, Any]:
-        '''
-        Gera o dicionário de folhas.
-        '''
-        folhaEstudo = self.folhaEstudo
-        if folhaEstudo is None:
-            print(f' folhaEstadoAtual: {self.folhaEstudo}')
-            print(' --> Selecione uma folha de estudo.')
-            print('======================================================')
-            print('')
-            return
-        id_folhaEstudo= folhaEstudo['id_folha']
-        folhas = self.frameSeletor.comboboxFolha.get()
-        escalaCarta = self.frameSeletor.comboboxCarta.get()
-        self.carta = reverseMetaCartas.get(escalaCarta)
-        print(' ------> Gerando Dicionário de Folhas')
-        print(f'ID da Folha Selecionada: {id_folhaEstudo}')
-        print(f'Carta: {self.carta}')
-        print(f'Folha(s): {folhas}')
-        print('======================================================')
-        print('')
-        dicionario = self.dicionarioFolhas.gera_dicionario(id_folhaEstudo,
-                                                           self.carta,
-                                                           folhas,
-                                                           dicionario)
-        # Agora podemos usar o dicionário para plotar e filtrar informaçoes etc
-        print('Dicionário de Folhas:', dicionario.keys())
-        print('======================================================')
-        print('')
-
-        return dicionario

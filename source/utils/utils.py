@@ -65,7 +65,7 @@ def plotar(folhas, carta):
         ax.plot(x, y, color='black', alpha=0.7, linewidth=0.3,
                 solid_capstyle='round', zorder=2)
 
-    ax.set_title(f'Folhas da Carta {metaCartas[carta]["escala"]}')
+    ax.set_title(f'Folhas da Carta {meta_cartas[carta]["escala"]}')
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
     ax.set_xlim(-80, -40)
@@ -110,7 +110,7 @@ def plotarInicial(carta):
     return fig, ax
 
 
-metaCartas = {
+meta_cartas = {
     '1kk': {'escala': '1:1.000.000',
             'incrementos': (4, 6),
             'codigos': ['A', 'B', 'C', 'D', 'E', 'F', 'G',
@@ -133,9 +133,7 @@ metaCartas = {
             'codigos': [['NW', 'SW'], ['NE', 'SE']]}
 }
 
-reverseMetaCartas = {metaCartas[k]['escala']: k for k in metaCartas}
-# antoher way to reverse lookup
-# reverseMetaCartas = {v: k for k, v in metaCartas.items()}
+reverse_meta_cartas = {meta_cartas[k]['escala']: k for k in meta_cartas}
 
 
 '''
@@ -152,4 +150,4 @@ def carregar_mapa_folium(self):
     print('Mapa carregado')
 '''
 
-# [print(f" --> carta: {k}: {v}\n") for k, v in metaCartas.items()]
+# [print(f" --> carta: {k}: {v}\n") for k, v in meta_cartas.items()]

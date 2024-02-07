@@ -22,7 +22,7 @@ class AbrirFolhas:
         '''
         try:
             self.file = setDB(gpkg)
-            print(f'--> Arquivo {self.file} carregado com sucesso!')
+            print(f'--> Arquivo {self.file} configurado com sucesso!')
         except Exception as e:
             print(f'--> Erro ao carregar o arquivo! {e}')
             print('--> Aqui deve ser seus geopackage.gpkg!')

@@ -155,6 +155,13 @@ class CartografiaSistematica:
         else:
             return math.floor(numero / multiplo) * multiplo
 
+    @staticmethod
+    def get_EPSG(folha_id):
+        if folha_id.startswith('S'):
+            return '327' + folha_id[2:4]
+        else:
+            return '326' + folha_id[2:4]
+
     # Método para salvar as camadas em um geopackage com fiona
     def salvar_folhas(self, folhas=None, file_name='fc.gpkg'):
         '''
@@ -189,13 +196,6 @@ class CartografiaSistematica:
                                    'EPSG': epsg_code}
                 }
                 layer.write(element)
-
-    @staticmethod
-    def get_EPSG(folha_id):
-        if folha_id.startswith('S'):
-            return '327' + folha_id[2:4]
-        else:
-            return '326' + folha_id[2:4]
 
 
 # ----------------------- MAIN -----------------------------------------------
