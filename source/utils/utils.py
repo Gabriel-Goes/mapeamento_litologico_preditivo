@@ -12,7 +12,7 @@ import geopandas as gpd
 '''
 
 
-def setDB(path=''):
+def set_db(path=''):
     '''
     Diretório raíz dos dados : '/home/ggrl/database/'
         # $HOME/database/
@@ -40,7 +40,7 @@ def float_range(start, stop, step):
 
 
 # define geometria do Brasil
-ibge = setDB('shapefiles/IBGE/')
+ibge = set_db('shapefiles/IBGE/')
 regioes = gpd.read_file(ibge + 'ANMS2010_06_grandesregioes.shp')
 brasil = regioes.unary_union
 

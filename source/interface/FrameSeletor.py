@@ -30,6 +30,7 @@ class FrameSeletor():
                                  self.seletor_folhas.evento_combobox_cartas)
         self.combobox_folha.bind('<KeyRelease>',
                                  self.seletor_folhas.filtrar_ids_folhas)
+        self.setupt_botão_selecionar()
 
     # Configuração do seletor de folhas
     def setup_seletor_folhas(self):
@@ -53,9 +54,10 @@ class FrameSeletor():
         # Cria Frame para o Seletor
         self.seletor_frame = ttk.Frame(self.main_frame,
                                        relief=tk.GROOVE,
-                                       width=600, height=400,
+                                       width=1200, height=900,
                                        style="Custom.TFrame")
-        self.seletor_frame.grid(row=0, column=0, padx=0, pady=0)
+        self.seletor_frame.grid(row=0, column=0, padx=5, pady=5)
+
         # ------------------- Label do Seletor de Folhas ----------------------
         label_seletor = tk.Label(self.seletor_frame,
                                  text='Seletor de Folhas',
@@ -63,24 +65,66 @@ class FrameSeletor():
                                  relief=tk.GROOVE, bd=2,
                                  bg='black', fg='white')
         label_seletor.grid(row=0, column=0, padx=5, pady=5)
+
+        # ------------------- Frame - Folha de Estudo -------------------------
+        self.folha_estudo_frame = ttk.Frame(self.seletor_frame,
+                                            relief=tk.GROOVE,
+                                            width=900, height=600,
+                                            style="Custom.TFrame")
+        self.folha_estudo_frame.grid(row=1, column=0, padx=5, pady=5)
+
+        # ------------------- Label do Seletor de Folhas ----------------------
+        label_estudo_frame = tk.Label(self.folha_estudo_frame,
+                                      text='Folha de Estudo',
+                                      font=('SourceCodePro', 9, 'bold'),
+                                      relief=tk.GROOVE, bd=2,
+                                      bg='black', fg='white')
+        # Centraliza label no CENTRO DO TOPO DO FRAME
+        label_estudo_frame.grid(row=0, column=0, padx=5, pady=5, sticky='EW')
+
         # ------------------- Combobox - Carta --------------------------------
-        self.combobox_carta = ttk.Combobox(self.seletor_frame,
+        self.combobox_carta = ttk.Combobox(self.folha_estudo_frame,
                                            values=list(
                                                reverse_meta_cartas.keys()),
-                                           width=10,
+                                           width=15,
+                                           height=6,
                                            style="Custom.TCombobox")
         self.combobox_carta.grid(row=1, column=0, padx=5, pady=5)
         self.combobox_carta.set('1:1.000.000')
+
         # ------------------- Combobox - Folha --------------------------------
         self.folha_var = tk.StringVar()
         self.folha_var.trace('w', lambda name, index, mode,
                              sv=self.folha_var: self.on_text_change(sv))
-        self.combobox_folha = ttk.Combobox(self.seletor_frame,
+        self.combobox_folha = ttk.Combobox(self.folha_estudo_frame,
                                            textvariable=self.folha_var,
                                            values=[],
-                                           width=14,
+                                           width=15,
+                                           height=6,
                                            style="Custom.TCombobox")
-        self.combobox_folha.grid(row=2, column=0, padx=5, pady=5)
+        self.combobox_folha.grid(row=2, column=0, padx=5, pady=5, sticky='W')
+
+        # ------------------- Label - Área de Estudo --------------------------
+        label_area_de_estudo = tk.Label(self.folha_estudo_frame,
+                                        text='Área de Estudo: ',
+                                        font=('SourceCodePro', 9, 'bold'),
+                                        bg='black', fg='white')
+        label_area_de_estudo.grid(row=3, column=0, padx=5, pady=5)
+
+    def setupt_botão_selecionar(self):
+        # ------------------- Botão - Adicionar Folha à Área de Estudo --------
+        # UTF-8 SIMBOLOS
+        # Simbolo de mais
+        # plus_sign = u"\u2795"
+        # Simbolo de correto
+        check_sign = u"\u2713"
+        comando = self.seletor_folhas.adicionar_folha_estudo
+        self.botao_adicionar_folha = ttk.Button(self.folha_estudo_frame,
+                                                text=check_sign,
+                                                width=3,
+                                                style="Custom.TButton",
+                                                command=comando)
+        self.botao_adicionar_folha.grid(row=2, column=1, padx=5, pady=5)
 
     # Transforma texto em maiúsculo
     def on_text_change(self, sv):

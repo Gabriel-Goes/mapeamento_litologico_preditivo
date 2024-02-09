@@ -5,8 +5,8 @@
 # Esta classe é responsável por abrir layer de um gpkg, filtrar por ids e re-
 # tornar os ids, e geometry de cada folha.
 # ------------------------------ IMPORTS ------------------------------------
-import geopandas as gpd
 from utils import setDB
+import fiona
 
 
 # ------------------------------ CLASSES ------------------------------------
@@ -38,8 +38,8 @@ class AbrirFolhas:
                 carta: gdf - geodataframe com a carta escolhida
         '''
         try:
-            # Lê o arquivo geopackage
-            self.cartas = gpd.read_file(self.file, layer='fc_' + escala)
+            # Lê o arquivo geopackage com fiona
+            self.cartas = fiona.open(self.file, layer='fc_' + escala)
             return self.cartas
 
         except Exception as e:
@@ -70,7 +70,7 @@ class AbrirFolhas:
         return bbox
 
     # Ler todas as folhas da carta escolhida contidas na id_folha_estudo
-    def segmenta_area_de_estudo(self, folha_ade, escala):
+    def segmenta_area_de_estudo(self, area_de_estudo, escala):
         '''
         Método responsável por ler todas as folhas da carta escolhida que estão
         contidas na folha com 'id_folha' = id_folha_estudo.
@@ -81,15 +81,16 @@ class AbrirFolhas:
         Retorna:
             folhas_estudo: gdf - geodataframe com as folhas da carta escolhida
         '''
+        # spatial join em cada folha_da_area_de_estudo
+
         # Cria a bounding box
-        bbox = self.cria_bbox(folha_ade)
+        bbox = self.cria_bbox(area_de_estudo)
         try:
-            # Lê o arquivo geopackage
-            folhas_area_de_estudo = gpd.read_file(self.file,
-                                                  layer=f'fc_{escala}',
-                                                  driver='GPKG',
-                                                  bbox=bbox)
-            return folhas_area_de_estudo
+            # Lê o arquivo geopackage com fiona filtrando por bbox
+            folhas_area_de_estudo = fiona.open(self.file, layer='fc_' + escala)
+
+
+           return folhas_area_de_estudo
         except KeyError:
             print(' --> Erro ao segmentar a área de estudo!')
 

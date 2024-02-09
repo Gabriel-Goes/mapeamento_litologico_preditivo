@@ -1,0 +1,19 @@
+# Pensamentos Sobre o Projeto
+## Métodos Implementados
+-> Seletor de Folhas
+
+## Métodos Para Implementar
+
+### Implementar Agora
+-> Gerador de Dicionários 
+
+### PraFazer
+-> Parser de 'LITOLOGIA' e 'LEGENDA'
+    -> Um método que recebe uma 'str' os atributos que a contém.
+    -> Pode ser usado para procurar geometrias que contêm um mineral
+    -> Posso implementar algo como o Telescope LiveGrep
+
+-> Lógica de cores de mapas litológicos
+    -> utilizar uma lógica de cores para escolher uma cor automaticamente \\
+        baseado na 'SIGLA ID'
+    -> SGB-CPRM tem um arquivo de estilo para QGIS, mas incomplete.

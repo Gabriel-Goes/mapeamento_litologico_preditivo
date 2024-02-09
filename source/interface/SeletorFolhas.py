@@ -50,8 +50,6 @@ class SeletorFolhas:
         id_folhas = self.cartas['id_folha'].tolist()
         self.id_folhas_original = id_folhas
         self.combobox_folha['values'] = id_folhas
-        if id_folhas:
-            self.combobox_folha.set(id_folhas[8])
 
     # Filtra códigos de folhas com base no texto inserido
     def filtrar_ids_folhas(self, event):
@@ -68,7 +66,7 @@ class SeletorFolhas:
         else:
             print(' Texto inserido para filtro: ', texto_filtro)
             print('')
-            id_filtrados = [id for id in self.combobox_folha['values'] if
+            id_filtrados = [id for id in self.id_folhas_original if
                             texto_filtro.lower() in id.lower()]
         self.combobox_folha['values'] = id_filtrados
         if not id_filtrados:
@@ -93,6 +91,35 @@ class SeletorFolhas:
         except Exception as e:
             print(f' --> Erro ao selecionar folhas! {e}')
         return self.cartas
+
+    # Adiciona folha de estudo à área de estudo
+    def adicionar_folha_estudo(self):
+        '''
+        Método para adicionar folha de estudo à área de estudo.
+        '''
+        # Lista de área de estudo
+        self.area_de_estudo = getattr(self, 'area_de_estudo', [])
+        try:
+            id_folha_estudo = self.combobox_folha.get()
+            if any(id_folha_estudo == folha['id_folha'].values[0] for folha in
+                   self.area_de_estudo):
+                print(f' --> Folha já adicionada: {id_folha_estudo} à lista')
+                print('')
+                return
+
+            folha_estudo = self.gerenciadorFolhas.define_area_de_estudo(
+                id_folha_estudo)
+            self.area_de_estudo.append(folha_estudo)
+            # ------------------- Prints
+            print(f' --> Folha adicionada: {id_folha_estudo} à lista')
+            n = len(self.area_de_estudo)
+            print(f' --> Área de estudo com: {n} folha(s)')
+            for folha in self.area_de_estudo:
+                print(f'    --> ID: {folha.id_folha.values[0]}')
+                print(f'    --> Poligono: {folha.geometry.bounds.values[0]}')
+            print('')
+        except Exception as e:
+            print(f' --> Erro ao adicionar folha à área de estudo! {e}')
 
     # Método para determinar folha clicada
     def determine_folha_clicada(self, ax_x, ax_y):
