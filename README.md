@@ -20,8 +20,9 @@ cd mapeamento-litologico-preditivo
 ## Uso
 
 ## Contribuição
-
 ## Estrutura do Projeto
+
+```
 .
 ├── .git                 
 │
@@ -45,6 +46,8 @@ cd mapeamento-litologico-preditivo
 ├── .gitignore           
 │
 └── README.md            # Você está aqui.
+```
+
 ## Licença
 Este projeto é licenciado sob a GPL - veja o arquivo 'LICENÇA' para detalhes.
                                                                                   
