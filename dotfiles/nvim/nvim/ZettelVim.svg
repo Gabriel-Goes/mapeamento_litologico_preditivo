@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="173" height="50" viewBox="0 0 742 214" aria-label="Neovim">
+  <title>Neovim</title>
+  <defs>
+    <linearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="a">
+      <stop stop-color="#16B0ED" stop-opacity=".8" offset="0%" data-darkreader-inline-stopcolor="" style="--darkreader-inline-stopcolor: #0e8abb;"></stop>
+      <stop stop-color="#0F59B2" stop-opacity=".837" offset="100%" data-darkreader-inline-stopcolor="" style="--darkreader-inline-stopcolor: #0c478e;"></stop>
+    </linearGradient>
+    <linearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="b">
+      <stop stop-color="#7DB643" offset="0%" data-darkreader-inline-stopcolor="" style="--darkreader-inline-stopcolor: #649236;"></stop>
+      <stop stop-color="#367533" offset="100%" data-darkreader-inline-stopcolor="" style="--darkreader-inline-stopcolor: #2b5e29;"></stop>
+    </linearGradient>
+    <linearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="c">
+      <stop stop-color="#88C649" stop-opacity=".8" offset="0%" data-darkreader-inline-stopcolor="" style="--darkreader-inline-stopcolor: #6e942e;"></stop>
+      <stop stop-color="#439240" stop-opacity=".84" offset="100%" data-darkreader-inline-stopcolor="" style="--darkreader-inline-stopcolor: #367533;"></stop>
+    </linearGradient>
+  </defs>
+  <g fill="none" fill-rule="evenodd" transform="rotate(-90 107 107)">
+    <path d="M.027 45.459L45.224-.173v212.171L.027 166.894V45.459z" fill="url(#a)" transform="translate(1 1)"></path>
+    <path d="M129.337 45.89L175.152-.149l-.928 212.146-45.197-45.104.31-121.005z" fill="url(#b)" transform="matrix(-1 0 0 1 305 1)"></path>
+    <path d="M45.194-.137L162.7 179.173l-32.882 32.881L12.25 33.141 45.194-.137z" fill="url(#c)" transform="translate(1 1)"></path>
+  </g>
+</svg>
