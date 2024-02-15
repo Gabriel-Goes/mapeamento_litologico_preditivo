@@ -232,4 +232,4 @@ if __name__ == "__main__":
                          folhas_100k, folhas_50k, folhas_25k]
 
 # Salvar meta_cartas
-    [carta.salvar_folhas() for carta in lista_meta_cartas]
+[carta.salvar_folhas() for carta in lista_meta_cartas]

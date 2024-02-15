@@ -4,3 +4,4 @@ old/
 .ipynb_checkpoints/
 __pycache__/
 plots/
+*.png

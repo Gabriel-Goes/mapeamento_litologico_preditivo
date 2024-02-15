@@ -5,7 +5,7 @@
 # Esta classe é responsável por abrir layer de um gpkg, filtrar por ids e re-
 # tornar os ids, e geometry de cada folha.
 # ------------------------------ IMPORTS ------------------------------------
-from utils import setDB
+from utils import set_db
 import fiona
 
 
@@ -21,7 +21,7 @@ class AbrirFolhas:
             file: str - caminho do arquivo geopackage
         '''
         try:
-            self.file = setDB(gpkg)
+            self.file = set_db(gpkg)
             print(f'--> Arquivo {self.file} configurado com sucesso!')
         except Exception as e:
             print(f'--> Erro ao carregar o arquivo! {e}')
@@ -85,12 +85,11 @@ class AbrirFolhas:
 
         # Cria a bounding box
         bbox = self.cria_bbox(area_de_estudo)
+        bbox
         try:
             # Lê o arquivo geopackage com fiona filtrando por bbox
-            folhas_area_de_estudo = fiona.open(self.file, layer='fc_' + escala)
+            pass
 
-
-           return folhas_area_de_estudo
         except KeyError:
             print(' --> Erro ao segmentar a área de estudo!')
 
