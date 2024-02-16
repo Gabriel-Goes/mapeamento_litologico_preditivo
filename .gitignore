@@ -1,3 +1,4 @@
 __pycache__/*
 plots/*
 .png
+.ipynb_checkpoints/*
