@@ -163,4 +163,3 @@ usefull tasks;
 	- The process of this interaction and local database creation is discretized within the first Tutorial Jupyter Notebook and can be read by typing the following command:
  	
 			jupyter-notebook 1-Geopandas:Geopackage_as_Database.ipynb
-
