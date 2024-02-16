@@ -5,4 +5,4 @@
 arquivado/*
 .ipynb_checkpoints/
 __pycache__/*
-Docs/*
+#Docs/*
