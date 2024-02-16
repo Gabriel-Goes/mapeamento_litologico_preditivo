@@ -47,6 +47,7 @@
 					3: Python - Cartographic Mesh Automation
 # --------------------------------------------------------------------------- #
 
+
 # ----- Summary Description:
 
 	The Geologist Machine Repository contain all the steps necessary to create an programming environment for geological data analysis. Starting from the construction of a local machine capable to execute commands through the interpretation of an logical language.
@@ -162,5 +163,4 @@ usefull tasks;
 	- The process of this interaction and local database creation is discretized within the first Tutorial Jupyter Notebook and can be read by typing the following command:
  	
 			jupyter-notebook 1-Geopandas:Geopackage_as_Database.ipynb
- 
 
