@@ -3,7 +3,7 @@ from shapely.ops import transform
 import pyproj
 from tkinter import (Label, Tk, Frame, Button)
 from tkinter.ttk import Combobox
-from tk import *
+# from tk import *
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,
@@ -19,7 +19,7 @@ titulo = Label(text='Preditor de Litologias', font=('Arial', 12))
 titulo.pack()
 
 
-# -----------------------------Funçõees------------------------------ 
+# -----------------------------Funçõees------------------------------
 def list_id():
     mc = import_mc(cmb_escala.get())
     lista_id = list(mc['id_folha'])
@@ -39,7 +39,7 @@ def build_dic():
     fig = Figure(figsize=(5, 5), dpi=100)
     wgs84 = pyproj.CRS('EPSG:4326')
     EPSG = folha['EPSG']
-    utm = pyproj.CRS('EPSG:'+EPSG)
+    utm = pyproj.CRS('EPSG:' + EPSG)
     carta_wgs84 = folha['geometry']
     project = pyproj.Transformer.from_crs(wgs84, utm, always_xy=True).transform
     carta_utm = transform(project, carta_wgs84)
@@ -58,8 +58,8 @@ def upload_dic():
     Upload_geof(quadricula, gama_xyz='gama_line_1105', mag_xyz='mag_line_1105')
     df = quadricula[ID]['gama']
     coords = [df.X, df.Y]
-    scatter = FigureCanvasTkAgg(fig, janela)
-    scatter.get_tk_widget().pack()
+    # scatter = FigureCanvasTkAgg(fig, janela)
+    # scatter.get_tk_widget().pack()
     plt.scatter(coords[0], coords[1], s=1.5, c=df.MDT, cmap='terrain')
     plt.axis('scaled')
     return quadricula
@@ -112,34 +112,3 @@ cmb_folhas.set('SF23_YA_III')
 cmb_escala.set('100k')
 # -----------------------------------------------------------------------------
 janela.mainloop()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

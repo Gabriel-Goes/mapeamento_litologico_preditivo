@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Projeto: Mapeamento Litológico Preditivo
 ## Preditor Terra
 ### Autor
