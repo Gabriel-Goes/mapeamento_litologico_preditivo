@@ -11,6 +11,9 @@ import geopandas as gpd
         self.frameSeletor.atualizarLabelFolhaEstudo(self.folhaEstudo)
 '''
 
+# Configura delimitador para prints de relatorio de execução
+delimt = '---------------------------------------------------\n'
+
 
 def set_db(path=''):
     '''
@@ -83,7 +86,7 @@ def plotarInicial(carta):
     plt.style.use('dark_background')
     fig, ax = plt.subplots(figsize=(11.5, 7.7))
     for _, row in carta.iterrows():
-        folha_id = row['id_folha']
+        folha_id = row['folha_id']
         poligono = row['geometry']
         x, y = poligono.exterior.xy
         ax.plot(x, y, color='white', alpha=0.7, linewidth=0.3,

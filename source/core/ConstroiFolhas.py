@@ -11,16 +11,25 @@
 # ------------------------------ IMPORTS ------------------------------------
 import math
 from tqdm import tqdm
-import fiona
 from shapely.geometry import mapping, Polygon
-from fiona.crs import CRS
-# import rtree
+from utils.utils import set_db, float_range, meta_cartas, brasil, delimt
 
-from utils import set_db, float_range, meta_cartas, brasil
+import fiona
+from fiona.crs import CRS
+# import psycopg2
+
+from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from geoalchemy2 import Geometry
+
+# ------------------------------ DATABASE ------------------------------------
+Base = declarative_base()
+url = 'postgresql+psycopg2://postgres:postgres@localhost:5432/geodatabase'
 
 
 # ------------------------------ CLASSES ------------------------------------
-class CartografiaSistematica:
+class CartografiaSistematica(Base):
     '''
     Esta classe é responsável por criar as folhas de meta_cartas de acordo com
     a escala.
@@ -48,6 +57,11 @@ class CartografiaSistematica:
         [cs.salvar_folhas_de_meta_cartas(carta) for carta in lista_cartas]
 
     '''
+    __tablename__ = 'folhas_cartograficas'
+    fid = Column(Integer, primary_key=True, autoincrement=True)
+    wkb_geometry = Column(Geometry('POLYGON'))
+    folha_id = Column(String, nullable=False)
+    epsg = Column(String, nullable=False)
 
     # Construtor da classe CartografiaSistematica
     def __init__(self):
@@ -72,42 +86,42 @@ class CartografiaSistematica:
         if top < bottom:
             print('Norte deve ser maior que Sul')
         else:
-            id_folha = ''
+            folha_id = ''
             if top <= 0:
-                id_folha += 'S'
+                folha_id += 'S'
                 index = math.floor(-top / 4)
             else:
-                id_folha += 'N'
+                folha_id += 'N'
                 index = math.floor(bottom / 4)
             numero = math.ceil((180 + right) / 6)
-            id_folha += e1kk[index] + str(numero)
+            folha_id += e1kk[index] + str(numero)
             lat_gap = abs(top - bottom)
             # p500k-----------------------
             if lat_gap <= 2:
                 LO = math.ceil(right / 3) % 2 == 0
                 NS = math.ceil(top / 2) % 2 != 0
-                id_folha += '_' + e500k[LO][NS]
+                folha_id += '_' + e500k[LO][NS]
             # p250k-----------------------
             if lat_gap <= 1:
                 LO = math.ceil(right / 1.5) % 2 == 0
                 NS = math.ceil(top) % 2 != 0
-                id_folha += e250k[LO][NS]
+                folha_id += e250k[LO][NS]
             # p100k-----------------------
             if lat_gap <= 0.5:
                 LO = (math.ceil(right / 0.5) % 3) - 1
                 NS = math.ceil(top / 0.5) % 2 != 0
-                id_folha += '_' + e100k[LO][NS]
+                folha_id += '_' + e100k[LO][NS]
             # p50k------------------------
             if lat_gap <= 0.25:
                 LO = math.ceil(right / 0.25) % 2 == 0
                 NS = math.ceil(top / 0.25) % 2 != 0
-                id_folha += e50k[LO][NS]
+                folha_id += e50k[LO][NS]
             # p25k------------------------
             if lat_gap <= 0.125:
                 LO = math.ceil(right / 0.125) % 2 == 0
                 NS = math.ceil(top / 0.125) % 2 != 0
-                id_folha += e25k[LO][NS]
-            return id_folha
+                folha_id += e25k[LO][NS]
+            return folha_id
 
     def arredondar(self, numero, multiplo, arredondar_para_cima=False):
         if arredondar_para_cima:
@@ -116,7 +130,7 @@ class CartografiaSistematica:
             return math.floor(numero / multiplo) * multiplo
 
     @staticmethod
-    def get_EPSG(folha_id):
+    def get_epsg(folha_id):
         if folha_id.startswith('S'):
             return '327' + folha_id[2:4]
         else:
@@ -145,6 +159,7 @@ class CartografiaSistematica:
         lon_ranges = [(i, i + lon_incremen) for i in float_range(lon_min,
                                                                  lon_max,
                                                                  lon_incremen)]
+        print(f' -> Criando folhas de carta {carta}')
         for lat_range in tqdm(lat_ranges):
             for lon_range in lon_ranges:
                 polygon = Polygon([(lon_range[0], lat_range[0]),
@@ -160,14 +175,16 @@ class CartografiaSistematica:
                                              top,
                                              bottom)
                     self.folhas[folha_id] = polygon
+        print(delimt)
 
         return self.carta
 
     # Método para salvar as camadas em um geopackage com fiona
-    def salvar_folhas(self, folhas=None, file_name='fc.gpkg'):
+    def salvar_folhas_gpkg(self, folhas=None, file_name='fc.gpkg'):
         '''
         Salva as folhas de meta_cartas em um geopackage.
         '''
+        print(' -> Salvando folhas de meta_cartas em geopackage\n')
         if self.folhas is None:
             print('Crie as folhas cartográficas primeiro')
             return
@@ -177,8 +194,8 @@ class CartografiaSistematica:
         # Esquema para geopackage
         schema = {
             'geometry': 'Polygon',
-            'properties': {'id_folha': 'str',
-                           'EPSG': 'str'}
+            'properties': {'folha_id': 'str',
+                           'epsg': 'str'}
         }
         # Define o CRS como WGS84
         crs = CRS.from_epsg(4326)
@@ -189,19 +206,53 @@ class CartografiaSistematica:
                         crs=crs, layer=layer_name, schema=schema) as layer:
 
             for folha_id, poligono in folhas.items():
-                epsg_code = self.get_EPSG(folha_id)
+                epsg_code = self.get_epsg(folha_id)
                 # Adiciona o poligono e o id da folha no geopackage
                 element = {
                     'geometry': mapping(poligono),
-                    'properties': {'id_folha': folha_id,
-                                   'EPSG': epsg_code}
+                    'properties': {'folha_id': folha_id,
+                                   'epsg': epsg_code}
                 }
                 layer.write(element)
+
+    # Método para salvar as camadas em um banco de dados
+    def salvar_folhas_geodatabase(self, engine_url=url):
+        '''
+        Salva as folhas de meta_cartas em banco de dados.
+        '''
+        print(' -> Salvando cartas no banco de dados\n')
+        if self.folhas is None:
+            print('Crie as folhas cartográficas primeiro')
+            return
+        print(f' -> Salvando folhas de carta {self.carta} no banco de dados\n')
+
+        engine = create_engine(engine_url)
+        Base.metadata.create_all(engine)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        # Itera sobre as folhas e adiciona ao banco de dados
+        for folha_id, poligono in self.folhas.items():
+            epsg_code = self.get_epsg(folha_id)
+
+            nova_folha = CartografiaSistematica()
+            nova_folha.folha_id = folha_id
+            nova_folha.epsg = epsg_code
+            nova_folha.wkb_geometry = 'SRID={};{}'.format(epsg_code,
+                                                          poligono.wkt)
+
+            session.add(nova_folha)
+        # Salva as folhas no banco de dados
+        session.commit()
+        session.close()
 
 
 # ----------------------- MAIN -----------------------------------------------
 if __name__ == "__main__":
-    cs = CartografiaSistematica()
+    print('')
+    print(' Executando Script: ConstruirFolhas.py')
+    print(delimt)
+    cs = CartografiaSistematica
 # Teste da classe DicionarioFolhas
 # 1 : 1.000.000
     folhas_1kk = cs()
@@ -231,5 +282,8 @@ if __name__ == "__main__":
     lista_meta_cartas = [folhas_1kk, folhas_500k, folhas_250k,
                          folhas_100k, folhas_50k, folhas_25k]
 
-# Salvar meta_cartas
-[carta.salvar_folhas() for carta in lista_meta_cartas]
+# Salvar meta_cartas em um geopackage
+#     [carta.salvar_folhas_gpkg() for carta in lista_meta_cartas]
+
+# Salvar meta_cartas em um banco de dados
+    [carta.salvar_folhas_geodatabase() for carta in lista_meta_cartas]
