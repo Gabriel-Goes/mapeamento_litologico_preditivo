@@ -1,34 +1,59 @@
+% Autor: Gabriel Góes Rocha de Lima
+% Descrição: Resumo do postesr para o II workshop Inteligência Artificial e Geociências
+
+\documentclass[11pt]{article} % declaração do tipo de documento
+\usepackage[utf8]{inputenc} % declaração do tipo de codificação
+\usepackage{geometry} % pacote para definição de margens
+\usepackage{ragged2e} % Texto justificado
+\usepackage{indentfirst} % pacote para indentação do primeiro parágrafo
+\usepackage{setspace} % pacote para definição de espaçamento
+\usepackage{titlesec} % Pacote para formatação de títulos
+
+\geometry{a4paper, left=2cm, right=2cm, top=2cm, bottom=2cm} % definição das margens
+\onehalfspacing % espaçamento de 1.5
+\setlength{\parindent}{1.25cm} % indentação de 1.25cm
+\setlength{\parskip}{0.5em} % set distance spacing between paragraphs
+%\renewcommand{\baselinestretch}{1.5} % set line spacing
+%\setmainfont{SourceCodePro Nerd Font} % Definindo a fonte principal
+\titleformat{\section}{\normalfont\bfseries}{\thesection}{1em}{} % Formatação de títulos de seção
+\titleformat{\subsection}{\normalfont\bfseries}{\thesubsection}{1em}{} % Formatação de títulos de subseção
+
+
 \begin{document} % início do documento
+\title{Da Terra ao Código: Integrando Dados Geológicos com Inteligência Computacional} % título do documento
+\author{Gabriel Góes Rocha de Lima} % autor do documento
+\date{28 de fevereiro de 2024} % data do documento
+\maketitle % criação do título
 
 \par{
-Nosso trabalho atual representa uma ideia ambiciosa ainda em fase alfa de desenvolvimento,\\
-visando a criação de um protótipo revolucionário para a exploração mineral. Este conceito inovador\\
-foca na capacidade de gerar, em tempo real, mapas preditivos altamente precisos para qualquer\\
-quadrícula geográfica específica, com a flexibilidade de incorporar continuamente novas\\
+Nosso trabalho atual representa uma ideia ambiciosa ainda em fase alfa de desenvolvimento,
+visando a criação de um protótipo revolucionário para a exploração mineral. Este conceito inovador
+foca na capacidade de gerar, em tempo real, mapas preditivos altamente precisos para qualquer
+quadrícula geográfica específica, com a flexibilidade de incorporar continuamente novas
 informações ao banco de dados, refinando assim a acurácia dos mapas gerados.
 }
 
 \par{
 
-A fundação deste sistema em construção é a aplicação de tecnologias avançadas de\\
-inteligência artificial (IA) e aprendizado de máquina, que analisam e processam\\
-grandes volumes de dados geológicos e geoespaciais. Este método permite não apenas\\
-a identificação de litologias e potenciais depósitos minerais mas também adapta-se\\
-dinamicamente à inserção de novos dados, melhorando progressivamente a precisão\\
+A fundação deste sistema em construção é a aplicação de tecnologias avançadas de
+inteligência artificial (IA) e aprendizado de máquina, que analisam e processam
+grandes volumes de dados geológicos e geoespaciais. Este método permite não apenas
+a identificação de litologias e potenciais depósitos minerais mas também adapta-se
+dinamicamente à inserção de novos dados, melhorando progressivamente a precisão
 de suas classificações.
 }
 
-\par{Estamos utilizando o PostgreSQL, com a extensão PostGIS, como espinha dorsal\\
-para gerenciar a complexidade dos dados geoespaciais. Esta escolha nos oferece uma\\
-plataforma robusta para armazenamento e análise de dados, essencial para suportar o\\
-processamento intensivo necessário para nosso sistema. A arquitetura foi especialmente\\
-pensada para facilitar a expansão e a atualização contínua do banco de dados, uma\\
+\par{Estamos utilizando o PostgreSQL, com a extensão PostGIS, como espinha dorsal
+para gerenciar a complexidade dos dados geoespaciais. Esta escolha nos oferece uma
+plataforma robusta para armazenamento e análise de dados, essencial para suportar o
+processamento intensivo necessário para nosso sistema. A arquitetura foi especialmente
+pensada para facilitar a expansão e a atualização contínua do banco de dados, uma
 característica chave para o sucesso do projeto a longo prazo.}
 
-\par{Uma inovação crítica em desenvolvimento é a capacidade do sistema de avaliar\\
-a precisão de cada mapa produzido por métricas específicas, selecionando automaticamente\\
-a versão mais acurada para armazenamento e referência futura. Este mecanismo assegura uma\\
-melhoria contínua na qualidade dos mapas preditivos disponíveis, otimizando a\\
+\par{Uma inovação crítica em desenvolvimento é a capacidade do sistema de avaliar
+a precisão de cada mapa produzido por métricas específicas, selecionando automaticamente
+a versão mais acurada para armazenamento e referência futura. Este mecanismo assegura uma
+melhoria contínua na qualidade dos mapas preditivos disponíveis, otimizando a
 eficácia da exploração mineral.}
 
 
