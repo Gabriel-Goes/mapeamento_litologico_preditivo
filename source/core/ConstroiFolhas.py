@@ -1,13 +1,14 @@
 # Autor: Gabriel Góes Rocha de Lima
-# Data: 20/04/2021
+# Data: 01/02/2024
 # source/core/ConstruirFolhas.py
-# Última modificação: 09/04/2024
+# Última modificação: 09/03/2024
 # ---------------------------------------------------------------------------
 # Esta classe é responsável por criar geometrias de folhas de meta_cartas de
 # acordo com a escala, salvar cada uma das meta_cartas como uma layer em um
-# geoPackage.
+# geoPackage ou um Postgres.
+#
 # Ela só será executada apenas uma vez para criar as folhas de meta_cartas e o
-# geopackage.
+# geopackage ou o Postgres.
 
 # ------------------------------ IMPORTS ------------------------------------
 import math
@@ -63,6 +64,7 @@ class CartografiaSistematica(Base):
     wkb_geometry = Column(Geometry('POLYGON'))
     folha_id = Column(String, nullable=False)
     epsg = Column(String, nullable=False)
+    escala = Column(String, nullable=False)
 
     # Construtor da classe CartografiaSistematica
     def __init__(self):
@@ -241,6 +243,7 @@ class CartografiaSistematica(Base):
             nova_folha.epsg = epsg_code
             nova_folha.wkb_geometry = 'SRID={};{}'.format(epsg_code,
                                                           poligono.wkt)
+            nova_folha.escala = self.carta
 
             session.add(nova_folha)
         # Salva as folhas no banco de dados

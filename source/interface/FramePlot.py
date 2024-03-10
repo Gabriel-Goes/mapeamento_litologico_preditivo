@@ -6,7 +6,8 @@
 # Canvas Para Visualização de Folhas
 # ------------------------------ IMPORTS ------------------------------------
 from utils import plotarInicial
-from DicionarioFolhas import DicionarioFolhas
+# from DicionarioFolhas import DicionarioFolhas
+from AbrirFolhas import AbrirFolhas
 
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -22,11 +23,12 @@ class FramePlot:
     Esta classe é responsável por criar o Frame de Plotagem e métodos visuais.
 
     '''
+
     def __init__(self, seletorFolhas, mainFrame, frameSeletor, style=None):
         print(' --> Inicializando Frame de Plotagem')
         self.seletorFolhas = seletorFolhas
         self.mainFrame = mainFrame
-        self.dicionarioFolhas = DicionarioFolhas()
+        # self.dicionarioFolhas = DicionarioFolhas()
         self.frameSeletor = frameSeletor
         self.style = style
         self.setupPlotFrame()
@@ -49,6 +51,8 @@ class FramePlot:
         self.canvas.grid(row=0, column=0, padx=0, pady=0)
         # ------------------- Plot Carta 1:1.000.000
         # Plotar Carta 1:1.000.000
+        folhas = AbrirFolhas()
+
         map, ax = plotarInicial(self.dicionarioFolhas.carta_1kk)
         self.seletorFolhas.ax = ax
         # plotar mapa no canvas

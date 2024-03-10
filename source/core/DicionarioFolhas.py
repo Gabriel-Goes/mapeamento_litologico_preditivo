@@ -14,13 +14,14 @@
 class DicionarioFolhas:
     '''
     Esta classe é responsável por abrir layer de um gpkg, filtrar por ids e re-
-    tornar um dicionário onde id_folha é a chave e EPSG e geometry de cada
+    tornar um dicionário onde folha_id é a chave e EPSG e geometry de cada
     folha são seu valores. Este dicionário será manipulado por outras
     Classes como ManipulaFolhas.
 
-    dicionario = {'id_folha': {'geometry': Polygon,
+    dicionario = {'folha_id': {'geometry': Polygon,
                                'EPSG': 'str'},}
     '''
+
     # Construtor do DicionarioFolhas
     def __init__(self):
         pass
@@ -39,7 +40,7 @@ class DicionarioFolhas:
         '''
         try:
 
-            dicionario = {row['id_folha']: {'geometry': row['geometry'],
+            dicionario = {row['folha_id']: {'geometry': row['geometry'],
                                             'EPSG': row['EPSG']}
                           for index, row in folhas_selecionadas.iterrows()}
             print(' --> Dicionário de folhas gerado com sucesso!')
@@ -48,8 +49,9 @@ class DicionarioFolhas:
 
             return dicionario
 
-        # Retorna erro se não existir id_folha na gdf
-        except KeyError:
+        # Retorna erro se não existir folha_id na gdf
+        except KeyError as e:
+            print(f' --> Erro ao gerar dicionário de folhas: {e}')
             print("\\e2716 ---> Erro ao gerar dicionário de folhas!")
 
 

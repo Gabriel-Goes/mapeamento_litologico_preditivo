@@ -20,7 +20,7 @@ class FrameSeletor():
 
     # Construtor da classe Seletor de Folhas
     def __init__(self, gerenciador_folhas, main_frame, style):
-        print(' --> Inicializando Frame de Seletor')
+        print('-> Inicializando Frame de Seletor')
         self.gerenciador_folhas = gerenciador_folhas
         self.main_frame = main_frame
         self.style = style
@@ -138,12 +138,12 @@ class FrameSeletor():
     def atualizarfolhaEstudo(self, folha_estudo):
         self.atualizar_label_folha_estudo(folha_estudo)
 
-    def atualizar_label_folha_estudo(self, id_folha=None):
+    def atualizar_label_folha_estudo(self, folha_id=None):
         ajuda = "Selecione uma área de estudo clicando"
         # Romva o label antigo se ele já existir
         if self.label_folha_estudo is not None:
             self.label_folha_estudo.destroy()
-        text = f'Área de Estudo: {id_folha}' if id_folha else ajuda
+        text = f'Área de Estudo: {folha_id}' if folha_id else ajuda
         self.label_folha_estudo = tk.Label(
             self.frame_folha_estudo,
             text=text,

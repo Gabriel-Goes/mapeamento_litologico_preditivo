@@ -4,7 +4,7 @@
 # Descrição: Classe para implementar métodos de seleção de folhas.
 # -----------------------------------------------------------------------------
 import shapely
-from utils import reverse_meta_cartas
+from utils import reverse_meta_cartas, delimt
 
 
 # ------------------------------ CLASSES ------------------------------------
@@ -14,12 +14,14 @@ class SeletorFolhas:
         Será instanciado por FrameSeletor e utilizado para atualizar valores
         de escala e atualizar folha de estudo e gerar dicionário de folhas.
     '''
+
     def __init__(self,
                  combobox_cartas, combobox_folha,
                  gerenciador_folhas):
         '''
         Construtor da classe SeletorFolhas.
         '''
+        print('-> Iniciando SeletorFolhas')
         self.combobox_folha = combobox_folha
         self.combobox_cartas = combobox_cartas
         self.gerenciadorFolhas = gerenciador_folhas
@@ -31,6 +33,7 @@ class SeletorFolhas:
         Método para visualizar valor de Combobox Cartas.
         '''
         print(f' --> Escala escolhida: {self.combobox_cartas.get()}')
+        print(delimt)
         self.escala = self.combobox_cartas.get()
 
     # Evento de Combobox Cartas atualizado
@@ -47,9 +50,9 @@ class SeletorFolhas:
         Método para atualizar valores de Combobox Folhas.
         '''
         # Atualiza valores de Combobox Folhas
-        id_folhas = self.cartas['id_folha'].tolist()
-        self.id_folhas_original = id_folhas
-        self.combobox_folha['values'] = id_folhas
+        folha_ids = list(self.cartas.keys())
+        self.id_folhas_original = folha_ids
+        self.combobox_folha['values'] = folha_ids
 
     # Filtra códigos de folhas com base no texto inserido
     def filtrar_ids_folhas(self, event):
@@ -59,13 +62,8 @@ class SeletorFolhas:
         '''
         texto_filtro = self.combobox_folha.get()
         if not texto_filtro:
-            print(' --> Nenhum valor inserido para filtro!')
-            print(f' --> IDs disponíveis: {self.id_folhas_original}')
-            print('')
             id_filtrados = self.id_folhas_original
         else:
-            print(' Texto inserido para filtro: ', texto_filtro)
-            print('')
             id_filtrados = [id for id in self.id_folhas_original if
                             texto_filtro.lower() in id.lower()]
         self.combobox_folha['values'] = id_filtrados
@@ -83,14 +81,18 @@ class SeletorFolhas:
         '''
         try:
             carta = reverse_meta_cartas[escala]
-            self.cartas = self.gerenciadorFolhas.seleciona_escala(carta)
-            print(f' --> Folhas selecionadas: {len(self.cartas)}')
+            self.cartas = self.gerenciadorFolhas.seleciona_escala_gpkg(carta)
             self.atualizar_combobox_folha()
-            print(' --> Combobox Folhas atualizado!')
-            print('')
+            return self.cartas
+
         except Exception as e:
-            print(f' --> Erro ao selecionar folhas! {e}')
-        return self.cartas
+            print('')
+            print(' --> SeletorFolhas.selecionar_carta Falhou')
+            print(f' !ERROR!: {e}')
+            print('Parâmetros:')
+            print(f' --> escala: {escala}')
+            print(f' --> carta: {carta}')
+            print(f' --> self.cartas: {len(self.cartas)}')
 
     # Adiciona folha de estudo à área de estudo
     def adicionar_folha_estudo(self):
@@ -101,7 +103,7 @@ class SeletorFolhas:
         self.area_de_estudo = getattr(self, 'area_de_estudo', [])
         try:
             id_folha_estudo = self.combobox_folha.get()
-            if any(id_folha_estudo == folha['id_folha'].values[0] for folha in
+            if any(id_folha_estudo == folha['folha_id'].values[0] for folha in
                    self.area_de_estudo):
                 print(f' --> Folha já adicionada: {id_folha_estudo} à lista')
                 print('')
@@ -119,7 +121,13 @@ class SeletorFolhas:
                 print(f'    --> Poligono: {folha.geometry.bounds.values[0]}')
             print('')
         except Exception as e:
-            print(f' --> Erro ao adicionar folha à área de estudo! {e}')
+            print('')
+            print(' --> SeletorFolhas.adicionar_folha_estudo falhou!')
+            print(f' !EERRO!: {e}')
+            print('Parâmetros:')
+            print(f' --> id_folha_estudo: {id_folha_estudo}')
+            print(f' --> self.area_de_estudo: {len(self.area_de_estudo)}')
+            print('')
 
     # Método para determinar folha clicada
     def determine_folha_clicada(self, ax_x, ax_y):

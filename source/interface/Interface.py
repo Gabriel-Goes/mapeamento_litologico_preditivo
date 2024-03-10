@@ -5,9 +5,11 @@
 # # ------------------------------ IMPORTS ------------------------------------
 from AbrirFolhas import AbrirFolhas
 from FrameSeletor import FrameSeletor
+from utils import delimt
 
 import tkinter as tk
 from tkinter import ttk
+
 # ---------------------------------------------------------------------------
 
 
@@ -31,6 +33,7 @@ class PreditorTerraUI:
         self.root = root
         self.setup_style()
         self.setup_ui()
+        print(delimt)
 
     # ---------------------------- Métodos ------------------------------------
     # Instancia as classes Core do Preditor Terra

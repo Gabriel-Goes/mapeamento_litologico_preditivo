@@ -13,6 +13,7 @@ class PlotFolhas:
     Esta classe será responsável por atualizar o canvas com as folhas disponí
     veis no self.seletorFolhas.dicionario e self.seletorFolhas.folhaEstudo.
     '''
+
     def __init__(self, seletorFolhas, framePlot):
         self.seletorFolhas = seletorFolhas
         self.framePlot = framePlot
@@ -21,7 +22,7 @@ class PlotFolhas:
         '''
         Método para plotar a folha de estudo no canvas.
         '''
-        id_folha_estudo = self.seletorFolhas.folhaEstudo.id_folha
+        id_folha_estudo = self.seletorFolhas.folhaEstudo.folha_id
         folhas = self.seletorFolhas.dicionario
         # Limpa o canvas
         self.seletorFolhas.ax.clear()

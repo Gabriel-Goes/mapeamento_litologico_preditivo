@@ -12,7 +12,11 @@ import geopandas as gpd
 '''
 
 # Configura delimitador para prints de relatorio de execução
-delimt = '---------------------------------------------------\n'
+delimt = '------------------------------------------------------\n'
+
+
+# configura PostgreSQL para conexão
+gdb_url = 'postgresql+psycopg2://postgres:postgres@localhost:5432/geodatabase'
 
 
 def set_db(path=''):
