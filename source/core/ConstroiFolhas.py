@@ -251,10 +251,12 @@ class CartografiaSistematica(Base):
         session.close()
 
 
-# ----------------------- MAIN -----------------------------------------------
-if __name__ == "__main__":
-    print('')
-    print(' Executando Script: ConstruirFolhas.py')
+def constroi_folhas():
+    '''
+    Função para criar folhas de meta_cartas de acordo com a escala (Carta).
+    '''
+    print(delimt)
+    print(' -> Criando folhas de meta_cartas')
     print(delimt)
     cs = CartografiaSistematica
 # Teste da classe DicionarioFolhas
@@ -291,3 +293,11 @@ if __name__ == "__main__":
 
 # Salvar meta_cartas em um banco de dados
     [carta.salvar_folhas_geodatabase() for carta in lista_meta_cartas]
+
+
+# ----------------------- MAIN -----------------------------------------------
+if __name__ == "__main__":
+    print('')
+    print(' Executando Script: ConstruirFolhas.py')
+    print(delimt)
+    constroi_folhas()

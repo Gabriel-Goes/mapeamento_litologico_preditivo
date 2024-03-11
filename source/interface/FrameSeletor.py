@@ -19,9 +19,9 @@ class FrameSeletor():
     '''
 
     # Construtor da classe Seletor de Folhas
-    def __init__(self, gerenciador_folhas, main_frame, style):
+    def __init__(self, admin_folhas, main_frame, style):
         print('-> Inicializando Frame de Seletor')
-        self.gerenciador_folhas = gerenciador_folhas
+        self.admin_folhas = admin_folhas
         self.main_frame = main_frame
         self.style = style
         self.setup_frame_seletor()
@@ -42,7 +42,8 @@ class FrameSeletor():
         '''
         self.seletor_folhas = SeletorFolhas(self.combobox_carta,
                                             self.combobox_folha,
-                                            self.gerenciador_folhas)
+                                            self.admin_folhas)
+        return self.seletor_folhas
 
     # Método para criar o seletor de folhas de cartas
     def setup_frame_seletor(self):
@@ -73,7 +74,7 @@ class FrameSeletor():
                                             style="Custom.TFrame")
         self.folha_estudo_frame.grid(row=1, column=0, padx=5, pady=5)
 
-        # ------------------- Label do Seletor de Folhas ----------------------
+        # ------------------- Label do Folhas de Estudo  ----------------------
         label_estudo_frame = tk.Label(self.folha_estudo_frame,
                                       text='Folha de Estudo',
                                       font=('SourceCodePro', 9, 'bold'),
@@ -104,15 +105,25 @@ class FrameSeletor():
                                            style="Custom.TCombobox")
         self.combobox_folha.grid(row=2, column=0, padx=5, pady=5, sticky='W')
 
-        # ------------------- Label - Área de Estudo --------------------------
-        label_area_de_estudo = tk.Label(self.folha_estudo_frame,
-                                        text='Área de Estudo: ',
-                                        font=('SourceCodePro', 9, 'bold'),
-                                        bg='black', fg='white')
-        label_area_de_estudo.grid(row=3, column=0, padx=5, pady=5)
+        # ------------------- Entry - Área de Estudo --------------------------
+        print(' --> Iniciando Entry - Área de Estudo')
+        self.entry_area_de_estudo = tk.Entry(self.folha_estudo_frame,
+                                             font=('SourceCodePro', 9, 'bold'),
+                                             bg='black', fg='white')
+        self.entry_area_de_estudo.grid(row=3, column=0, padx=5, pady=5,
+                                       sticky='EW')
 
-    def setupt_botão_selecionar(self):
         # ------------------- Botão - Adicionar Folha à Área de Estudo --------
+
+        self.botao_adicionar_area_estudo = ttk.Button(
+            self.folha_estudo_frame,
+            text="Adicionar Área de Estudo",
+            style="Custom.TButton",
+            command=self.adicionar_area_estudo)
+        self.botao_adicionar_area_estudo.grid(row=4, column=0, padx=5, pady=5)
+
+    # ------------------- Botão - Adicionar Folha à Área de Estudo --------
+    def setupt_botão_selecionar(self):
         # UTF-8 SIMBOLOS
         # Simbolo de mais
         # plus_sign = u"\u2795"
@@ -135,6 +146,12 @@ class FrameSeletor():
         sv.set(current_text)
 
     # ----------- Método para atualizar label de folha de estudo --------------
+    def adicionar_area_estudo(self):
+        # Implementação de como adicionar a área de estudo
+        # Pode pegar o texto da entrada e usar para filtras as folhas
+        self.id_area_estudo = self.entry_area_de_estudo.get()
+        print(f' --> Folha da Área de Estudo: {self.id_area_estudo}')
+
     def atualizarfolhaEstudo(self, folha_estudo):
         self.atualizar_label_folha_estudo(folha_estudo)
 

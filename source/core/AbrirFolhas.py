@@ -6,7 +6,6 @@
 # tornar os ids, e geometry de cada folha.
 # ------------------------------ IMPORTS ------------------------------------
 import fiona
-from shapely import geometry
 
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -14,7 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer, String
 from geoalchemy2 import Geometry
 
-from utils import set_db, gdb_url
+from utils import set_db, gdb_url, delimt
 
 
 # ------------------------------ PARÂMETROS ---------------------------------
@@ -67,42 +66,46 @@ class AbrirFolhas:
                 carta: str - escalas disponíveis: 25k, 50k, 100k,
                                                   250k, 500k e 1kk
             Retorna:
-                carta: gdf - geodataframe com a carta escolhida
+                cartas: dicionário {'folha_id': {'geometry': geom,
+                                                 'folha_id': folha_id,
+                                                 'epsg': epsg}}
         '''
+        self.cartas.clear()
         try:
             # Consulta str(escala) em banco de dados
             consulta = self.session.query(FolhasCartograficas).filter(
                 FolhasCartograficas.escala == escala).all()
-            # consulta = self.session.query(FolhasCartograficas).filter(
-            #     FolhasCartograficas.folha_id.like(f'%{escala}%')).all()
+            if not consulta:
+                print(f' --> Nenhuma folha encontrada para a escala: {escala}')
+                return self.cartas
             # Transforma a consulta em uma geometria
-            print(consulta[1].wkb_geometry)
-            print(consulta[1].epsg)
-            print(consulta[1].escala)
-            print(consulta[1].folha_id)
-            carta = geometry.MultiPolygon([{
-                'geometry': folha.wkb_geometry,
-                'folha_id': folha.folha_id,
-                'epsg': folha.epsg,
-                'escala': folha.escala
-            } for folha in consulta])
-            print(f'-> Carta {carta} importada com sucesso!')
-            return carta
+            for folha in consulta:
+                self.cartas[folha.folha_id] = {
+                    'geometry': folha.wkb_geometry,
+                    'folha_id': folha.folha_id,
+                    'epsg': folha.epsg
+                }
+            print(f' --> {len(self.cartas)} folhas_{escala} importadas')
+            return self.cartas
 
         except Exception as e:
-            print(f' --> Erro ao importar a carta! {e}')
-            print(' --> Escalas disponíveis: 25k, 50k, 100k, 250k, 500k e 1kk')
-            return consulta
+            print(' --> AbrirFolhas.seleciona_escala_postgres falhou!')
+            print(f' ! ERROR: {e}')
+            print('')
+            print(f' --> escala: {escala}')
 
     # Método para importar a carta da escala escolhida de um geopackage
     def seleciona_escala_gpkg(self, escala: str) -> fiona.Collection:
         '''
-        Método responsável por importar as folhas de carta na escala escolhida.
+        Método responsável por importar as folhas de carta de um geopackage
+        na escala escolhida.
             Recebe como parâmetro:
                 carta: str - escalas disponíveis: 25k, 50k, 100k,
                                                   250k, 500k e 1kk
             Retorna:
-                carta: gdf - geodataframe com a carta escolhida
+                cartas: dicionário {'folha_id': {'geometry': geom,
+                                                 'folha_id': folha_id,
+                                                 'epsg': epsg}}
         '''
         try:
             self.cartas.clear()
@@ -118,6 +121,7 @@ class AbrirFolhas:
                         'epsg': epsg
                     }
             print(f' --> Carta {escala} importada com sucesso!')
+            print(delimt)
             return self.cartas
 
         except Exception as e:

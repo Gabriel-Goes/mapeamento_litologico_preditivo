@@ -43,7 +43,7 @@ class PreditorTerraUI:
         lógicas de negócios
         '''
         # Instanciando AbrirFolhas
-        self.gerenciador_folhas = AbrirFolhas()
+        self.admin_folhas = AbrirFolhas()
 
     # método para executar as funções de configuração da interface
     def setup_ui(self):
@@ -65,7 +65,7 @@ class PreditorTerraUI:
                                     relief=tk.GROOVE, style="Custom.TFrame")
         self.main_frame.grid(row=1, column=0, padx=0, pady=0, sticky='nsew')
         # ------------------- Seletor de Folhas - Frame
-        self.frame_seletor = FrameSeletor(self.gerenciador_folhas,
+        self.frame_seletor = FrameSeletor(self.admin_folhas,
                                           self.main_frame,
                                           self.style)
 

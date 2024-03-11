@@ -51,6 +51,7 @@ def set_gdb(path=''):
     gdb = '/home/ggrl/database/' + path
     return gdb
 
+
 # -----------------------------------------------------------------------------
 def importar_geometrias(camada=None, mapa=None):
     '''
@@ -71,9 +72,10 @@ def importar_geometrias(camada=None, mapa=None):
     if mapa:
         folha = lito[lito.MAPA == 'Carta geológica da folha ' + mapa]
         if len(folha) == 0:
-            print("O mapa escolhido não existe na coluna MAPA da camada veotiral. Os mapas disponiveis serão listados a seguir.")
+            print("O mapa escolhido não existe na coluna MAPA do vetor.")
+            print("Os mapas disponiveis serão listados a seguir.")
             print('')
-            print('# Selecionando apenas os caracteres apos ''folha'' (SEM ESPAÇO)')
+            print('# Selecionando apenas os caracteres apos ''folha''')
             print(f"# -- Lista de mapas: {list(lito.MAPA.unique())}")
             lista_mapas = list(lito.MAPA.unique())
             return lista_mapas
@@ -105,16 +107,16 @@ def import_malha_cartog(escala='25k', ID=None, IDs=None):
 def import_mc(escala=None, ID=None):
     mc = gpd.read_file(set_gdb('geodatabase.gpkg'),
                        driver='GPKG',
-                       layer='mc_'+escala)
+                       layer='mc_' + escala)
     mc_slct = gpd.GeoDataFrame()
-    if type(ID) == list:
+    if type(ID) is list:
         for id in tqdm(ID):
             mc_slct = mc_slct._append(mc[mc['id_folha'].str.contains(id)])
         return mc_slct
-    elif type(ID) == str:
+    elif type(ID) is str:
         mc_slct = mc[mc['id_folha'] == ID]
         return mc_slct
-    elif type(ID) == str:
+    elif type(ID) is str:
         mc_slct = mc[mc['id_folha'] == ID]
         return mc_slct
     else:
@@ -181,10 +183,10 @@ def nomeador_grid(left, right, top, bottom, escala=5):
         id_folha = ''
         if top <= 0:
             id_folha += 'S'
-            index = math.floor(-top/4)
+            index = math.floor(-top / 4)
         else:
             id_folha += 'N'
-            index = math.floor(bottom/4)
+            index = math.floor(bottom / 4)
         numero = math.ceil((180+right)/6)
         print(numero)
         id_folha += e1kk[index]+str(numero)
@@ -228,12 +230,7 @@ def set_EPSG(mc):
             EPSG.append('326'+str(i[2:4]))
     mc['EPSG'] = EPSG
     return mc
-<<<<<<< HEAD:jupyternotebooks/_src.py
-
-=======
->>>>>>> main:src.py
 # -----------------------------------------------------------------------------
-
 
 def nomeador_malha(gdf):
     df = pd.DataFrame(gdf)
@@ -680,22 +677,16 @@ def describe(dic_cartas, dic_raw_data, crs__, vdm, ):
             dic_cartas['lito_cubic'].update(x)
             print(dic_cartas['lito_cubic'][index].keys())
 # ----------------------------------------------------------------------------------------------------------------------
-<<<<<<< HEAD:jupyternotebooks/_src.py
-=======
 
 
->>>>>>> main:src.py
 def bounding_box(geometry):
     recorte = [geometry.bounds['minx'].min(), geometry.bounds['maxx'].max(),
                geometry.bounds['miny'].min(), geometry.bounds['maxy'].max()]
 
     return recorte
 # ----------------------------------------------------------------------------------------------------------------------
-<<<<<<< HEAD:jupyternotebooks/_src.py
-=======
 
 
->>>>>>> main:src.py
 # FUNÇOES DE PLOTAGEM COM GEOPANDA
 def plot_brazil(gdf, atributo=None):
     recorte = bounding_box(gdf)
@@ -754,12 +745,8 @@ def filtro(gdf, mineral):
     else:
         return filtrado
 # ---------------------------------------------------------------------------------------------------
-<<<<<<< HEAD:jupyternotebooks/_src.py
-=======
 
 
-<<<<<<< HEAD
->>>>>>> main:src.py
 def plot_mc_base(quadricula=None):
     for id in list(quadricula.keys()):
         carta=quadricula[id]
@@ -777,11 +764,8 @@ def plot_mc_base(quadricula=None):
     plt.tight_layout()
 
 # ---------------------------------------------------------------------------------------------------
-<<<<<<< HEAD:jupyternotebooks/_src.py
-=======
 
 
->>>>>>> main:src.py
 def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
     mc = import_mc(escala,ID)
     mc.set_index('id_folha',inplace=True)
@@ -811,10 +795,7 @@ def Upload_geof(quadricula=None,gama_xyz=None,mag_xyz=None,extend_size=0):
     if 'LAT_WGS' in list_atri:
         mag_data.rename(columns={'LAT_WGS':'LATITUDE','LONG_WGS':'LONGITUDE'},inplace=True)
 
-<<<<<<< HEAD:jupyternotebooks/_src.py
-=======
 
->>>>>>> main:src.py
 def pop_nodata(quadricula):
     for id in tqdm(list(quadricula.keys())):
         if len(quadricula[id]) <= 2:
@@ -840,11 +821,8 @@ def batch_grid_coordinates(quadricula,spacing=0.001, pixel_register=True):
         print('Quadricula atualizada')
 
 # -----------------------------------------------------------------
-<<<<<<< HEAD:jupyternotebooks/_src.py
-=======
 
 
->>>>>>> main:src.py
 def Upload_litologia(quadricula=None,camada=None):
     lito=geometrias(camada)
     ids = list(quadricula.keys())
@@ -918,10 +896,7 @@ def parser_siglas(ID='SF23',quadricula=None):
     return lista_SIGLAS,lista_periodos,lista_periodos_set
 # ---------------------------------------------------------------------------------------------------
 
-<<<<<<< HEAD:jupyternotebooks/_src.py
 
-=======
->>>>>>> main:src.py
 def remove_negative_gama(df):
     df['K_pos'] = df['KPERC'] - df['KPERC'].min() + 0.01
     df['eU_pos'] = df['eU'] - df['eU'].min() + 0.01
@@ -969,8 +944,6 @@ def transform_to_carta_utm(carta):
     return carta_utm
 # -----------------------------------------------------------------------------
 
-<<<<<<< HEAD:jupyternotebooks/_src.py
-=======
 
 def sintetic_grid(quadricula,ID,spacing=0.001,projec='geog'):
     if projec=='geog':
@@ -1176,7 +1149,6 @@ percentiles=(0.001,0.01,0.05,0.25,0.5,0.75,0.9995)
 # -----------------------------------------------------------------------------
 
 
->>>>>>> main:src.py
 def plot_raw_mag_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%'):
     fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize = (19,9),sharex='all',sharey='all')
     raw_data_describe = raw_data.describe(percentiles=percentiles)
@@ -1198,8 +1170,6 @@ def plot_raw_mag_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%'
     plt.tight_layout()
 
 # ---------------------------------------------------------------------------------------------------
-<<<<<<< HEAD:jupyternotebooks/_src.py
-=======
 
 
 def plot_filtered_values(quadricula,c='MDT',cmap='terrain'):
@@ -1223,7 +1193,6 @@ def plot_filtered_values(quadricula,c='MDT',cmap='terrain'):
 # -------------------------------------------------------------------------------------------------
 
 
->>>>>>> main:src.py
 def plot_raw_gama_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%',orientation='horizontal',figsize=(26,16)):
     fig, axs = plt.subplots(nrows = 2, ncols = 4, figsize =figsize,sharex='all',sharey='all')
     raw_data_describe = raw_data.describe(percentiles=percentiles)

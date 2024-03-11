@@ -39,7 +39,6 @@ class DicionarioFolhas:
                           'EPSG': 'str'}
         '''
         try:
-
             dicionario = {row['folha_id']: {'geometry': row['geometry'],
                                             'EPSG': row['EPSG']}
                           for index, row in folhas_selecionadas.iterrows()}

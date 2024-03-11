@@ -17,14 +17,23 @@ class SeletorFolhas:
 
     def __init__(self,
                  combobox_cartas, combobox_folha,
-                 gerenciador_folhas):
+                 admin_folhas):
         '''
         Construtor da classe SeletorFolhas.
         '''
         print('-> Iniciando SeletorFolhas')
-        self.combobox_folha = combobox_folha
-        self.combobox_cartas = combobox_cartas
-        self.gerenciadorFolhas = gerenciador_folhas
+        try:
+            self.combobox_folha = combobox_folha
+            self.combobox_cartas = combobox_cartas
+            self.admin_folhas = admin_folhas
+        except Exception as e:
+            print(' --> SeletorFolhas falhou!')
+            print(f' !ERROR!: {e}')
+            print(' --> Parâmetros:')
+            print(f' --> combobox_cartas: {combobox_cartas}')
+            print(f' --> combobox_folha: {combobox_folha}')
+            print(f' --> admin_folhas: {admin_folhas}')
+            print(delimt)
 
     # ---------------------------- Métodos ------------------------------------
     # Visualiza valor de Combobox Cartas
@@ -33,7 +42,6 @@ class SeletorFolhas:
         Método para visualizar valor de Combobox Cartas.
         '''
         print(f' --> Escala escolhida: {self.combobox_cartas.get()}')
-        print(delimt)
         self.escala = self.combobox_cartas.get()
 
     # Evento de Combobox Cartas atualizado
@@ -42,7 +50,8 @@ class SeletorFolhas:
         Evento de Combobox Cartas atualizado.
         '''
         self.get_combobox_cartas()
-        self.selecionar_carta(self.escala)
+        # self.selecionar_carta_gpkg(self.escala)
+        self.selecionar_carta_postgres(self.escala)
 
     # Atualiza valores de Combobox Folhas
     def atualizar_combobox_folha(self):
@@ -67,27 +76,55 @@ class SeletorFolhas:
             id_filtrados = [id for id in self.id_folhas_original if
                             texto_filtro.lower() in id.lower()]
         self.combobox_folha['values'] = id_filtrados
+        print(f' --> Filtrando por: {texto_filtro}')
+        print(f' --> Folhas disponíveis: {len(self.combobox_folha["values"])}')
+        print(delimt)
         if not id_filtrados:
             print(f' --> Nenhum valor encontrado para: {texto_filtro}')
             print(f' IDs disponíveis: {self.id_folhas_original}')
             print('')
             self.combobox_folha['values'] = self.id_folhas_original
+        print(self.combobox_folha['values'])
 
     # Seleciona Folhas a partir das esclas disponíveis em meta_cartas
-    def selecionar_carta(self, escala):
+    def selecionar_carta_postgres(self, escala):
+        '''
+        Método para selecionar folhas a partir das escalas disponíveis em
+        meta_cartas.
+        '''
+        try:
+            print('')
+            print(' --------- Selecionando Carta Postgres ---------')
+            carta = reverse_meta_cartas[escala]
+            self.cartas = self.admin_folhas.seleciona_escala_postgres(carta)
+            self.atualizar_combobox_folha()
+            return self.cartas
+
+        except Exception as e:
+            print('')
+            print(' --> SeletorFolhas.selecionar_carta_postgres Falhou')
+            print(f' !ERROR!: {e}')
+            print('Parâmetros:')
+            print(f' --> escala: {escala}')
+            print(f' --> carta: {carta}')
+            print(f' --> self.cartas: {len(self.cartas)}')
+            return None
+
+    # Seleciona Folhas a partir das esclas disponíveis em meta_cartas
+    def selecionar_carta_gpkg(self, escala):
         '''
         Método para selecionar folhas a partir das escalas disponíveis em
         meta_cartas.
         '''
         try:
             carta = reverse_meta_cartas[escala]
-            self.cartas = self.gerenciadorFolhas.seleciona_escala_gpkg(carta)
+            self.cartas = self.admin_folhas.seleciona_escala_gpkg(carta)
             self.atualizar_combobox_folha()
             return self.cartas
 
         except Exception as e:
             print('')
-            print(' --> SeletorFolhas.selecionar_carta Falhou')
+            print(' --> SeletorFolhas.selecionar_carta_gpkg Falhou')
             print(f' !ERROR!: {e}')
             print('Parâmetros:')
             print(f' --> escala: {escala}')
@@ -102,14 +139,17 @@ class SeletorFolhas:
         # Lista de área de estudo
         self.area_de_estudo = getattr(self, 'area_de_estudo', [])
         try:
+            print(' Executando SeletorFolhas.adicionar_folha_estudo')
+            print(delimt)
             id_folha_estudo = self.combobox_folha.get()
+            print(f' --> ID Folha de Estudo: {id_folha_estudo}')
             if any(id_folha_estudo == folha['folha_id'].values[0] for folha in
                    self.area_de_estudo):
                 print(f' --> Folha já adicionada: {id_folha_estudo} à lista')
                 print('')
                 return
 
-            folha_estudo = self.gerenciadorFolhas.define_area_de_estudo(
+            folha_estudo = self.admin_folhas.define_area_de_estudo(
                 id_folha_estudo)
             self.area_de_estudo.append(folha_estudo)
             # ------------------- Prints
