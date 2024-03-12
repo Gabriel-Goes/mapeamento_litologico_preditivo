@@ -9,27 +9,28 @@ import pandas as pd
 from tqdm import tqdm
 import pyproj
 from shapely.ops import transform
+from shapely.wkb import loads
 from verde import inside
 
-from utils import set_gdb
+from utils import set_db
 
 
 # ------------------------------ CLASSES ------------------------------------
 class ManipularFolhas:
-    def __init__(self, dicionario_folha):
+    def __init__(self, dicionario):
         '''
         Esta classe é responsável por manipular as folhas de cartas.
         Adicionando dados geofísicos, litologia e removendo folhas sem dados.
 
         Sintaxe:
-        ManipularFolhas(dicionario_folha)
+        ManipularFolhas(dicionario)
 
         Parâmetros:
 
         Exemplo:
 
         '''
-        self.folhas = dicionario_folha
+        self.dic_folhas_2 = dicionario
 
     # Método para recortar dados geofísicos de acordo com a bbox da folha e
     # adicionar à folha
@@ -48,17 +49,24 @@ class ManipularFolhas:
 
         '''
         # Lógica para selecionar dados geofísicos
-        wgs84 = pyproj.CRS('EPSG:4326')
+        wgs84 = pyproj.CRS('epsg:4326')
         # iterar sobre as folhas
         dados_folha_list = []
-        for id, folha in tqdm(self.folhas.items()):
-            # se id contem SF23, printar
+        for id, folha in tqdm(self.dic_folhas_2.items()):
+            try:
+                wkb_geom = folha['geometry']
+                hex_wkb_geom = wkb_geom.desc
+                folha_geom = loads(hex_wkb_geom, hex=True)
+            except Exception as e:
+                print(f'Erro ao carregar folha {id} - {e}')
+                print(f' dado wkb problematico: {folha["geometry"].data}')
+
             # transformar a folha para utm
-            utm = pyproj.CRS('EPSG:' + folha['EPSG'])
+            utm = pyproj.CRS('epsg:' + folha['epsg'])
             project = pyproj.Transformer.from_crs(wgs84,
                                                   utm,
                                                   always_xy=True).transform
-            folha_utm = transform(project, folha['geometry'])
+            folha_utm = transform(project, folha_geom)
             region_utm = folha_utm.bounds
             reg = (region_utm[0] - extend_size, region_utm[2] + extend_size,
                    region_utm[1] - extend_size, region_utm[3] + extend_size)
@@ -66,7 +74,7 @@ class ManipularFolhas:
             dados_folha = dados[inside((dados.X, dados.Y), reg)]
             # adicionar dados geofísicos à folha
             if len(dados_folha) > 1000:
-                self.folhas[id].update({tipo: dados_folha})
+                self.dic_folhas_2[id].update({tipo: dados_folha})
                 dados_folha_list.append(dados_folha)
             else:
                 pass
@@ -94,7 +102,7 @@ class ManipularFolhas:
             # Retorna um DataFrame vazio se não houver arquivo
             return pd.DataFrame()
 
-        dados_raw = pd.read_csv(set_gdb('geof/') + arquivo_xyz)
+        dados_raw = pd.read_csv(set_db('geof/') + arquivo_xyz)
         dados = self.renomear_geof(dados_raw)
         return self.selecionar_dados_geofisicos(dados, tipo, extend_size)
 
@@ -132,16 +140,16 @@ class ManipularFolhas:
 
         '''
         # Lógica para remover quadriculas sem dados
-        for id in tqdm(list(self.folhas.keys())):
-            columns = list(self.folhas[id].keys())
+        for id in tqdm(list(self.dic_folhas_2.keys())):
+            columns = list(self.dic_folhas_2[id].keys())
             # Caso a quadricula tenha apenas a geometria e o id ela é removida
-            if len(self.folhas[id]) <= 2:
-                self.folhas.pop(id)
+            if len(self.dic_folhas_2[id]) <= 2:
+                self.dic_folhas_2.pop(id)
             # Caso a quadricula possua menos de 5000 pontos ela é removida
             # REVISÃO
-            elif len(self.folhas[id][columns[2]]) < 5000:
-                self.folhas.pop(id)
-        return self.folhas
+            elif len(self.dic_folhas_2[id][columns[2]]) < 5000:
+                self.dic_folhas_2.pop(id)
+        return self.dic_folhas_2
 
     # Método para renomear colunas de dados geofísicos
     def renomear_geof(self, df):

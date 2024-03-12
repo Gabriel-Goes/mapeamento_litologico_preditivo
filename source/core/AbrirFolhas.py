@@ -7,13 +7,14 @@
 # ------------------------------ IMPORTS ------------------------------------
 import fiona
 
-from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer, String
 from geoalchemy2 import Geometry
 
 from utils import set_db, gdb_url, delimt
+from DatabaseEngine import DatabaseEngine
+
+from typing import Dict
 
 
 # ------------------------------ PARÂMETROS ---------------------------------
@@ -47,18 +48,16 @@ class AbrirFolhas:
             print('-> Inicializando AbrirFolhas')
             self.file = set_db(gpkg)
             self.gdb_url = gdb_url
-            self.engine = create_engine(self.gdb_url)
-            Session = sessionmaker(bind=self.engine)
-            self.session = Session()
-            self.cartas = {}
+            self.engine = DatabaseEngine.get_engine()
+            self.session = DatabaseEngine.get_session()
+            self.dic_folhas = {}
 
         except Exception as e:
             print('--> AbrirFolhas Falhou!')
             print(f' !ERROR": {e}')
-            print('--> Aqui deve ser seus geopackage.gpkg!')
 
     # Método para importar a carta da escala escolhida de um PostGIS
-    def seleciona_escala_postgres(self, escala: str):
+    def seleciona_escala_postgres(self, escala: str) -> Dict[str, Dict]:
         '''
         Método responsável por importar as folhas de carta na escala escolhida
         de um banco de dados PostGIS.
@@ -66,27 +65,27 @@ class AbrirFolhas:
                 carta: str - escalas disponíveis: 25k, 50k, 100k,
                                                   250k, 500k e 1kk
             Retorna:
-                cartas: dicionário {'folha_id': {'geometry': geom,
+                dic_folhas: dicionário {'folha_id': {'geometry': geom,
                                                  'folha_id': folha_id,
                                                  'epsg': epsg}}
         '''
-        self.cartas.clear()
+        self.dic_folhas.clear()
         try:
             # Consulta str(escala) em banco de dados
             consulta = self.session.query(FolhasCartograficas).filter(
                 FolhasCartograficas.escala == escala).all()
             if not consulta:
                 print(f' --> Nenhuma folha encontrada para a escala: {escala}')
-                return self.cartas
+                return self.dic_folhas
             # Transforma a consulta em uma geometria
             for folha in consulta:
-                self.cartas[folha.folha_id] = {
+                self.dic_folhas[folha.folha_id] = {
                     'geometry': folha.wkb_geometry,
-                    'folha_id': folha.folha_id,
-                    'epsg': folha.epsg
+                    'epsg': folha.epsg,
+                    'escala': folha.escala
                 }
-            print(f' --> {len(self.cartas)} folhas_{escala} importadas')
-            return self.cartas
+            print(f' --> {len(self.dic_folhas)} folhas_{escala} importadas')
+            return self.dic_folhas
 
         except Exception as e:
             print(' --> AbrirFolhas.seleciona_escala_postgres falhou!')
@@ -103,26 +102,26 @@ class AbrirFolhas:
                 carta: str - escalas disponíveis: 25k, 50k, 100k,
                                                   250k, 500k e 1kk
             Retorna:
-                cartas: dicionário {'folha_id': {'geometry': geom,
-                                                 'folha_id': folha_id,
-                                                 'epsg': epsg}}
+                dic_folhas: dicionário {'folha_id': {'geometry': geom,
+                                                 'epsg': epsg
+                                                 'escala: escala'}}
         '''
         try:
-            self.cartas.clear()
+            self.dic_folhas.clear()
             # Lê o arquivo geopackage com fiona
             with fiona.open(self.file, layer=f'fc_{escala}') as collection:
                 for feature in collection:
                     geom = feature['geometry']
                     folha_id = feature['properties']['folha_id']
                     epsg = feature['properties']['epsg']
-                    self.cartas[folha_id] = {
+                    self.dic_folhas[folha_id] = {
                         'geometry': geom,
-                        'folha_id': folha_id,
-                        'epsg': epsg
+                        'epsg': epsg,
+                        'escala': escala
                     }
             print(f' --> Carta {escala} importada com sucesso!')
             print(delimt)
-            return self.cartas
+            return self.dic_folhas
 
         except Exception as e:
             print('')
@@ -137,13 +136,13 @@ class AbrirFolhas:
         '''
         Método responsável por definir a área de estudo.
         Recebe como parâmetros:
-            cartas: gdf - geodataframe com as cartas
+            dic_folhas: gdf - geodataframe com as folhas da carta escolhida
             id_folha_area_de_estudo: str - id da folha da área de estudo
         Retorna:
             folha_ade: gdf - geodataframe com a folha da área de estudo
         '''
-        folha_ade = self.cartas[
-            self.cartas['folha_id'] == id_folha_area_de_estudo]
+        folha_ade = self.dic_folhas[
+            self.dic_folhas['folha_id'] == id_folha_area_de_estudo]
         return folha_ade
 
     # Criar bounding box para a folha escolhida

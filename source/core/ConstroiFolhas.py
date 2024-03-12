@@ -14,20 +14,17 @@
 import math
 from tqdm import tqdm
 from shapely.geometry import mapping, Polygon
-from utils.utils import set_db, float_range, meta_cartas, brasil, delimt
 
 import fiona
 from fiona.crs import CRS
-# import psycopg2
 
-from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import Column, Integer, String
 from geoalchemy2 import Geometry
 
-# ------------------------------ DATABASE ------------------------------------
-Base = declarative_base()
-url = 'postgresql+psycopg2://postgres:postgres@localhost:5432/geodatabase'
+from utils.utils import set_db, float_range, meta_cartas, brasil, delimt
+from DatabaseEngine import DatabaseEngine, Base
+
+# ------------------------------ PARAMETROS ---------------------------------
 
 
 # ------------------------------ CLASSES ------------------------------------
@@ -219,9 +216,10 @@ class CartografiaSistematica(Base):
                 layer.write(element)
 
     # Método para salvar as camadas em um banco de dados
-    def salvar_folhas_geodatabase(self, engine_url=url):
+    def salvar_folhas_geodatabase(self):
         '''
-        Salva as folhas de meta_cartas em banco de dados.
+        Salva as folhas de meta_cartas em banco de dados utilizando a
+        engine e session fornecidas pela classe singleton DatabaseEngine.
         '''
         print(' -> Salvando cartas no banco de dados\n')
         if self.folhas is None:
@@ -229,25 +227,28 @@ class CartografiaSistematica(Base):
             return
         print(f' -> Salvando folhas de carta {self.carta} no banco de dados\n')
 
-        engine = create_engine(engine_url)
-        Base.metadata.create_all(engine)
-        Session = sessionmaker(bind=engine)
-        session = Session()
+        session = DatabaseEngine.get_session()
 
-        # Itera sobre as folhas e adiciona ao banco de dados
-        for folha_id, poligono in self.folhas.items():
-            epsg_code = self.get_epsg(folha_id)
+        try:
+            # Itera sobre as folhas e adiciona ao banco de dados
+            for folha_id, poligono in self.folhas.items():
+                epsg_code = self.get_epsg(folha_id)
 
-            nova_folha = CartografiaSistematica()
-            nova_folha.folha_id = folha_id
-            nova_folha.epsg = epsg_code
-            nova_folha.wkb_geometry = 'SRID={};{}'.format(epsg_code,
-                                                          poligono.wkt)
-            nova_folha.escala = self.carta
+                nova_folha = CartografiaSistematica()
+                nova_folha.folha_id = folha_id
+                nova_folha.epsg = epsg_code
+                nova_folha.wkb_geometry = 'SRID={};{}'.format(epsg_code,
+                                                              poligono.wkt)
+                nova_folha.escala = self.carta
 
-            session.add(nova_folha)
-        # Salva as folhas no banco de dados
-        session.commit()
+                session.add(nova_folha)
+            # Salva as folhas no banco de dados
+            session.commit()
+
+        except Exception as e:
+            print(f' Erro ao salvar folhas no banco de dados: - {e}')
+            session.rollback()
+
         session.close()
 
 

@@ -25,7 +25,7 @@ class FrameSeletor():
         self.main_frame = main_frame
         self.style = style
         self.setup_frame_seletor()
-        self.setup_seletor_folhas()
+        self.seletor_folhas = self.setup_seletor_folhas()
         self.combobox_carta.bind('<<ComboboxSelected>>',
                                  self.seletor_folhas.evento_combobox_cartas)
         self.combobox_folha.bind('<KeyRelease>',
@@ -40,10 +40,10 @@ class FrameSeletor():
         AbrirFolhas. Sendo assim, SeletorFolhas é a classe responsável por
         gerenciar a seleção de folhas de cartas.
         '''
-        self.seletor_folhas = SeletorFolhas(self.combobox_carta,
-                                            self.combobox_folha,
-                                            self.admin_folhas)
-        return self.seletor_folhas
+        seletor_folhas = SeletorFolhas(self.combobox_carta,
+                                       self.combobox_folha,
+                                       self.admin_folhas)
+        return seletor_folhas
 
     # Método para criar o seletor de folhas de cartas
     def setup_frame_seletor(self):
@@ -105,23 +105,6 @@ class FrameSeletor():
                                            style="Custom.TCombobox")
         self.combobox_folha.grid(row=2, column=0, padx=5, pady=5, sticky='W')
 
-        # ------------------- Entry - Área de Estudo --------------------------
-        print(' --> Iniciando Entry - Área de Estudo')
-        self.entry_area_de_estudo = tk.Entry(self.folha_estudo_frame,
-                                             font=('SourceCodePro', 9, 'bold'),
-                                             bg='black', fg='white')
-        self.entry_area_de_estudo.grid(row=3, column=0, padx=5, pady=5,
-                                       sticky='EW')
-
-        # ------------------- Botão - Adicionar Folha à Área de Estudo --------
-
-        self.botao_adicionar_area_estudo = ttk.Button(
-            self.folha_estudo_frame,
-            text="Adicionar Área de Estudo",
-            style="Custom.TButton",
-            command=self.adicionar_area_estudo)
-        self.botao_adicionar_area_estudo.grid(row=4, column=0, padx=5, pady=5)
-
     # ------------------- Botão - Adicionar Folha à Área de Estudo --------
     def setupt_botão_selecionar(self):
         # UTF-8 SIMBOLOS
@@ -129,7 +112,7 @@ class FrameSeletor():
         # plus_sign = u"\u2795"
         # Simbolo de correto
         check_sign = u"\u2713"
-        comando = self.seletor_folhas.adicionar_folha_estudo
+        comando = self.seletor_folhas.define_area_de_estudo
         self.botao_adicionar_folha = ttk.Button(self.folha_estudo_frame,
                                                 text=check_sign,
                                                 width=3,
@@ -144,30 +127,6 @@ class FrameSeletor():
         '''
         current_text = sv.get().upper()
         sv.set(current_text)
-
-    # ----------- Método para atualizar label de folha de estudo --------------
-    def adicionar_area_estudo(self):
-        # Implementação de como adicionar a área de estudo
-        # Pode pegar o texto da entrada e usar para filtras as folhas
-        self.id_area_estudo = self.entry_area_de_estudo.get()
-        print(f' --> Folha da Área de Estudo: {self.id_area_estudo}')
-
-    def atualizarfolhaEstudo(self, folha_estudo):
-        self.atualizar_label_folha_estudo(folha_estudo)
-
-    def atualizar_label_folha_estudo(self, folha_id=None):
-        ajuda = "Selecione uma área de estudo clicando"
-        # Romva o label antigo se ele já existir
-        if self.label_folha_estudo is not None:
-            self.label_folha_estudo.destroy()
-        text = f'Área de Estudo: {folha_id}' if folha_id else ajuda
-        self.label_folha_estudo = tk.Label(
-            self.frame_folha_estudo,
-            text=text,
-            font=('SourceCodePro', 9, 'bold'),
-            relief=tk.GROOVE, bd=2,
-            bg='black', fg='white')
-        self.label_folha_estudo.grid(row=4, column=0, padx=0, pady=0)
 
 
 # ------------------------------ MAINLOOP ------------------------------------

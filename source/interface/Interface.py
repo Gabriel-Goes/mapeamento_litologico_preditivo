@@ -4,6 +4,7 @@
 # sourcuce/interface/Interface.py
 # # ------------------------------ IMPORTS ------------------------------------
 from AbrirFolhas import AbrirFolhas
+from ManipulaFolhas import ManipularFolhas
 from FrameSeletor import FrameSeletor
 from utils import delimt
 
@@ -44,6 +45,7 @@ class PreditorTerraUI:
         '''
         # Instanciando AbrirFolhas
         self.admin_folhas = AbrirFolhas()
+        self.manipula_folhas = ManipularFolhas(self.admin_folhas.dic_folhas)
 
     # método para executar as funções de configuração da interface
     def setup_ui(self):
@@ -82,6 +84,18 @@ class PreditorTerraUI:
                              selectbackground="lightgray",
                              selectforeground="black", box="lightgray",
                              font=('SourceCodePro', 12, 'bold'))
+
+
+# ---------------------------------------------------------------------------
+# Define um método para iniciar o PreditorTerrraUI dentro de um ipython para
+# Testar e ter acesso aos métodos e objetos desta classe.
+def test_start(className='Preditor_Terra'):
+    '''
+    Função para iniciar o PreditorTerraUI dentro de um ipython.
+    '''
+    root = tk.Tk(className=className)
+    app = PreditorTerraUI(root)
+    return app
 
 
 # ----------------------------- MAINLOOP

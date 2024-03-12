@@ -5,6 +5,8 @@
 # -----------------------------------------------------------------------------
 import shapely
 from utils import reverse_meta_cartas, delimt
+# Import python Dictionary
+from typing import Dict
 
 
 # ------------------------------ CLASSES ------------------------------------
@@ -26,6 +28,7 @@ class SeletorFolhas:
             self.combobox_folha = combobox_folha
             self.combobox_cartas = combobox_cartas
             self.admin_folhas = admin_folhas
+            self.folhas_estudo = {}
         except Exception as e:
             print(' --> SeletorFolhas falhou!')
             print(f' !ERROR!: {e}')
@@ -84,7 +87,6 @@ class SeletorFolhas:
             print(f' IDs disponíveis: {self.id_folhas_original}')
             print('')
             self.combobox_folha['values'] = self.id_folhas_original
-        print(self.combobox_folha['values'])
 
     # Seleciona Folhas a partir das esclas disponíveis em meta_cartas
     def selecionar_carta_postgres(self, escala):
@@ -131,8 +133,39 @@ class SeletorFolhas:
             print(f' --> carta: {carta}')
             print(f' --> self.cartas: {len(self.cartas)}')
 
+    # Define área de estudo
+    def define_area_de_estudo(self) -> Dict:
+        '''
+        Método para definir a área de estudo.
+        Cria um novo dicionário de folhas que representa a área de estudo
+        Este dicionário contêm todas as folhas que compõem a área de estudo
+        Com folha_id, geometry e epsg, escala
+        Ele será formado a partir dos valores de combobox_folha
+        Recebe:
+            combobox_values: str - valores de combobox_folha
+        Retorna:
+            cartas_estudo: dicionário - dicionário de folhas que representa a
+                área de estudo
+        '''
+        combobox_values = self.combobox_folha['values']
+        try:
+            for folha_id in combobox_values:
+                self.folhas_estudo[folha_id] = self.cartas[folha_id]
+
+            print(f' --> {len(self.folhas_estudo)} Folhas de Estudo')
+            return self.folhas_estudo
+
+        except Exception as e:
+            print('')
+            print(' --> SeletorFolhas.define_area_de_estudo falhou!')
+            print(f' !ERROR!: {e}')
+            print('Parâmetros:')
+            print(f' --> combobox_values: {combobox_values}')
+            print(f' --> self.cartas: {len(self.cartas)}')
+            print('')
+
     # Adiciona folha de estudo à área de estudo
-    def adicionar_folha_estudo(self):
+    def old_adicionar_folha_estudo(self):
         '''
         Método para adicionar folha de estudo à área de estudo.
         '''
@@ -160,6 +193,7 @@ class SeletorFolhas:
                 print(f'    --> ID: {folha.id_folha.values[0]}')
                 print(f'    --> Poligono: {folha.geometry.bounds.values[0]}')
             print('')
+
         except Exception as e:
             print('')
             print(' --> SeletorFolhas.adicionar_folha_estudo falhou!')
