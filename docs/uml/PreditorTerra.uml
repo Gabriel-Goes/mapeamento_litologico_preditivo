@@ -1,0 +1,65 @@
+@startuml PreditorTerra
+title Integração de Dados Geológicos e Modelos de IA
+!theme plain
+
+' Definição de Componentes
+package "Dados" {
+    entity "Dados Geológicos" as dados {
+      -Localização: Coordenadas
+      -Dados Categórigos: String
+      -Dados Numéricos: Double
+    }
+}
+
+package "Banco de Dados" {
+    entity "PostgreSQL/PostGIS" as banco {
+      +AdicionarDados(): void
+      +AtualizarDados(): void
+      +ConsultarDados(): List
+    }
+}
+
+package "Análise de Dados" {
+    entity "Modelos de IA" as modelos {
+      -Supervisionado: String
+      -Agrupamento: String
+      +TreinarModelos(): void
+      +TestarModelos(): void
+    }
+    entity "MPM Preditivos" as mpmp {
+      -Prob. de Ocorrência: Double
+      -Precisão: Double
+    }
+    entity "Mapas Litológicos Preditivos" as mlp {
+      -Classes Litológicas: List
+      -Precisão: Double
+    }
+}
+
+package "Gestão de Dados" {
+    entity "Articulação de Folhas Cartográficas" as articulacao {
+      +DefinirEstrutura(): void
+      +PadronizarDados(): void
+    }
+
+}
+
+' Processo de Validação
+package "Geocientistas" {
+    entity "Validação e Análise\npor Especialistas" as validacao {
+      +ValidarResultados(): Boolean
+      +AnalisarPrecisão(): Double
+    }
+}
+
+' Relações Revisadas para Refletir o Novo Fluxo
+dados -down-> banco : "armazena ->"
+banco -down-> articulacao : "estrutura ->"
+articulacao -right-> modelos : "alimenta ->"
+modelos -up-> mlp : "gera ->"
+modelos -up-> mpmp : "gera ->"
+mlp -up-> validacao : "validação ->"
+mpmp -up-> validacao : "validação ->"
+validacao -down-> banco : "atualiza ->"
+
+@enduml

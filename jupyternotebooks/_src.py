@@ -48,7 +48,7 @@ def set_gdb(path=''):
 
         path : caminho até o  arquivo desejado
     '''
-    gdb = '/home/ggrl/database/' + path
+    gdb = '/home/database/' + path
     return gdb
 
 
@@ -89,10 +89,12 @@ def import_malha_cartog(escala='25k', ID=None, IDs=None):
     mc = gpd.read_file(set_gdb('geodatabase.gpkg'),
                        driver='GPKG',
                        layer='mc_' + escala)
+    print(mc.head())
     if IDs:
         mc_slct = gpd.GeoDataFrame()
         for id in tqdm(IDs):
-            mc_slct = mc_slct.append(mc[mc['id_folha'] == id])
+            mc_slct = mc_slct._append(mc[mc['id_folha'] == id])
+        return mc_slct
 
     elif ID:
         mc_slct = mc[mc['id_folha'].str.contains(ID)]
@@ -705,7 +707,8 @@ def plot_brazil(gdf, atributo=None):
 
 def plot_base(escala=None,ids=None,atributo=None, camada=None, mapa=None):
     litologia = importar_geometrias(camada, mapa)
-    gdf = import_malha_cartog(escala,ids)
+    gdf = import_malha_cartog(escala,IDs=ids)
+    gdf.set_geometry('geometry', inplace=True)
     gdf = gdf.boundary
     if atributo:
         ax = litologia.plot('SIGLA')

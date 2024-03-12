@@ -1,0 +1,95 @@
+\documentclass[12pt]{article}
+%\usepackage[margin=1in, paperwidth=35.43in, paperheight=47.24in]{geometry}
+\usepackage[a0paper, margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{lipsum} % Para gerar texto de exemplo
+\usepackage{anyfontsize}
+\usepackage{caption}
+% Configura para porguês do Brasil
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{parskip}
+\usepackage{ragged2e}
+
+% Configura a font padrão para Source Code Pro
+%\renewcommand*\familydefault{\ttdefault}
+% comando \textbf é Source Code Pro negrito
+%\renewcommand{\bfdefault}{sb}
+
+\begin{document}
+\pagestyle{empty} % Remove número de página e cabeçalhos
+
+% Título, autores, e filiação
+\begin{center}
+    \textbf{
+    {\fontsize{50}{60}\selectfont Da Terra ao Código: Integrando Dados Geológicos\\
+                                        à Inteligencia Computacional}\\[20mm] % Tamanho do título
+    {\fontsize{40}{48}\selectfont Gabriel Góes Rocha de Lima}\\[5mm] % Tamanho dos autores
+    {\fontsize{35}{42}\selectfont Universidade de São Paulo}\\[20mm] % Tamanho da filiação
+    \rule{1\textwidth}{0.4pt} % Linha horizontal
+    }
+\end{center}
+
+% Inserir logos
+\begin{tikzpicture}[remember picture,overlay]
+    \node[anchor=north west, yshift=-1.5cm, xshift=2cm] at (current page.north west) 
+        {\includegraphics[width=10cm]{../resumos/logo.png}}; % Ajuste o caminho e tamanho
+    \node[anchor=north east, yshift=-7.8cm, xshift=-1.8cm] at (current page.north east) 
+        {\includegraphics[width=15cm]{./IGC.png}}; % Ajuste o caminho e tamanho
+    \node[anchor=north east, yshift=-1.8cm, xshift=-5cm] at (current page.north east) 
+        {\includegraphics[width=10cm]{./INRS.png}}; % Ajuste o caminho e tamanho
+\end{tikzpicture}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Introdução
+\begin{minipage}[t]{\textwidth}
+\input{sections/introducao.tex}
+\begin{minipage}[t]{0.45\textwidth}
+% Fundamentação Teórica
+\input{sections/fundamentacao.tex}
+\end{minipage}
+% Espaço entre as colunas com o tamanho de 0.05 da largura do texto
+\hspace{0.05\textwidth}
+\begin{minipage}[t]{0.45\textwidth}
+% Metodologia
+\vspace{-41.5cm}
+\input{sections/metodologia.tex}
+\\[10mm]
+% Resultados Obtidos
+\input{sections/resultados.tex}
+\\[10mm]
+% Conclusão e Impacto
+\input{sections/conclusao.tex}
+\end{minipage}
+\end{minipage}
+\vfill
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Linha horizontau como footer antes das informações adicionais
+\begin{tikzpicture}[remember picture,overlay]
+% desenhe uma linha horizontal com textwidth de comprimento e 10cm acima do sul da página
+%     \draw (current page.south west) ++(2,10cm) -- ++(\textwidth,0);
+    \node[anchor=center, yshift=8.5cm] at (current page.south) 
+        {\noindent\rule{\textwidth}{2pt}};
+\end{tikzpicture}
+
+% Informações adicionais no rodapé
+\begin{tikzpicture}[remember picture,overlay]
+    \node[anchor=south west, yshift=7cm, xshift=-30cm] at (current page.south) 
+        {\fontsize{20}{26}\selectfont \textbf{Referências}: Karianne J. Bergen et al. ,Machine learning for data-driven discovery in solid Earth geoscience.Science363,eaau0323(2019).DOI:10.1126/science.aau0323};
+    \node[anchor=south west, yshift=4.5cm, xshift=-30cm] at (current page.south) 
+        {\fontsize{40}{46}\selectfont acesse os links ou entre em cotato.};
+    \node[anchor=south west, yshift=0.2cm, xshift=-39cm] at (current page.south) 
+        {\includegraphics[width=8cm]{./qrcode_github.com.png}}; % Ajuste o caminho e tamanho
+    \node[anchor=south west, yshift=2.5cm, xshift=-30cm] at (current page.south) 
+        {\fontsize{40}{46}\selectfont correio eletrônico: \textbf{gabrielgoes@usp.br}}; % Ajuste conforme necessário
+    \node[anchor=south west, yshift=1cm, xshift=-30cm] at (current page.south) 
+        {\fontsize{40}{46}\selectfont \textbf{www.github.com/Gabriel-Goes/mapeamento\_litologico\_preditivo}};
+    \node[anchor=south east, yshift=0cm, xshift=45cm] at (current page.south) 
+        {\includegraphics[width=25cm]{./IGC.png}}; % Ajuste o caminho e tamanho
+
+\end{tikzpicture}
+
+\end{document}
