@@ -43,29 +43,19 @@ Em jupyternotebooks temos os scripts de tutoriais e teste de código.
 Em source teremos o código fonte do programa Preditor Terra.
 
 ```
-.
-├── .git
-│
-├── docs
-│ ├── TempestadeCerebral # Notas autoexplicativas simulando Zettelkasten
-│ ├── plots              # Outputs gerados pelo algorítmo
-│ ├── relatorio_parcial  # Relatórios de Pesquisa
-│ └── uml                # Arquitetura do Software em formal UML
-│
-├── dotfiles             # Arquivos de configurações do ambiente
-│ └── environment.yml
-│
-├── jupyternotebooks     # JupyterNotebooks usados para testar e exemplificar
-│
-├── source               # Código-Fonte do Software
-│ ├── core
-│ ├── interface
-│ ├── old                # Código-Fonte antigo
-│ ├── utils
-│
-├── .gitignore
-│
-└── README.md            # Você está aqui.
+  docs
+    GPT
+    images
+    jupyternotebooks
+    posters
+    projetos
+    relatorios
+    resumos
+    uml
+  dotfiles
+  jupyternotebooks
+  source
+   README.md   # Você está aqui!
 ```
 
 ## Licença
