@@ -1,18 +1,85 @@
 # Projeto: Mapeamento Litológico Preditivo
+
 ## Preditor Terra
+
 ### Autor
 Gabriel Góes
 
 ### Correio eletrônico
 gabrielgoes@usp.br
+
 ### Licença
 GPL
 
-Este arquivo conterá uma breve introdução do projeto e um mapa dos diretórios e
-arquivos presentes nele. Assim como um breve explicação de suas funcionalidades.
-
 ## Sobre o Projeto
+Projeto que visa a produção de um sistema dinâmico de produção de mapas preditivos,
+no qual, ao se disponibilizar novos dados, novas predições serão geradas.
 
+@startuml PreditorTerra
+title Integração de Dados Geológicos e Modelos de IA
+!theme plain
+
+' Definição de Componentes
+package "Dados" {
+    entity "Dados Geológicos" as dados {
+      -Localização: Coordenadas
+      -Dados Categórigos: String
+      -Dados Numéricos: Double
+    }
+}
+
+package "Banco de Dados" {
+    entity "PostgreSQL/PostGIS" as banco {
+      +AdicionarDados(): void
+      +AtualizarDados(): void
+      +ConsultarDados(): List
+    }
+}
+
+package "Análise de Dados" {
+    entity "Modelos de IA" as modelos {
+      -Supervisionado: String
+      -Agrupamento: String
+      +TreinarModelos(): void
+      +TestarModelos(): void
+    }
+    entity "MPM Preditivos" as mpmp {
+      -Prob. de Ocorrência: Double
+      -Precisão: Double
+    }
+    entity "Mapas Litológicos Preditivos" as mlp {
+      -Classes Litológicas: List
+      -Precisão: Double
+    }
+}
+
+package "Gestão de Dados" {
+    entity "Articulação de Folhas Cartográficas" as articulacao {
+      +DefinirEstrutura(): void
+      +PadronizarDados(): void
+    }
+
+}
+
+' Processo de Validação
+package "Geocientistas" {
+    entity "Validação e Análise\npor Especialistas" as validacao {
+      +ValidarResultados(): Boolean
+      +AnalisarPrecisão(): Double
+    }
+}
+
+' Relações Revisadas para Refletir o Novo Fluxo
+dados -d-> banco : "armazena"
+banco -d-> articulacao : "estrutura"
+articulacao -r-> modelos : "alimenta"
+modelos -u-> mlp : "gera"
+modelos -u-> mpmp : "gera"
+mlp -u-> validacao : "validação"
+mpmp -u-> validacao : "validação"
+validacao -d-> banco : "atualiza"
+
+@enduml
 
 ## Instalação
 ```bash
@@ -74,7 +141,7 @@ Será adicionado neste arquivo uma lista de frentes a serem desenvolvidas e nece
  - Hilo Góes
 
 #### Apoio de:
-
+ - 
  - Victor S. Silva
  - Luiz Dutra
  - Rodrigo Brust

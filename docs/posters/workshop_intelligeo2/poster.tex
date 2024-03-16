@@ -13,13 +13,11 @@
 \usepackage{parskip}
 \usepackage{ragged2e}
 
-% Configura a font padrão para Source Code Pro
-%\renewcommand*\familydefault{\ttdefault}
-% comando \textbf é Source Code Pro negrito
-%\renewcommand{\bfdefault}{sb}
 
-\begin{document}
 \pagestyle{empty} % Remove número de página e cabeçalhos
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
 
 % Título, autores, e filiação
 \begin{center}
@@ -35,37 +33,15 @@
 % Inserir logos
 \begin{tikzpicture}[remember picture,overlay]
     \node[anchor=north west, yshift=-1.5cm, xshift=2cm] at (current page.north west) 
-        {\includegraphics[width=10cm]{../resumos/logo.png}}; % Ajuste o caminho e tamanho
+        {\includegraphics[width=10cm]{../../resumos/logo.png}}; % Ajuste o caminho e tamanho
     \node[anchor=north east, yshift=-7.8cm, xshift=-1.8cm] at (current page.north east) 
-        {\includegraphics[width=15cm]{./IGC.png}}; % Ajuste o caminho e tamanho
+        {\includegraphics[width=15cm]{../imgs/IGC.png}}; % Ajuste o caminho e tamanho
     \node[anchor=north east, yshift=-1.8cm, xshift=-5cm] at (current page.north east) 
-        {\includegraphics[width=10cm]{./INRS.png}}; % Ajuste o caminho e tamanho
+        {\includegraphics[width=10cm]{../imgs/INRS.png}}; % Ajuste o caminho e tamanho
 \end{tikzpicture}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Introdução
-\begin{minipage}[t]{\textwidth}
-\input{sections/introducao.tex}
-\begin{minipage}[t]{0.45\textwidth}
-% Fundamentação Teórica
-\input{sections/fundamentacao.tex}
-\end{minipage}
-% Espaço entre as colunas com o tamanho de 0.05 da largura do texto
-\hspace{0.05\textwidth}
-\begin{minipage}[t]{0.45\textwidth}
-% Metodologia
-\vspace{-41.5cm}
-\input{sections/metodologia.tex}
-\\[10mm]
-% Resultados Obtidos
-\input{sections/resultados.tex}
-\\[10mm]
-% Conclusão e Impacto
-\input{sections/conclusao.tex}
-\end{minipage}
-\end{minipage}
-\vfill
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{./corpo.tex}
+
 
 % Linha horizontau como footer antes das informações adicionais
 \begin{tikzpicture}[remember picture,overlay]
@@ -82,14 +58,15 @@
     \node[anchor=south west, yshift=4.5cm, xshift=-30cm] at (current page.south) 
         {\fontsize{40}{46}\selectfont acesse os links ou entre em cotato.};
     \node[anchor=south west, yshift=0.2cm, xshift=-39cm] at (current page.south) 
-        {\includegraphics[width=8cm]{./qrcode_github.com.png}}; % Ajuste o caminho e tamanho
+        {\includegraphics[width=8cm]{../imgs/qrcode_github.com.png}}; % Ajuste o caminho e tamanho
     \node[anchor=south west, yshift=2.5cm, xshift=-30cm] at (current page.south) 
         {\fontsize{40}{46}\selectfont correio eletrônico: \textbf{gabrielgoes@usp.br}}; % Ajuste conforme necessário
     \node[anchor=south west, yshift=1cm, xshift=-30cm] at (current page.south) 
         {\fontsize{40}{46}\selectfont \textbf{www.github.com/Gabriel-Goes/mapeamento\_litologico\_preditivo}};
     \node[anchor=south east, yshift=0cm, xshift=45cm] at (current page.south) 
-        {\includegraphics[width=25cm]{./IGC.png}}; % Ajuste o caminho e tamanho
-
+        {\includegraphics[width=25cm]{../imgs/IGC.png}}; % Ajuste o caminho e tamanho
 \end{tikzpicture}
+
+
 
 \end{document}

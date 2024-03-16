@@ -1,2 +1,26 @@
 % Arquivo para organizar e encapsular o conteúdo do Poster
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Introdução
+\begin{minipage}[t]{\textwidth}
+\input{sections/introducao.tex}
+\begin{minipage}[t]{0.45\textwidth}
+% Fundamentação Teórica
+\input{sections/fundamentacao.tex}
+\end{minipage}
+% Espaço entre as colunas com o tamanho de 0.05 da largura do texto
+\hspace{0.05\textwidth}
+\begin{minipage}[t]{0.45\textwidth}
+% Metodologia
+\vspace{-41.5cm}
+\input{sections/metodologia.tex}
+\\[10mm]
+% Resultados Obtidos
+\input{sections/resultados.tex}
+\\[10mm]
+% Conclusão e Impacto
+\input{sections/conclusao.tex}
+\end{minipage}
+\end{minipage}
+\vfill
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

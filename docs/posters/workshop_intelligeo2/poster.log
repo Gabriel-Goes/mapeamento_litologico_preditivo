@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Arch Linux) (preloaded format=pdflatex 2024.1.28)  12 MAR 2024 09:16
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Arch Linux) (preloaded format=pdflatex 2024.1.28)  15 MAR 2024 09:29
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -438,20 +438,20 @@ Package: ragged2e 2023/02/25 v3.4 ragged2e Package
 ) (./poster.aux)
 \openout1 = `poster.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 21.
-LaTeX Font Info:    ... okay on input line 21.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 21.
-LaTeX Font Info:    ... okay on input line 21.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 21.
-LaTeX Font Info:    ... okay on input line 21.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 21.
-LaTeX Font Info:    ... okay on input line 21.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 21.
-LaTeX Font Info:    ... okay on input line 21.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 21.
-LaTeX Font Info:    ... okay on input line 21.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 21.
-LaTeX Font Info:    ... okay on input line 21.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 20.
+LaTeX Font Info:    ... okay on input line 20.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -511,22 +511,22 @@ e
 ))
 Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: End \AtBeginDocument code.
-<../resumos/logo.png, id=4, 846.16125pt x 830.10126pt>
-File: ../resumos/logo.png Graphic file (type png)
-<use ../resumos/logo.png>
-Package pdftex.def Info: ../resumos/logo.png  used on input line 38.
+<../../resumos/logo.png, id=4, 846.16125pt x 830.10126pt>
+File: ../../resumos/logo.png Graphic file (type png)
+<use ../../resumos/logo.png>
+Package pdftex.def Info: ../../resumos/logo.png  used on input line 36.
 (pdftex.def)             Requested size: 284.52756pt x 279.12746pt.
-<./IGC.png, id=5, 353.1594pt x 104.5506pt>
-File: ./IGC.png Graphic file (type png)
-<use ./IGC.png>
-Package pdftex.def Info: ./IGC.png  used on input line 40.
+<../imgs/IGC.png, id=5, 353.1594pt x 104.5506pt>
+File: ../imgs/IGC.png Graphic file (type png)
+<use ../imgs/IGC.png>
+Package pdftex.def Info: ../imgs/IGC.png  used on input line 38.
 (pdftex.def)             Requested size: 426.79134pt x 126.34866pt.
-<./INRS.png, id=6, 198.5016pt x 115.1502pt>
-File: ./INRS.png Graphic file (type png)
-<use ./INRS.png>
-Package pdftex.def Info: ./INRS.png  used on input line 42.
+<../imgs/INRS.png, id=6, 198.5016pt x 115.1502pt>
+File: ../imgs/INRS.png Graphic file (type png)
+<use ../imgs/INRS.png>
+Package pdftex.def Info: ../imgs/INRS.png  used on input line 40.
 (pdftex.def)             Requested size: 284.52756pt x 165.05359pt.
-
+ (./corpo.tex
 (./sections/introducao.tex
 Underfull \hbox (badness 10000) in paragraph at lines 16--16
 
@@ -563,10 +563,11 @@ Underfull \hbox (badness 10000) in paragraph at lines 32--32
 
  []
 
-<../images/100k_brasilcont.pdf, id=8, 798.81015pt x 839.05475pt>
-File: ../images/100k_brasilcont.pdf Graphic file (type pdf)
-<use ../images/100k_brasilcont.pdf>
-Package pdftex.def Info: ../images/100k_brasilcont.pdf  used on input line 32.
+<../../images/100k_brasilcont.pdf, id=8, 798.81015pt x 839.05475pt>
+File: ../../images/100k_brasilcont.pdf Graphic file (type pdf)
+<use ../../images/100k_brasilcont.pdf>
+Package pdftex.def Info: ../../images/100k_brasilcont.pdf  used on input line 3
+2.
 (pdftex.def)             Requested size: 910.56404pt x 956.50676pt.
 
 ! LaTeX Error: There's no line here to end.
@@ -579,7 +580,7 @@ l.32 }
       % fecha fbox
 ? 
 )
-Overfull \hbox (57.70547pt too wide) in paragraph at lines 32--52
+Overfull \hbox (57.70547pt too wide) in paragraph at lines 32--10
 [][] 
  []
 
@@ -598,10 +599,10 @@ Underfull \hbox (badness 10000) in paragraph at lines 23--23
 
  []
 
-<imgs/PreditorTerraa.pdf, id=9, 594.72188pt x 432.57358pt>
-File: imgs/PreditorTerraa.pdf Graphic file (type pdf)
-<use imgs/PreditorTerraa.pdf>
-Package pdftex.def Info: imgs/PreditorTerraa.pdf  used on input line 23.
+<../imgs/PreditorTerraa.pdf, id=9, 594.72188pt x 432.57358pt>
+File: ../imgs/PreditorTerraa.pdf Graphic file (type pdf)
+<use ../imgs/PreditorTerraa.pdf>
+Package pdftex.def Info: ../imgs/PreditorTerraa.pdf  used on input line 23.
 (pdftex.def)             Requested size: 910.56404pt x 662.33705pt.
 ) (./sections/resultados.tex
 Underfull \hbox (badness 10000) in paragraph at lines 13--13
@@ -619,60 +620,62 @@ Underfull \hbox (badness 10000) in paragraph at lines 14--14
  []
 
 )
-Overfull \hbox (61.62119pt too wide) in paragraph at lines 23--65
+Overfull \hbox (61.62119pt too wide) in paragraph at lines 23--23
 [][]
  []
 
 
-Overfull \hbox (61.62119pt too wide) in paragraph at lines 23--65
+Overfull \hbox (61.62119pt too wide) in paragraph at lines 23--23
 []
  []
 
 
-Overfull \hbox (61.62119pt too wide) in paragraph at lines 23--65
+Overfull \hbox (61.62119pt too wide) in paragraph at lines 23--23
 []
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 23--65
+Underfull \hbox (badness 10000) in paragraph at lines 23--23
 
  []
 
-<./qrcode_github.com.png, id=10, 451.6875pt x 451.6875pt>
-File: ./qrcode_github.com.png Graphic file (type png)
-<use ./qrcode_github.com.png>
-Package pdftex.def Info: ./qrcode_github.com.png  used on input line 85.
+)
+<../imgs/qrcode_github.com.png, id=10, 451.6875pt x 451.6875pt>
+File: ../imgs/qrcode_github.com.png Graphic file (type png)
+<use ../imgs/qrcode_github.com.png>
+Package pdftex.def Info: ../imgs/qrcode_github.com.png  used on input line 61.
 (pdftex.def)             Requested size: 227.62204pt x 227.62827pt.
-File: ./IGC.png Graphic file (type png)
-<use ./IGC.png>
-Package pdftex.def Info: ./IGC.png  used on input line 91.
+File: ../imgs/IGC.png Graphic file (type png)
+<use ../imgs/IGC.png>
+Package pdftex.def Info: ../imgs/IGC.png  used on input line 67.
 (pdftex.def)             Requested size: 711.3189pt x 210.60027pt.
-[1
+ [1
 
 {/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}{/usr/share/texmf-dist/fonts
-/enc/dvips/cm-super/cm-super-t1.enc} <../resumos/logo.png> <./IGC.png> <./INRS.
-png> <../images/100k_brasilcont.pdf> <./imgs/PreditorTerraa.pdf
+/enc/dvips/cm-super/cm-super-t1.enc} <../../resumos/logo.png> <../imgs/IGC.png>
+ <../imgs/INRS.png> <../../images/100k_brasilcont.pdf> <../imgs/PreditorTerraa.
+pdf
 
-pdfTeX warning: pdflatex (file ./imgs/PreditorTerraa.pdf): PDF inclusion: multi
-ple pdfs with page group included in a single page
-> <./qrcode_github.com.png>] (./poster.aux) ) 
+pdfTeX warning: pdflatex (file ../imgs/PreditorTerraa.pdf): PDF inclusion: mult
+iple pdfs with page group included in a single page
+> <../imgs/qrcode_github.com.png>] (./poster.aux) ) 
 Here is how much of TeX's memory you used:
- 16331 strings out of 477985
- 327745 string characters out of 5840058
+ 16336 strings out of 477985
+ 327977 string characters out of 5840058
  1872388 words of memory out of 5000000
- 36247 multiletter control sequences out of 15000+600000
+ 36249 multiletter control sequences out of 15000+600000
  522759 words of font info for 51 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 84i,11n,89p,1074b,564s stack positions out of 10000i,1000n,20000p,200000b,200000s
-</usr/share/texmf-dist/fonts/type1
-/public/cm-super/sfbx1200.pfb></usr/share/texmf-dist/fonts/type1/public/cm-supe
-r/sfbx2074.pfb></usr/share/texmf-dist/fonts/type1/public/cm-super/sfbx2986.pfb>
-</usr/share/texmf-dist/fonts/type1/public/cm-super/sfbx3583.pfb></usr/share/tex
-mf-dist/fonts/type1/public/cm-super/sfrm1200.pfb></usr/share/texmf-dist/fonts/t
-ype1/public/cm-super/sfrm2074.pfb></usr/share/texmf-dist/fonts/type1/public/cm-
-super/sfrm2986.pfb></usr/share/texmf-dist/fonts/type1/public/cm-super/sfrm3583.
-pfb>
-Output written on poster.pdf (1 page, 1767303 bytes).
+ 84i,11n,89p,1094b,564s stack positions out of 10000i,1000n,20000p,200000b,200000s
+</usr/share/texmf-dist/fonts
+/type1/public/cm-super/sfbx1200.pfb></usr/share/texmf-dist/fonts/type1/public/c
+m-super/sfbx2074.pfb></usr/share/texmf-dist/fonts/type1/public/cm-super/sfbx298
+6.pfb></usr/share/texmf-dist/fonts/type1/public/cm-super/sfbx3583.pfb></usr/sha
+re/texmf-dist/fonts/type1/public/cm-super/sfrm1200.pfb></usr/share/texmf-dist/f
+onts/type1/public/cm-super/sfrm2074.pfb></usr/share/texmf-dist/fonts/type1/publ
+ic/cm-super/sfrm2986.pfb></usr/share/texmf-dist/fonts/type1/public/cm-super/sfr
+m3583.pfb>
+Output written on poster.pdf (1 page, 1767307 bytes).
 PDF statistics:
  10393 PDF objects out of 10688 (max. 8388607)
  6877 compressed objects within 69 object streams
