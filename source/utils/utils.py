@@ -26,7 +26,7 @@ def set_db(path=''):
 
         path : caminho até o  arquivo desejado
     '''
-    _DBpath = '/home/ggrl/database/' + path
+    _DBpath = '/home/database/' + path
 
     return _DBpath
 

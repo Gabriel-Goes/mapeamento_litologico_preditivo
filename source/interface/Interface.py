@@ -30,8 +30,8 @@ class PreditorTerraUI:
         print('              Interface do Preditor Terra             ')
         print('======================================================')
         # ---------------- Configuração do estilo da interface
-        self.setup_core()
         self.root = root
+        self.setup_core()
         self.setup_style()
         self.setup_ui()
         print(delimt)
@@ -95,7 +95,7 @@ def test_start(className='Preditor_Terra'):
     '''
     root = tk.Tk(className=className)
     app = PreditorTerraUI(root)
-    return app
+    return app, root
 
 
 # ----------------------------- MAINLOOP
