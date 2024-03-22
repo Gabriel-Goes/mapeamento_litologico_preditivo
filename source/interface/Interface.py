@@ -12,6 +12,9 @@ import tkinter as tk
 from tkinter import ttk
 
 # ---------------------------------------------------------------------------
+# Este módulo é responsável por criar a interface do Preditor Terra.
+# Servirá como ponto de entrada para o usuário interagir com o banco de dados e
+# algoritmos.
 
 
 # ------------------------------ INTERFACE ------------------------------------
@@ -95,7 +98,7 @@ def test_start(className='Preditor_Terra'):
     '''
     root = tk.Tk(className=className)
     app = PreditorTerraUI(root)
-    return app, root
+    return app
 
 
 # ----------------------------- MAINLOOP
