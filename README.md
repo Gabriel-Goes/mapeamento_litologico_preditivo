@@ -6,8 +6,7 @@ Projeto que visa a produção de um sistema dinâmico de produção de mapas
 preditivos, no qual, ao se disponibilizar novos dados, novas predições serão
 geradas.
 
-![image](/home/ggrl/projetos/PreditorTerra/docs/uml/uml_projeto.png)
-
+![image](./docs/uml/uml_projeto.png)
 
 ## Estrutura do Repositório
 O Repositório está estruturado em 4 caminhos principais:
