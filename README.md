@@ -47,6 +47,8 @@ chmod +x ./install.sh
 ./install.sh
 ```
 <span style="font-size:smaller;">_Este processo deve ser facilitando no futuro utilizando [docker]()_</span>
+<span style="font-size:smaller;">_Ou refatorando a interface de TKinter para PyQT e adicioanndo ao QGIS como um plugin_</span>
+
 
 ## Uso
 ```
