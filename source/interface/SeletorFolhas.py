@@ -8,6 +8,8 @@ from utils import reverse_meta_cartas, delimt
 # Import python Dictionary
 from typing import Dict
 
+from PlotFolhas import PlotFolhas
+
 
 # ------------------------------ CLASSES ------------------------------------
 class SeletorFolhas:
@@ -147,12 +149,14 @@ class SeletorFolhas:
             cartas_estudo: dicionário - dicionário de folhas que representa a
                 área de estudo
         '''
+        plot_folhas = PlotFolhas(self)
         combobox_values = self.combobox_folha['values']
         try:
             for folha_id in combobox_values:
                 self.folhas_estudo[folha_id] = self.cartas[folha_id]
 
             print(f' --> {len(self.folhas_estudo)} Folhas de Estudo')
+            plot_folhas.plot_folhas_estudo(self)
             return self.folhas_estudo
 
         except Exception as e:
@@ -161,7 +165,7 @@ class SeletorFolhas:
             print(f' !ERROR!: {e}')
             print('Parâmetros:')
             print(f' --> combobox_values: {combobox_values}')
-            print(f' --> self.cartas: {len(self.cartas)}')
+            # print(f' --> self.cartas: {len(self.cartas)}')
             print('')
 
     # Adiciona folha de estudo à área de estudo

@@ -3,7 +3,9 @@
 # Descrição: Classe para plotar as folhas de estudo no canvas.
 # source/interface/PlotFolhas.py
 # ---------- imports
-from utils import plotar, plotarInicial
+import pygmt
+from shapely.wkb import loads
+
 # -----------------------------------------------------------------------------
 
 
@@ -12,29 +14,31 @@ class PlotFolhas:
     '''
     Esta classe será responsável por atualizar o canvas com as folhas disponí
     veis no self.seletorFolhas.dicionario e self.seletorFolhas.folhaEstudo.
+    Utilizando a biblioteca pygmt para plotar as folhas.
     '''
 
-    def __init__(self, seletorFolhas, framePlot):
-        self.seletorFolhas = seletorFolhas
-        self.framePlot = framePlot
+    def __init__(self, folhas_estudo):
+        '''
+        Construtor da classe PlotFolhas.
+        '''
+        self.folhas_estudo = folhas_estudo
+
+    def plot_basemap(self):
+        '''
+        Método para plotar o basemap no canvas.
+        '''
+        fig = pygmt.Figure()
+        fig.basemap(region=[-85, -30, -55, 20], projection='M6i', frame=True)
+        fig.show()
 
     def plot_folha_estudo(self):
         '''
         Método para plotar a folha de estudo no canvas.
         '''
-        id_folha_estudo = self.seletorFolhas.folhaEstudo.folha_id
-        folhas = self.seletorFolhas.dicionario
-        # Limpa o canvas
-        self.seletorFolhas.ax.clear()
-        # Usa o utils.plotar para plotar a folha de estudo
-        if id_folha_estudo in folhas:
-            print(f' --> Plotando folha de estudo {id_folha_estudo}')
-            plotar({id_folha_estudo:
-                    folhas[id_folha_estudo]}, self.seletorFolhas.carta)
-
-    def redesenhar_canvas(self):
-        '''
-        Método para redesenhar o canvas.
-        '''
-        carta_1kk = self.seletorFolhas.dicionario['carta_1kk']
-        plotarInicial(carta_1kk)
+        fig = pygmt.Figure()
+        fig.basemap(region=[-45, -40, -23, -20], projection='M6i', frame=True)
+        fe = self.folhas_estudo
+        for key, value in fe:
+            poly = loads(value['geometry'].desc)
+            fig.plot(data=poly, style='p', color='black')
+        fig.show()

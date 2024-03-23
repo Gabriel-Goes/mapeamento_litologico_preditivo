@@ -1,6 +1,6 @@
 import os
 import matplotlib.pyplot as plt
-import geopandas as gpd
+import pygmt
 
 
 # funções e variáveis úteis podem ser adicionadas aqui conforme necessário
@@ -47,9 +47,9 @@ def float_range(start, stop, step):
 
 
 # define geometria do Brasil
-ibge = set_db('shapefiles/IBGE/')
-regioes = gpd.read_file(ibge + 'ANMS2010_06_grandesregioes.shp')
-brasil = regioes.unary_union
+# ibge = set_db('shapefiles/IBGE/')
+# regioes = gpd.read_file(ibge + 'ANMS2010_06_grandesregioes.shp')
+# brasil = regioes.unary_union
 
 
 def plotar(folhas, carta):
@@ -67,11 +67,6 @@ def plotar(folhas, carta):
         ax.annotate(folha_id, (centro.x, centro.y), color='black',
                     weight='bold', fontsize=6, ha='center', va='center')
 
-    for geom in brasil.geoms:
-        x, y = geom.exterior.xy
-        ax.plot(x, y, color='black', alpha=0.7, linewidth=0.3,
-                solid_capstyle='round', zorder=2)
-
     ax.set_title(f'Folhas da Carta {meta_cartas[carta]["escala"]}')
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
@@ -81,40 +76,21 @@ def plotar(folhas, carta):
     plt.show()
 
 
-def plotarInicial(carta):
+def plotarInicial():
     '''
+    Com pygmt visualiza a carta de 1:1.000.000.
     Plota a carta de 1:1.000.000.
     '''
-    # print(f' Iniciando plotagem da carta: {carta}')
-    # print('---------------------------------------------------')
-    plt.style.use('dark_background')
-    fig, ax = plt.subplots(figsize=(11.5, 7.7))
-    for _, row in carta.iterrows():
-        folha_id = row['folha_id']
-        poligono = row['geometry']
-        x, y = poligono.exterior.xy
-        ax.plot(x, y, color='white', alpha=0.7, linewidth=0.3,
-                solid_capstyle='round', zorder=2)
-        centro = poligono.centroid
-        ax.annotate(folha_id, (centro.x, centro.y), color='white',
-                    weight='bold', fontsize=6, ha='center', va='center')
+    print(' Iniciando plotagem da carta de 1:1.000.000.')
+    print('---------------------------------------------------')
+    fig = pygmt.Figure()
+    fig.basemap(region=[-80, -40, -70, 10], projection='M10i', frame=True)
+    fig.coast(land='black', water='skyblue')
+    fig.show()
 
-    for geom in brasil.geoms:
-        x, y = geom.exterior.xy
-        ax.plot(x, y, color='white', alpha=0.7, linewidth=0.3,
-                solid_capstyle='round', zorder=2)
+    print('---------------------------------------------------')
 
-    ax.set_title('Folhas da Carta 1:1.000.000')
-    ax.set_xlabel('Longitude')
-    ax.set_ylabel('Latitude')
-    ax.set_xlim(-80, -40)
-    ax.set_ylim(-70, 10)
-    ax.axis('scaled')
-
-    # print(f' Axis: {ax}')
-    # print('---------------------------------------------------')
-
-    return fig, ax
+    return fig
 
 
 meta_cartas = {

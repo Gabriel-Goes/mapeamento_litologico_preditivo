@@ -6,6 +6,7 @@
 from AbrirFolhas import AbrirFolhas
 from ManipulaFolhas import ManipularFolhas
 from FrameSeletor import FrameSeletor
+from FramePlot import FramePlot
 from utils import delimt
 
 import tkinter as tk
@@ -73,6 +74,10 @@ class PreditorTerraUI:
         self.frame_seletor = FrameSeletor(self.admin_folhas,
                                           self.main_frame,
                                           self.style)
+        # ------------------- Visualização de Folhas - Frame
+        self.frame_plot = FramePlot(self.frame_seletor,
+                                    self.main_frame,
+                                    self.style)
 
     # Configura estilo do root para darkmode
     def setup_style(self):
