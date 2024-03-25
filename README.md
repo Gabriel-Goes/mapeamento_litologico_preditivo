@@ -8,17 +8,73 @@ geradas.
 
 ![image](./docs/uml/uml_projeto.png)
 
+## Por que usar uma base de dados relacional?
+
+### Testando a performance de consultas espaciais
+```
+geodatabase=# 
+EXPLAIN ANALYZE
+SELECT * FROM folhas_cartograficas
+WHERE ST_Intersects(wkb_geometry, ST_MakeEnvelope(-48.234, -10.939, -47.850, -10.469, 4326));
+                                                                                                                      QUERY PLAN
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------
+ Bitmap Heap Scan on folhas_cartograficas  (cost=4.40..248.03 rows=15 width=146) (actual time=0.298..0.498 rows=96 loops=1)
+   Filter: st_intersects(wkb_geometry, '0103000020E61000000100000005000000CBA145B6F31D48C054E3A59BC4E025C0CBA145B6F31D48C0E3A59BC420F024C0CDCCCCCCCCEC47C0E3A59BC420F024C0CDCCCCC
+CCCEC47C054E3A59BC4E025C0CBA145B6F31D48C054E3A59BC4E025C0'::geometry)
+   Heap Blocks: exact=45
+   ->  Bitmap Index Scan on ix_folhas_cartograficas_geom  (cost=0.00..4.39 rows=15 width=0) (actual time=0.208..0.208 rows=96 loops=1)
+         Index Cond: (wkb_geometry && '0103000020E61000000100000005000000CBA145B6F31D48C054E3A59BC4E025C0CBA145B6F31D48C0E3A59BC420F024C0CDCCCCCCCCEC47C0E3A59BC420F024C0CDCCCCCC
+CCEC47C054E3A59BC4E025C0CBA145B6F31D48C054E3A59BC4E025C0'::geometry)
+ Planning Time: 0.741 ms
+ Execution Time: 0.530 ms
+(7 linhas)
+```
+
+### Desabilitando os índices espaciais para testar a performance
+
+```
+geodatabase=#
+SET enable_seqscan TO OFF;
+SET enable_indexscan TO OFF;
+SET enable_bitmapscan TO OFF;
+
+EXPLAIN ANALYZE
+SELECT * FROM folhas_cartograficas
+WHERE ST_Intersects(wkb_geometry, ST_MakeEnvelope(-48.234, -10.939, -47.850, -10.469, 4326));
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------
+ Bitmap Heap Scan on folhas_cartograficas  (cost=10000000004.40..10000000248.03 rows=15 width=146) (actual time=43.543..43.663 rows=96 loops=1)
+   Filter: st_intersects(wkb_geometry, '0103000020E61000000100000005000000CBA145B6F31D48C054E3A59BC4E025C0CBA145B6F31D48C0E3A59BC420F024C0CDCCCCCCCCEC47C0E3A59BC420F024C0CDCCCCC
+CCCEC47C054E3A59BC4E025C0CBA145B6F31D48C054E3A59BC4E025C0'::geometry)
+   Heap Blocks: exact=45
+   ->  Bitmap Index Scan on ix_folhas_cartograficas_geom  (cost=0.00..4.39 rows=15 width=0) (actual time=0.123..0.124 rows=96 loops=1)
+         Index Cond: (wkb_geometry && '0103000020E61000000100000005000000CBA145B6F31D48C054E3A59BC4E025C0CBA145B6F31D48C0E3A59BC420F024C0CDCCCCCCCCEC47C0E3A59BC420F024C0CDCCCCCC
+CCEC47C054E3A59BC4E025C0CBA145B6F31D48C054E3A59BC4E025C0'::geometry)
+ Planning Time: 0.187 ms
+ JIT:
+   Functions: 2
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+   Timing: Generation 0.084 ms, Inlining 33.757 ms, Optimization 5.128 ms, Emission 4.506 ms, Total 43.475 ms
+ Execution Time: 62.021 ms
+(11 linhas)
+```
+
 ## Estrutura do Repositório
 O Repositório está estruturado em 4 caminhos principais:
 
 ```
-   docs
-  dotfiles
-  dotfiles
-  jupyternotebooks
-  source
-   README.md   # Você está aqui!
+~/projetos/PreditorTerra/..
++-- docs
++-- dotfiles
++-- jupyternotebooks
++-- source
++-- install.sh
++-- README.md
 ```
+
 - [docs](https://github.com/Gabriel-Goes/mapeamento_litologico_preditivo/tree/main/docs) -- Documentos que fornecem informações sobre o projeto, assim
 como relatórios de pesquisa, resumos e pôsters de eventos.
 - [dotfiles](https://github.com/Gabriel-Goes/mapeamento_litologico_preditivo/tree/main/dotfiles) --  Arquivos de configuração do ambiente de programação, como

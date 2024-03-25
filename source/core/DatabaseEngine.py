@@ -8,7 +8,7 @@
 # ------------------------------- IMPORTS ------------------------------------
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 
 # ------------------------------ PARAMETR ------------------------------------
@@ -20,7 +20,7 @@ Base = declarative_base()
 class DatabaseEngine:
     _instance = None
 
-    def __new__(cls, ulr=url):
+    def __new__(cls, url=url):
         if cls._instance is None:
             cls._instance = super(DatabaseEngine, cls).__new__(cls)
             cls._instance.engine = create_engine(url)

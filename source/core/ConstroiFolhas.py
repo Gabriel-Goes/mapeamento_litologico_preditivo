@@ -1,5 +1,6 @@
 # Autor: Gabriel Góes Rocha de Lima
 # Data: 01/02/2024
+# Modificado: 24/03/2024
 # source/core/ConstruirFolhas.py
 # Última modificação: 09/03/2024
 # ---------------------------------------------------------------------------
@@ -13,16 +14,28 @@
 # ------------------------------ IMPORTS ------------------------------------
 import math
 from tqdm import tqdm
-from shapely.geometry import mapping, Polygon
+from shapely.geometry import mapping
+from shapely. geometry import Polygon
 
 import fiona
 from fiona.crs import CRS
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import Index
+
 from geoalchemy2 import Geometry
 
-from utils.utils import set_db, float_range, meta_cartas, brasil, delimt
-from DatabaseEngine import DatabaseEngine, Base
+from utils import get_epsg
+from utils import set_db
+from utils import float_range
+from utils import meta_cartas
+from utils import brasil
+from utils import delimt
+
+from DatabaseEngine import DatabaseEngine
+from DatabaseEngine import Base
 
 # ------------------------------ PARAMETROS ---------------------------------
 
@@ -33,35 +46,19 @@ class CartografiaSistematica(Base):
     Esta classe é responsável por criar as folhas de meta_cartas de acordo com
     a escala.
 
-    Exemplo:
-        cs = CartografiaSistematica()
-        cs.criar_folhas_de_meta_cartas('1kk')
-        carta_1kk = cs.folhas
-        cs.criar_folhas_de_meta_cartas('500k')
-        carta_500k = cs.folhas
-        cs.criar_folhas_de_meta_cartas('250k')
-        folhas_250k = cs.folhas
-        cs.criar_folhas_de_meta_cartas('100k')
-        carta_100k = cs.folhas
-        cs.criar_folhas_de_meta_cartas('50k')
-        carta_50k = cs.folhas
-        cs.criar_folhas_de_meta_cartas('25k')
-        carta_25k = cs.folhas
-
-        # lista de meta_cartas
-        lista_meta_cartas = [carta_1kk, carta_500k, carta_250k,
-                        carta_100k, carta_50k, carta_25k]
-
-        # Salvar folhas de meta_cartas
-        [cs.salvar_folhas_de_meta_cartas(carta) for carta in lista_cartas]
-
     '''
     __tablename__ = 'folhas_cartograficas'
     fid = Column(Integer, primary_key=True, autoincrement=True)
     wkb_geometry = Column(Geometry('POLYGON'))
-    folha_id = Column(String, nullable=False)
+    codigo = Column(String, nullable=False)
     epsg = Column(String, nullable=False)
     escala = Column(String, nullable=False)
+
+    __table_args__ = (
+        Index('ix_folhas_cartograficas_geom',
+              'wkb_geometry',
+              postgresql_using='gist'),
+    )
 
     # Construtor da classe CartografiaSistematica
     def __init__(self):
@@ -86,55 +83,48 @@ class CartografiaSistematica(Base):
         if top < bottom:
             print('Norte deve ser maior que Sul')
         else:
-            folha_id = ''
+            codigo = ''
             if top <= 0:
-                folha_id += 'S'
+                codigo += 'S'
                 index = math.floor(-top / 4)
             else:
-                folha_id += 'N'
+                codigo += 'N'
                 index = math.floor(bottom / 4)
             numero = math.ceil((180 + right) / 6)
-            folha_id += e1kk[index] + str(numero)
+            codigo += e1kk[index] + str(numero)
             lat_gap = abs(top - bottom)
             # p500k-----------------------
             if lat_gap <= 2:
                 LO = math.ceil(right / 3) % 2 == 0
                 NS = math.ceil(top / 2) % 2 != 0
-                folha_id += '_' + e500k[LO][NS]
+                codigo += '_' + e500k[LO][NS]
             # p250k-----------------------
             if lat_gap <= 1:
                 LO = math.ceil(right / 1.5) % 2 == 0
                 NS = math.ceil(top) % 2 != 0
-                folha_id += e250k[LO][NS]
+                codigo += e250k[LO][NS]
             # p100k-----------------------
             if lat_gap <= 0.5:
                 LO = (math.ceil(right / 0.5) % 3) - 1
                 NS = math.ceil(top / 0.5) % 2 != 0
-                folha_id += '_' + e100k[LO][NS]
+                codigo += '_' + e100k[LO][NS]
             # p50k------------------------
             if lat_gap <= 0.25:
                 LO = math.ceil(right / 0.25) % 2 == 0
                 NS = math.ceil(top / 0.25) % 2 != 0
-                folha_id += e50k[LO][NS]
+                codigo += e50k[LO][NS]
             # p25k------------------------
             if lat_gap <= 0.125:
                 LO = math.ceil(right / 0.125) % 2 == 0
                 NS = math.ceil(top / 0.125) % 2 != 0
-                folha_id += e25k[LO][NS]
-            return folha_id
+                codigo += e25k[LO][NS]
+            return codigo
 
     def arredondar(self, numero, multiplo, arredondar_para_cima=False):
         if arredondar_para_cima:
             return math.ceil(numero / multiplo) * multiplo
         else:
             return math.floor(numero / multiplo) * multiplo
-
-    @staticmethod
-    def get_epsg(folha_id):
-        if folha_id.startswith('S'):
-            return '327' + folha_id[2:4]
-        else:
-            return '326' + folha_id[2:4]
 
     # Método para criar as folhas de meta_cartas
     def criar_folhas(self, carta):
@@ -170,14 +160,14 @@ class CartografiaSistematica(Base):
                 # Seleciona apenas poligonos que intersectam com o Brasil
                 if polygon.intersects(brasil):
                     left, bottom, right, top = polygon.bounds
-                    folha_id = self.gerar_id(left,
-                                             right,
-                                             top,
-                                             bottom)
-                    self.folhas[folha_id] = polygon
+                    codigo = self.gerar_id(left,
+                                           right,
+                                           top,
+                                           bottom)
+                    self.folhas[codigo] = polygon
         print(delimt)
 
-        return self.carta
+        return self.folhas
 
     # Método para salvar as camadas em um geopackage com fiona
     def salvar_folhas_gpkg(self, folhas=None, file_name='fc.gpkg'):
@@ -194,7 +184,7 @@ class CartografiaSistematica(Base):
         # Esquema para geopackage
         schema = {
             'geometry': 'Polygon',
-            'properties': {'folha_id': 'str',
+            'properties': {'codigo': 'str',
                            'epsg': 'str'}
         }
         # Define o CRS como WGS84
@@ -205,12 +195,12 @@ class CartografiaSistematica(Base):
         with fiona.open(set_db(file_name), 'w', driver='GPKG',
                         crs=crs, layer=layer_name, schema=schema) as layer:
 
-            for folha_id, poligono in folhas.items():
-                epsg_code = self.get_epsg(folha_id)
+            for codigo, poligono in folhas.items():
+                epsg_code = get_epsg(codigo)
                 # Adiciona o poligono e o id da folha no geopackage
                 element = {
                     'geometry': mapping(poligono),
-                    'properties': {'folha_id': folha_id,
+                    'properties': {'codigo': codigo,
                                    'epsg': epsg_code}
                 }
                 layer.write(element)
@@ -226,74 +216,40 @@ class CartografiaSistematica(Base):
             print('Crie as folhas cartográficas primeiro')
             return
         print(f' -> Salvando folhas de carta {self.carta} no banco de dados\n')
-
         session = DatabaseEngine.get_session()
-
         try:
             # Itera sobre as folhas e adiciona ao banco de dados
-            for folha_id, poligono in self.folhas.items():
-                epsg_code = self.get_epsg(folha_id)
-
+            for codigo, poligono in self.folhas.items():
                 nova_folha = CartografiaSistematica()
-                nova_folha.folha_id = folha_id
+                nova_folha.codigo = codigo
+                epsg_code = get_epsg(codigo)
                 nova_folha.epsg = epsg_code
-                nova_folha.wkb_geometry = 'SRID={};{}'.format(epsg_code,
+                nova_folha.wkb_geometry = 'SRID={};{}'.format(4326,
                                                               poligono.wkt)
                 nova_folha.escala = self.carta
-
+                print(nova_folha.__tablename__)
                 session.add(nova_folha)
             # Salva as folhas no banco de dados
             session.commit()
-
         except Exception as e:
             print(f' Erro ao salvar folhas no banco de dados: - {e}')
             session.rollback()
-
         session.close()
 
 
-def constroi_folhas():
+def test():
     '''
     Função para criar folhas de meta_cartas de acordo com a escala (Carta).
     '''
     print(delimt)
     print(' -> Criando folhas de meta_cartas')
     print(delimt)
-    cs = CartografiaSistematica
-# Teste da classe DicionarioFolhas
-# 1 : 1.000.000
-    folhas_1kk = cs()
-    folhas_1kk.criar_folhas('1kk')
-
-# 1 : 500.000
-    folhas_500k = cs()
-    folhas_500k.criar_folhas('500k')
-
-# 1 : 250.000
-    folhas_250k = cs()
-    folhas_250k.criar_folhas('250k')
-
-# 1 : 100.000
-    folhas_100k = cs()
-    folhas_100k.criar_folhas('100k')
-
-# 1 : 50.000
-    folhas_50k = cs()
-    folhas_50k.criar_folhas('50k')
-
-# 1 : 25.000
-    folhas_25k = cs()
-    folhas_25k.criar_folhas('25k')
-
-# Lista de meta_cartas
-    lista_meta_cartas = [folhas_1kk, folhas_500k, folhas_250k,
-                         folhas_100k, folhas_50k, folhas_25k]
-
-# Salvar meta_cartas em um geopackage
-#     [carta.salvar_folhas_gpkg() for carta in lista_meta_cartas]
-
-# Salvar meta_cartas em um banco de dados
-    [carta.salvar_folhas_geodatabase() for carta in lista_meta_cartas]
+    cs = CartografiaSistematica()
+    for carta in meta_cartas:
+        print(carta)
+        cs.criar_folhas(carta=carta)
+        cs.salvar_folhas_geodatabase()
+        # cs.salvar_folhas_gpkg()
 
 
 # ----------------------- MAIN -----------------------------------------------
@@ -301,4 +257,4 @@ if __name__ == "__main__":
     print('')
     print(' Executando Script: ConstruirFolhas.py')
     print(delimt)
-    constroi_folhas()
+    test()

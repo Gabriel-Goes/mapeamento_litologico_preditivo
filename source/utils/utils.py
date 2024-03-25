@@ -1,6 +1,7 @@
 import os
 import matplotlib.pyplot as plt
 import pygmt
+import geopandas as gpd
 
 
 # funções e variáveis úteis podem ser adicionadas aqui conforme necessário
@@ -46,10 +47,17 @@ def float_range(start, stop, step):
         start += step
 
 
+def get_epsg(folha_id):
+    if folha_id.startswith('S'):
+        return '327' + folha_id[2:4]
+    else:
+        return '326' + folha_id[2:4]
+
+
 # define geometria do Brasil
-# ibge = set_db('shapefiles/IBGE/')
-# regioes = gpd.read_file(ibge + 'ANMS2010_06_grandesregioes.shp')
-# brasil = regioes.unary_union
+ibge = set_db('shapefiles/IBGE/')
+regioes = gpd.read_file(ibge + 'ANMS2010_06_grandesregioes.shp')
+brasil = regioes.unary_union
 
 
 def plotar(folhas, carta):
