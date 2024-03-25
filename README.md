@@ -12,54 +12,56 @@ geradas.
 
 ### Testando a performance de consultas espaciais
 ```
-geodatabase=# 
-EXPLAIN ANALYZE
+geodatabase=# EXPLAIN ANALYZE
 SELECT * FROM folhas_cartograficas
 WHERE ST_Intersects(wkb_geometry, ST_MakeEnvelope(-48.234, -10.939, -47.850, -10.469, 4326));
                                                                                                                       QUERY PLAN
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------
- Bitmap Heap Scan on folhas_cartograficas  (cost=4.40..248.03 rows=15 width=146) (actual time=0.298..0.498 rows=96 loops=1)
+ Bitmap Heap Scan on folhas_cartograficas  (cost=4.40..248.03 rows=15 width=146) (actual time=0.149..0.261 rows=96 loops=1)
    Filter: st_intersects(wkb_geometry, '0103000020E61000000100000005000000CBA145B6F31D48C054E3A59BC4E025C0CBA145B6F31D48C0E3A59BC420F024C0CDCCCCCCCCEC47C0E3A59BC420F024C0CDCCCCC
 CCCEC47C054E3A59BC4E025C0CBA145B6F31D48C054E3A59BC4E025C0'::geometry)
    Heap Blocks: exact=45
-   ->  Bitmap Index Scan on ix_folhas_cartograficas_geom  (cost=0.00..4.39 rows=15 width=0) (actual time=0.208..0.208 rows=96 loops=1)
+   ->  Bitmap Index Scan on ix_folhas_cartograficas_geom  (cost=0.00..4.39 rows=15 width=0) (actual time=0.125..0.125 rows=96 loops=1)
          Index Cond: (wkb_geometry && '0103000020E61000000100000005000000CBA145B6F31D48C054E3A59BC4E025C0CBA145B6F31D48C0E3A59BC420F024C0CDCCCCCCCCEC47C0E3A59BC420F024C0CDCCCCCC
 CCEC47C054E3A59BC4E025C0CBA145B6F31D48C054E3A59BC4E025C0'::geometry)
- Planning Time: 0.741 ms
- Execution Time: 0.530 ms
+ Planning Time: 0.240 ms
+ Execution Time: 0.285 ms
 (7 linhas)
 ```
-
-### Desabilitando os índices espaciais para testar a performance
-
+### Testando a eficiência de consultas espaciais sem uso de índices
 ```
-geodatabase=#
-SET enable_seqscan TO OFF;
+
+geodatabase=# SET enable_seqscan TO OFF;
 SET enable_indexscan TO OFF;
 SET enable_bitmapscan TO OFF;
 
 EXPLAIN ANALYZE
 SELECT * FROM folhas_cartograficas
 WHERE ST_Intersects(wkb_geometry, ST_MakeEnvelope(-48.234, -10.939, -47.850, -10.469, 4326));
+SET
+SET
+SET
+                                                                                                                      QUERY PLAN
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------
- Bitmap Heap Scan on folhas_cartograficas  (cost=10000000004.40..10000000248.03 rows=15 width=146) (actual time=43.543..43.663 rows=96 loops=1)
+ Bitmap Heap Scan on folhas_cartograficas  (cost=10000000004.40..10000000248.03 rows=15 width=146) (actual time=10.291..10.439 rows=96 loops=1)
    Filter: st_intersects(wkb_geometry, '0103000020E61000000100000005000000CBA145B6F31D48C054E3A59BC4E025C0CBA145B6F31D48C0E3A59BC420F024C0CDCCCCCCCCEC47C0E3A59BC420F024C0CDCCCCC
 CCCEC47C054E3A59BC4E025C0CBA145B6F31D48C054E3A59BC4E025C0'::geometry)
    Heap Blocks: exact=45
-   ->  Bitmap Index Scan on ix_folhas_cartograficas_geom  (cost=0.00..4.39 rows=15 width=0) (actual time=0.123..0.124 rows=96 loops=1)
+   ->  Bitmap Index Scan on ix_folhas_cartograficas_geom  (cost=0.00..4.39 rows=15 width=0) (actual time=0.161..0.161 rows=96 loops=1)
          Index Cond: (wkb_geometry && '0103000020E61000000100000005000000CBA145B6F31D48C054E3A59BC4E025C0CBA145B6F31D48C0E3A59BC420F024C0CDCCCCCCCCEC47C0E3A59BC420F024C0CDCCCCCC
 CCEC47C054E3A59BC4E025C0CBA145B6F31D48C054E3A59BC4E025C0'::geometry)
- Planning Time: 0.187 ms
+ Planning Time: 0.211 ms
  JIT:
    Functions: 2
    Options: Inlining true, Optimization true, Expressions true, Deforming true
-   Timing: Generation 0.084 ms, Inlining 33.757 ms, Optimization 5.128 ms, Emission 4.506 ms, Total 43.475 ms
- Execution Time: 62.021 ms
+   Timing: Generation 0.182 ms, Inlining 0.572 ms, Optimization 5.013 ms, Emission 4.511 ms, Total 10.279 ms
+ Execution Time: 10.686 ms
 (11 linhas)
+
 ```
 
 ## Estrutura do Repositório
