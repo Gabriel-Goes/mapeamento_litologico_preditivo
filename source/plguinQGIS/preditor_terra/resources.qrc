@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/plugins/preditor_terra" >
+        <file>icon.png</file>
+    </qresource>
+</RCC>
