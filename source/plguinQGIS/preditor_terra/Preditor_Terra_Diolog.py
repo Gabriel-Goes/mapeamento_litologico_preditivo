@@ -29,7 +29,7 @@ from qgis.PyQt import QtWidgets
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'preditor_terra_dialog_base.ui'))
+    os.path.dirname(__file__), 'Preditor_Terra.ui'))
 
 
 class PreditorTerraDialog(QtWidgets.QDialog, FORM_CLASS):

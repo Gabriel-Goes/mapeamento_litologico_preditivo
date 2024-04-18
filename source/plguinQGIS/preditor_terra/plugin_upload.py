@@ -9,6 +9,7 @@ import sys
 import getpass
 import xmlrpc.client
 from optparse import OptionParser
+import standard_library.install_aliases
 
 standard_library.install_aliases()
 
