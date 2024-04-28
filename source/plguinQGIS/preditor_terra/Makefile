@@ -1,9 +1,9 @@
 #/***************************************************************************
 # PreditorTerra
 #
-# Este cria mapas litológicos preditivos.
+# Classificador Litológico
 #							 -------------------
-#		begin				: 2024-04-02
+#		begin				: 2024-04-18
 #		git sha				: $Format:%H$
 #		copyright			: (C) 2024 by Gabriel Góes Rocha de Lima/IGc-USP
 #		email				: gabrielgoes@usp.br
@@ -38,15 +38,15 @@ LOCALES =
 # translation
 SOURCES = \
 	__init__.py \
-	preditor_terra.py preditor_terra_dialog.py
+	preditor_terra.py preditor_terra_dockwidget.py
 
 PLUGINNAME = preditor_terra
 
 PY_FILES = \
 	__init__.py \
-	preditor_terra.py preditor_terra_dialog.py
+	preditor_terra.py preditor_terra_dockwidget.py
 
-UI_FILES = preditor_terra_dialog_base.ui
+UI_FILES = preditor_terra_dockwidget_base.ui
 
 EXTRAS = metadata.txt icon.png
 

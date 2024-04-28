@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>PreditorTerraDockWidgetBase</class>
+ <widget class="QDockWidget" name="PreditorTerraDockWidgetBase">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>380</width>
+    <height>612</height>
+   </rect>
+  </property>
+  <property name="font">
+   <font>
+    <family>Hermit</family>
+   </font>
+  </property>
+  <property name="cursor">
+   <cursorShape>SizeFDiagCursor</cursorShape>
+  </property>
+  <property name="windowTitle">
+   <string>Preditor Terra</string>
+  </property>
+  <widget class="QWidget" name="dockWidgetContents">
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="0">
+     <widget class="QComboBox" name="comboBox"/>
+    </item>
+   </layout>
+  </widget>
+  <action name="actiontest">
+   <property name="text">
+    <string>test</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>actiontest</sender>
+   <signal>changed()</signal>
+   <receiver>PreditorTerraDockWidgetBase</receiver>
+   <slot>update()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>189</x>
+     <y>305</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

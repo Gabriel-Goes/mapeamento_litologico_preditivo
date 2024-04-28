@@ -5,15 +5,15 @@
 [general]
 name=Preditor Terra
 qgisMinimumVersion=3.0
-description=Este cria mapas litológicos preditivos.
+description=Classificador Litológico
 version=0.1
 author=Gabriel Góes Rocha de Lima/IGc-USP
 email=gabrielgoes@usp.br
 
-about=Automatiza o processo de produção de mapas litógicos preditivos.
+about=Aprendizagem de Máquina para classificar rochas aflorantes a partir de dados remotos.
 
-tracker=http://bugs
-repository=https://github.com/Gabriel-Goes/mapeamento_litologico_preditivo.git
+tracker=https://github.com/Gabriel-Goes/mapeamento_litologico_preditivo
+repository=https://github.com/Gabriel-Goes/mapeamento_litologico_preditivo
 # End of mandatory metadata
 
 # Recommended items:
@@ -23,9 +23,9 @@ hasProcessingProvider=no
 # changelog=
 
 # Tags are comma separated with spaces allowed
-tags=analysis, remote sensing
+tags=
 
-homepage=http://homepage
+homepage=https://github.com/Gabriel-Goes/mapeamento_litologico_preditivo
 category=Plugins
 icon=icon.png
 # experimental flag
