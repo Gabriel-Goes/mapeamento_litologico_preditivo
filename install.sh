@@ -16,7 +16,7 @@ then
     echo "Git instalado com sucesso!"
     else
         echo "Não foi possível instalar o Git automaticamente."
-        echo "Por favor, instale o Git manualmente visitando: https://git-scm.com/downloads" 
+        echo "Por favor, instale o Git manualmente visitando: https://git-scm.com/downloads"
         exit 1
 fi
 #
@@ -33,7 +33,7 @@ then
     echo "Python instalado com sucesso!"
     else
         echo "Não foi possível instalar o Python automaticamente."
-        echo "Por favor, instale o Python manualmente visitando: https://www.python.org/downloads/" 
+        echo "Por favor, instale o Python manualmente visitando: https://www.python.org/downloads/"
         exit 1
 fi
 
@@ -50,7 +50,7 @@ then
     echo "Pip instalado com sucesso!"
     else
         echo "Não foi possível instalar o Pip automaticamente."
-        echo "Por favor, instale o Pip manualmente visitando: https://pip.pypa.io/en/stable/installation/" 
+        echo "Por favor, instale o Pip manualmente visitando: https://pip.pypa.io/en/stable/installation/"
         exit 1
     fi
 fi

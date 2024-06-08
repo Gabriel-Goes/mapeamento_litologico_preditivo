@@ -11,8 +11,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String
 from geoalchemy2 import Geometry
 
-from utils import set_db, gdb_url, delimt
-from DatabaseEngine import DatabaseEngine
+from utils.utils import set_db, gdb_url, delimt
+from databaseengine import DatabaseEngine
 
 from typing import Dict
 

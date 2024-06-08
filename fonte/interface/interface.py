@@ -3,11 +3,11 @@
 # ---------------------------------------------------------------------------
 # sourcuce/interface/Interface.py
 # # ------------------------------ IMPORTS ------------------------------------
-from AbrirFolhas import AbrirFolhas
-from ManipulaFolhas import ManipularFolhas
-from FrameSeletor import FrameSeletor
-from FramePlot import FramePlot
-from utils import delimt
+from nucleo.abrirfolhas import AbrirFolhas
+from nucleo.manipulafolhas import ManipularFolhas
+from nucleo.frameseletor import FrameSeletor
+from nucleo.frameplot import FramePlot
+from utils.utils import delimt
 
 import tkinter as tk
 from tkinter import ttk
