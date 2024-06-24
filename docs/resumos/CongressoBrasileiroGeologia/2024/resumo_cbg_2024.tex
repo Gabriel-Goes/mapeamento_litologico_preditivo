@@ -1,0 +1,41 @@
+\documentclass{article}
+\pagenumbering{gobble}
+\pagestyle{empty}
+\usepackage[utf8]{inputenc}
+\usepackage{parskip}
+\usepackage{setspace}
+\singlespacing
+\usepackage{geometry}
+\geometry{
+    a4paper,
+    left=30mm,
+    right=30mm,
+    top=25mm,
+    bottom=25mm
+}
+\usepackage{fontspec}
+\setmainfont{Arial}
+\newfontface\italicfont{Arial Italic}
+
+\begin{document}
+
+\begin{center}
+    \fontsize{12}{14}\textbf{\uppercase{Da terra ao código: Integrando Dados Geológicos à Inteligência Computacional}}\\
+    \fontsize{11}{13}\textit{de Lima, GGR¹}\\
+    \fontsize{10}{12}¹Instituto de Geociências, Universidade de São Paulo - IGc/USP\\
+\end{center}
+
+\par{
+    \fontsize{12}{14}\textbf{Resumo: }Este projeto propõe a criação de uma abordagem integrada que combina bases de dados geológicos a modelos de classificação litológica e produção de mapas prospectivos minerais preditivos. Em fase conceitual, esta iniciativa busca estabelecer uma colaboração multidisciplinar entre geocientistas e programadores, visando desenvolver uma plataforma que permita a geração e atualização dinâmica de mapas litológicos preditivos. Central para este empreendimento é o desenvolvimento de um sistema que, ao integrar dados geológicos precisos com algoritmos de aprendizado de máquina, possibilite a criação de mapas com uma acurácia aprimorada ao longo do tempo. Este processo iterativo de aperfeiçoamento se baseia na inclusão contínua de novos dados e na avaliação rigorosa de métricas de desempenho, tais como precisão, sensibilidade, valor F1 e análise da área sob a curva característica de operação do receptor. Estas métricas são vitais para assegurar a confiabilidade e aplicabilidade das classificações do sistema no campo do mapeamento geológico. A infraestrutura tecnológica proposta para sustentar tal sistema envolve a utilização do PostgreSQL e da extensão PostGIS, criando um fundamento sólido para o gerenciamento e análise eficientes de dados geoespaciais, configuração necessária para suportar as análises complexas do sistema. Além disso, a implementação de folhas cartográficas no processo de classificação assegurará que o sistema seja capaz de adaptar-se as geometrias intrincadas de estruturas geológicas, sem perder a sistematização e padronização dos dados, facilitando a automação do processo. Adicionalmente, o projeto aspira expandir suas capacidades para incluir a geração de mapas prospectivos minerais preditivos, avanço significativo com potencial de transformar a exploração mineral, indicando áreas com elevado potencial de mineralização e, consequentemente, promovendo uma exploração mais eficiente e direcionada. Ao apresentar esta proposta inovadora no Congresso Brasileiro de Geologia em Belo Horizonte, visa-se não apenas fomentar um debate enriquecedor sobre as fronteiras entre geociências e tecnologia da informação, mas também demonstrar a viabilidade e o potencial impactante do conceito através de um esboço de protótipo funcional. Este protótipo inicial, ainda em estágios rudimentares de desenvolvimento, serve como prova de conceito, ilustrando a capacidade de integração de dados geológicos e modelos de classificação para aprimorar a precisão e eficácia na exploração mineral. A partilha desta fase preliminar com especialistas e acadêmicos do setor procura não apenas validar a abordagem proposta, mas também angariar colaborações estratégicas e visões valiosas que contribuam para a evolução do projeto. Os resultados preliminares demonstram a eficácia das técnicas de inteligência computacional na identificação de áreas potenciais para exploração de grafita. O sistema dinâmico adaptativo permite a atualização contínua dos mapas preditivos, proporcionando uma ferramenta poderosa para geólogos e exploradores minerais. A integração de dados de campo com algoritmos de aprendizagem de máquina, suportada por um sistema robusto de gerenciamento de dados, representa uma inovação importante na prospecção mineral, oferecendo novas perspectivas para a exploração de recursos minerais e mapeamento geológico.
+}
+\par{
+    \fontsize{12}{14}\textbf{\uppercase{PALAVRAS-CHAVE:}} Inteligência Computacional, Mapeamento Geológico, Grafita, Prospecção Mineral, Banco de Dados Geológicos.
+}
+
+% \par{
+%     \fontsize{12}{14}\textbf{Resumo: }Este projeto propõe a criação de uma abordagem integrada que combina bases de dados geológicas a modelos de classificação litológica, visando avançar nas metodologias de exploração mineral. Em fase conceitual, esta iniciativa busca estabelecer uma colaboração multidisciplinar entre geocientistas e programadores, visando desenvolver uma plataforma que permita a geração e atualização dinâmica de mapas litológicos preditivos. Central para este empreendimento é o desenvolvimento de um sistema que, ao integrar dados geológicos precisos com algoritmos de aprendizado de máquina, possibilite a criação de mapas com uma acurácia aprimorada ao longo do tempo. Este processo iterativo de aperfeiçoamento se baseia na inclusão contínua de novos dados e na avaliação rigorosa de métricas de desempenho, tais como precisão, sensibilidade (\textit{recall}), e valor F1, além da análise da área sob a curva ROC. Estas métricas são vitais para assegurar a confiabilidade e aplicabilidade das classificações do sistema no campo da exploração mineral. A infraestrutura tecnológica proposta para sustentar tal sistema envolve a utilização do PostgreSQL e da extensão PostGIS, criando um fundamento sólido para o gerenciamento e análise eficientes de dados geoespaciais. Essa configuração não apenas suportará as análises complexas requeridas pelo projeto mas também permitirá uma gestão dinâmica e sistemática dos dados. Além disso, a implementação de folhas cartográficas no processo de mapeamento assegurará que o sistema seja capaz de adaptar-se a uma ampla gama de contextos geológicos, melhorando a classificação de litologias e identificação de locais com potencial de mineralização. Adicionalmente, o projeto aspira expandir suas capacidades para incluir a geração de mapas prospectivos minerais preditivos. Este avanço significativo tem o potencial de transformar a exploração mineral, indicando áreas com elevado potencial de mineralização e, consequentemente, promovendo uma exploração mais eficiente e direcionada. Ao apresentar esta proposta inovadora no \textit{II Workshop Intelli+Geo}, visa-se não apenas fomentar um debate enriquecedor sobre as fronteiras entre geociências e tecnologia da informação, mas também demonstrar a viabilidade e o potencial impactante do conceito através de um esboço de protótipo funcional. Este protótipo inicial, ainda em estágios rudimentares de desenvolvimento, serve como prova de conceito, ilustrando a capacidade de integração de dados geológicos e modelos de classificação para aprimorar a precisão e eficácia na exploração mineral. A partilha desta fase preliminar com especialistas e acadêmicos do setor procura não apenas validar a abordagem proposta, mas também angariar colaborações estratégicas e \textit{insights} valiosos que contribuam para a evolução do projeto.\\
+%     \fontsize{12}{14}\textbf{\uppercase{PALAVRAS-CHAVE:}}
+% }
+
+
+\end{document}
