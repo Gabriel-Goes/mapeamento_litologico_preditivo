@@ -5,8 +5,8 @@
 # # ------------------------------ IMPORTS ------------------------------------
 from nucleo.abrirfolhas import AbrirFolhas
 from nucleo.manipulafolhas import ManipularFolhas
-from nucleo.frameseletor import FrameSeletor
-from nucleo.frameplot import FramePlot
+from interface.frameplot import FramePlot
+from interface.frameseletor import FrameSeletor
 from utils.utils import delimt
 
 import tkinter as tk
@@ -58,10 +58,10 @@ class PreditorTerraUI:
         as classes reponsáveis pelas lógicas de interface.
         '''
         self.root.title('Preditor Terra')
-        self.root.geometry('1440x900')
+        self.root.geometry('700x500')
         # Label do topo - PREDITOR TERRA --------------------------------------
         label_root = tk.Label(self.root, text='Preditor Terra',
-                              font=('SourceCodePro', 12, 'bold'),
+                              font=('OpenDyslexic', 12, 'bold'),
                               relief=tk.GROOVE, bd=2)
         # Centraliza label Root no topo central do ROOT
         label_root.grid(row=0, column=0, padx=0, pady=0, sticky='nsew')

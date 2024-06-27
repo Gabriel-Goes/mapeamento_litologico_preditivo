@@ -14,6 +14,7 @@ fonte/interface/seletorfolhas.py
 fonte/interface/test.py
 fonte/nucleo/__init__.py
 fonte/nucleo/abrirfolhas.py
+fonte/nucleo/analise_dados.py
 fonte/nucleo/constroifolhas.py
 fonte/nucleo/databaseengine.py
 fonte/nucleo/dicionariofolhas.py

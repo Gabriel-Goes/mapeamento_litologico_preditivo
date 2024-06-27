@@ -12,7 +12,7 @@ from shapely.ops import transform
 from shapely.wkb import loads
 from verde import inside
 
-from utils import set_db
+from utils.utils import set_db
 
 
 # ------------------------------ CLASSES ------------------------------------

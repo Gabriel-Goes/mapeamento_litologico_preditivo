@@ -4,11 +4,11 @@
 # Descrição: Classe para implementar métodos de seleção de folhas.
 # -----------------------------------------------------------------------------
 import shapely
-from utils import reverse_meta_cartas, delimt
+from utils.utils import reverse_meta_cartas, delimt
 # Import python Dictionary
 from typing import Dict
 
-from PlotFolhas import PlotFolhas
+from interface.plotfolhas import PlotFolhas
 
 
 # ------------------------------ CLASSES ------------------------------------

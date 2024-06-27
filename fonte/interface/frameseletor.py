@@ -6,8 +6,8 @@
 from tkinter import ttk
 import tkinter as tk
 
-from SeletorFolhas import SeletorFolhas
-from utils import reverse_meta_cartas
+from interface.seletorfolhas import SeletorFolhas
+from utils.utils import reverse_meta_cartas
 # --------------------------------------------------------------------------- #
 
 

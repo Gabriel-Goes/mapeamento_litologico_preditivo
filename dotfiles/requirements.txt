@@ -5,8 +5,12 @@ name: geologia  # The name can be changed to anything of your like;
 dependencies:
 
 fiona
-sqlalchemoy
-geoalchemy2
-
+geopandas
 matplotlib
 pygmt
+
+sqlalchemoy
+geoalchemy2
+databaseengine
+
+verde

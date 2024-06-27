@@ -3,7 +3,7 @@
 #
 # Canvas Para Visualização de Folhas
 # ------------------------------ IMPORTS ------------------------------------
-from PlotFolhas import PlotFolhas
+from interface.plotfolhas import PlotFolhas
 
 from tkinter import ttk
 import tkinter as tk
