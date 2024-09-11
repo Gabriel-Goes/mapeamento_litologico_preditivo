@@ -1,6 +1,7 @@
 # Autor: Gabriel Góes Rocha de Lima
 # Data: 2024/02/07
-# /source/core/LerFolhas.py
+# /fonte/nucleo/abrirfolhas.py
+# Modificado: 2024/08/22
 # ---------------------------------------------------------------------------
 # Esta classe é responsável por abrir layer de um gpkg, filtrar por ids e re-
 # tornar os ids, e geometry de cada folha.
@@ -11,7 +12,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String
 from geoalchemy2 import Geometry
 
-from utils.utils import set_db, gdb_url, delimt
+from nucleo.utils import set_db, gdb_url, delimt
 from nucleo.databaseengine import DatabaseEngine
 
 from typing import Dict
@@ -28,7 +29,7 @@ class FolhasCartograficas(Base):
     '''
     __tablename__ = 'folhas_cartograficas'
     fid = Column(Integer, primary_key=True)
-    folha_id = Column(String)
+    codigo = Column(String)
     wkb_geometry = Column(Geometry('POLYGON'))
     epsg = Column(String)
     escala = Column(String)
@@ -71,15 +72,14 @@ class AbrirFolhas:
         '''
         self.dic_folhas.clear()
         try:
-            # Consulta str(escala) em banco de dados
             consulta = self.session.query(FolhasCartograficas).filter(
-                FolhasCartograficas.escala == escala).all()
+                FolhasCartograficas.escala == escala
+            ).all()
             if not consulta:
                 print(f' --> Nenhuma folha encontrada para a escala: {escala}')
                 return self.dic_folhas
-            # Transforma a consulta em uma geometria
             for folha in consulta:
-                self.dic_folhas[folha.folha_id] = {
+                self.dic_folhas[folha.codigo] = {
                     'geometry': folha.wkb_geometry,
                     'epsg': folha.epsg,
                     'escala': folha.escala
@@ -131,18 +131,20 @@ class AbrirFolhas:
             print(f' --> escala: {escala}')
 
     # Define área de estudo
-    def define_area_de_estudo(self,
-                              id_folha_area_de_estudo: str):
+    def define_area_de_estudo(
+        self,
+        id_folha_area_de_estudo: str
+    ) -> fiona.Collection:
         '''
         Método responsável por definir a área de estudo.
         Recebe como parâmetros:
             dic_folhas: gdf - geodataframe com as folhas da carta escolhida
             id_folha_area_de_estudo: str - id da folha da área de estudo
         Retorna:
-            folha_ade: gdf - geodataframe com a folha da área de estudo
+            folha_ade: gdf - fiona.Collection com a folha da área de estudo
         '''
         folha_ade = self.dic_folhas[
-            self.dic_folhas['folha_id'] == id_folha_area_de_estudo]
+            self.dic_folhas['codigo'] == id_folha_area_de_estudo]
         return folha_ade
 
     # Criar bounding box para a folha escolhida
@@ -182,7 +184,7 @@ class AbrirFolhas:
 
     # Filtrar folhas de da área de estudo
     @staticmethod
-    def filtrar_folhas_estudo(folhas_area_de_estudo, folha_ids):
+    def filtrar_folhas_estudo(folhas_area_de_estudo, codigos):
         '''
         Método responsável por filtrar as folhas da área de estudo.
         Recebe como parâmetros:
@@ -191,7 +193,7 @@ class AbrirFolhas:
         '''
         # Filtra macro_gdf por folha_id
         return folhas_area_de_estudo[folhas_area_de_estudo[
-            'folha_id'].str.contains(folha_ids)]
+            'codigo'].str.contains(codigos)]
 
 
 # ------------------------------ EXECUÇÃO ------------------------------------

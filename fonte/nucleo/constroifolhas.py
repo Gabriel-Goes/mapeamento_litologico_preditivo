@@ -1,8 +1,9 @@
 # Autor: Gabriel Góes Rocha de Lima
 # Data: 01/02/2024
 # Modificado: 24/03/2024
-# source/core/ConstruirFolhas.py
+# fonte/nucleo/constroifolhas.py
 # Última modificação: 09/03/2024
+# Última modificação: 22/08/2024
 # ---------------------------------------------------------------------------
 # Esta classe é responsável por criar geometrias de folhas de meta_cartas de
 # acordo com a escala, salvar cada uma das meta_cartas como uma layer em um

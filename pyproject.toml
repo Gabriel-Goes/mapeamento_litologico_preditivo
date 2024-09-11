@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool-setuptools]
+packages = ['nucleo']
+package-dir = {"" = "fonte"}
+include-package-data = true
+
+[project]
+name = "classificador_terra"
+version = "0.2.0"
+description = "Classificador Terra"
+requires-python = ">=3.14"
+dependencies = [
+
+]
+
+authors = [
+  {name = "Gabriel Góes", email = "gabrielgoes@usp.br"},
+]
+
+license = {text = "MIT License"}
+
+[project.optional-dependencies]
+gui = ["PyQt5"]
+
+# [project.urls]
+Homepage = "https://github.com/gabriel/classificador_terra"
+Documentation = "https://github.com/gabriel/classificador_terra/wiki"

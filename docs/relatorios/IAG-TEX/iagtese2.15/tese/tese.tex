@@ -1,0 +1,68 @@
+\documentclass{iagtese} 		% declaração da classe iagtese com
+						% padrões de formatação.
+						%	
+%\documentclass{iagtese_en}	% declaração da classe iagtese em
+						% ingles. Para escrever a tese em 
+						% ingles, descomente esta linha e 
+						% comente a linha anterior.
+						%				%	
+%\hypercolor				% links coloridos para a versao
+						% on line da tese. Para usar esta
+						% opcao descomente esta linha.
+						% 	
+\begin{document}			% início do documento
+						% 				
+\input{tex/capa.tex}			% arquivo para inserir a capa
+						%
+\pagestyle{empty}			% padrão de formatação para parte
+						% inicial do texto
+						%
+\maketitle					% 
+						%
+\Dedicatoria				%
+\input{tex/dedicatoria.tex}		%
+						% componentes iniciais do trabalho
+\Agradecimentos			%
+\input{tex/agradecimentos.tex}	% caso não queira adicionar algum
+						% deles, simplesmente remova as
+						% linhas correspondentes.
+						%
+\Epigrafe					%  
+\input{tex/epigrafe.tex}		%
+						%
+\Resumo					%
+\input{tex/resumo.tex}		%
+						%
+\Abstract					%
+\input{tex/abstract.tex}		%
+						%
+\listoffigures 				% lista de figuras (opcional)
+\listoftables 				% lista de tabelas (opcional)
+\tableofcontents 			% sumário
+						%
+\cleardoublepage			%
+\pagestyle{fancy}			% formatação para corpo do texto
+						%
+\input{tex/introducao.tex}		%
+\input{tex/basededados.tex}    	% inserir os capítulos do seu
+\input{tex/analise.tex}		% trabalho.
+\input{tex/conclusao.tex}		% 
+       						%
+						%
+%\begin{thebibliography}{99}	% referências bibliográficas (dê
+%\input{tex/bibliografia.tex} 	% preferência ao bibTeX).
+%\end{thebibliography}		% caso não use o bibTeX, remova os
+						% comentarios das três linhas
+						% e comente a linha \bibliography
+						%
+\bibliography{tex/bibliografia}	% bibliografia utilizando bibTeX,
+						% referente ao arquivo
+						% bibliografia.bib na pasta tex/
+						%
+\begin{apendice}			% inicio do ambiente apendice
+\input{tex/apendicea.tex}		% texto referente ao apendice
+\end{apendice}				% fim do ambiente apendice. caso
+						% nao utilize apendice, remova as
+						% 3 linhas de comando.
+						%
+\end{document}				% fim do arquivo

@@ -2,10 +2,13 @@
 # Data: 20/04/2021
 # /source/core/DicionarioFolhas.py
 # ---------------------------------------------------------------------------
-# Esta classe é responsável por abrir layer de um gpkg, filtrar por ids e re-
-# tornar um dicionário com os ids, e geometry de cada folha.
-# dicionario = {'id': {'geometry': Polygon,
-#                      'EPSG': 'str'}
+# Esta classe é responsável por abrir layer de um bancode dados, filtrar por
+# ids e retornar um dicionário com os ids, e geometry de cada folha.
+# ---------------------------------------------------------------------------
+# dicionario = {
+# 'id': {
+#     'geometry': Polygon,
+#     'EPSG': 'str'}
 #
 # # ------------------------------ IMPORTS ------------------------------------
 
@@ -47,7 +50,6 @@ class DicionarioFolhas:
             print(f' --> {dicionario.keys()}')
 
             return dicionario
-
         # Retorna erro se não existir folha_id na gdf
         except KeyError as e:
             print(f' --> Erro ao gerar dicionário de folhas: {e}')
@@ -58,11 +60,11 @@ class DicionarioFolhas:
 if __name__ == "__main__":
     # from geologist.utils.utils import plotar
     dic_f = DicionarioFolhas()
-    carta_25k = dic_f.gera_dicionario('SF23',
-                                      '25k',
-                                      'SF23_YA_I')
+    carta_25k = dic_f.gera_dicionario(
+        'SF23',
+        '25k',
+        'SF23_YA_I'
+    )
     # plotar(carta_25k, '25k')
-
     # carta_50k = dicionariofolhas.gera_dicionario('50k',
-    #                                                        'SF23_YA_I')
     # plotar(carta_50k, '50k')

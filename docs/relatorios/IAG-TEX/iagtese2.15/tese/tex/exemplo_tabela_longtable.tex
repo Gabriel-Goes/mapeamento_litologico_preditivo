@@ -1,0 +1,45 @@
+\begin{center}
+\setcaptionmargin{1cm}
+\scriptsize
+\begin{longtable}{lcccc}
+\caption[Resumo da legenda da tabela (aparece na lista de figuras)]{Exemplo de tabela feita com o longtable.}\\
+\hline \hline \\[-2ex]
+\multicolumn{1}{c}{Coluna1} &
+\multicolumn{1}{c}{Coluna2} &
+\multicolumn{1}{c}{Coluna3} &
+\multicolumn{1}{c}{Coluna4} &
+\multicolumn{1}{c}{Coluna5} 
+
+\\[0.5ex] \hline
+\\[-1.8ex]
+
+\endfirsthead
+
+\multicolumn{5}{c}{\footnotesize{{\slshape{{\tablename} \thetable{}}} - Continuação}}\\[0.5ex]
+
+\hline \hline\\[-2ex]
+
+\multicolumn{1}{c}{Coluna1} &
+\multicolumn{1}{c}{Coluna2} &
+\multicolumn{1}{c}{Coluna3} &
+\multicolumn{1}{c}{Coluna4} &
+\multicolumn{1}{c}{Coluna5} 
+
+\\[0.5ex] \hline
+\\[-1.8ex]
+
+\endhead
+
+\multicolumn{3}{l}{{\footnotesize{Continua na próxima página\ldots}}}\\
+\endfoot
+\hline
+
+\endlastfoot
+
+1 & 2 & 3 & 4 & 5 \\
+6 & 7 & 8 & 9 & 10\\
+
+\label{tabela_com_longtable}
+\end{longtable}
+\end{center}
+

@@ -1,5 +1,0 @@
-<RCC>
-    <qresource prefix="/plugins/classificador_terra" >
-        <file>icon.png</file>
-    </qresource>
-</RCC>
