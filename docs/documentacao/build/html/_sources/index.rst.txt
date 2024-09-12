@@ -9,7 +9,7 @@ Welcome to PreditorTerra's documentation!
 **PreditorTerra** /prɛdɪtɔr tɛrə/ is a Python package that provides a set of tools for the analysis of spatial data. It is designed to be used in the context of the analysis of predator-prey interactions in terrestrial ecosystems.
 
 .. note::
-    
+
         This package is still under development and is not yet available for public use.
 
 

@@ -1,0 +1,53 @@
+<p>Para criar uma chave TOTP (Time-based One-Time Password) criptográfica e utilizá-la em um serviço SSH, vamos construir um caderno de tópicos que inclui os principais conceitos, tecnologias e procedimentos necessários. O TOTP é amplamente usado em autenticação multifator, gerando senhas que são válidas por um curto período. O procedimento envolve a criação de chaves seguras baseadas no tempo que são sincronizadas entre o cliente (gerador da chave) e o servidor SSH.</p>
+
+<p>Aqui está uma lista dos tópicos que você precisará cobrir no caderno:</p>
+
+<p>1. Introdução ao TOTP</p>
+
+    O que é TOTP: Definição e funcionamento básico.
+    Autenticação multifator (MFA): Como o TOTP complementa a segurança SSH.
+    RFC 6238: Especificação do algoritmo TOTP.
+
+<p>2. Pré-requisitos</p>
+
+    Configuração do SSH: O SSH precisa estar instalado e corretamente configurado no servidor.
+    Bibliotecas criptográficas: Ferramentas como libpam-google-authenticator, openssl, ou outras bibliotecas de autenticação compatíveis com TOTP.
+
+<p>3. Instalação do PAM para Autenticação TOTP</p>
+
+    PAM (Pluggable Authentication Modules): O que é e como o TOTP pode ser integrado com PAM.
+    Instalação de ferramentas: Como instalar o libpam-google-authenticator ou outra biblioteca similar no Linux para suportar TOTP.
+
+<p>4. Geração de uma chave secreta TOTP</p>
+
+    Geração de chaves baseadas no tempo: Usando o Google Authenticator ou openssl para gerar a chave secreta.
+    QRCode para TOTP: Gerar um código QR que pode ser lido por aplicativos de autenticação como Google Authenticator, Authy, etc.
+    Configuração do tempo de sincronização: Entender a importância da sincronização de tempo entre servidor e cliente (NTP).
+
+<p>5. Configuração no Servidor SSH</p>
+
+    Atualização de configurações SSH: Editar o arquivo /etc/ssh/sshd_config para permitir a autenticação com TOTP.
+    Integração PAM e SSH: Configurar o SSH para utilizar o PAM para autenticação via TOTP.
+    Testar configurações: Testar a conexão SSH para garantir que a autenticação TOTP está funcionando corretamente.
+
+<p>6. Considerações de Segurança</p>
+
+    Proteção da chave secreta: Como armazenar a chave secreta com segurança no servidor.
+    Backup das chaves TOTP: Melhor prática para evitar perder o acesso ao sistema se a chave for perdida.
+    Time Drift: Como lidar com possíveis diferenças de tempo entre o cliente e o servidor.
+
+<p>7. Soluções de Contingência</p>
+
+    Métodos de fallback: Configurar métodos alternativos de autenticação no caso do TOTP falhar.
+    Autenticação via chave SSH e TOTP: Como configurar autenticação com dois fatores, utilizando TOTP e chaves SSH.
+
+<p>8. Ferramentas Adicionais e Scripts</p>
+
+    Automatização: Criação de scripts para configurar ou manter chaves TOTP no servidor.
+    Logs e auditoria: Como configurar logs para rastrear tentativas de autenticação via TOTP no SSH.
+
+<p>Se precisar de ajuda com algum dos pontos ou detalhes adicionais, posso auxiliar com mais informações ou exemplos.</p>
+
+
+
+
