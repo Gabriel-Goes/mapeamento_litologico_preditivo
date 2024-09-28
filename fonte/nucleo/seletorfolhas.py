@@ -19,7 +19,7 @@ c_format = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
 f_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 c_handler = logging.StreamHandler()
 c_handler.setLevel(logging.DEBUG)
-f_handler = logging.FileHandler('./nucleo/seletorfolhas.log')
+f_handler = logging.FileHandler('./fonte/nucleo/seletorfolhas.log')
 f_handler.setLevel(logging.DEBUG)
 c_handler.setFormatter(c_format)
 f_handler.setFormatter(f_format)
@@ -33,18 +33,14 @@ logger.addHandler(f_handler)
 class SeletorFolhas:
     '''
     Classe para implementar métodos de seleção de folhas.
-        Será instanciado por FrameSeletor e utilizado para atualizar valores
-        de escala e atualizar folha de estudo e gerar dicionário de folhas.
+    Será instanciado por FrameSeletor e utilizado para atualizar valores
+    de escala e atualizar folha de estudo e gerar dicionário de folhas.
     '''
 
     # ---------------------------- Construtor ---------------------------------
-    # Construtor da classe SeletorFolhas
     def __init__(self,
                  combobox_cartas, combobox_folha,
                  admin_folhas):
-        '''
-        Construtor da classe SeletorFolhas.
-        '''
         print('-> Iniciando SeletorFolhas')
         try:
             self.combobox_folha = combobox_folha
@@ -61,28 +57,16 @@ class SeletorFolhas:
             print(delimt)
 
     # ---------------------------- Métodos ------------------------------------
-    # Visualiza valor de Combobox Cartas
     def get_combobox_cartas(self):
-        '''
-        Método para visualizar valor de Combobox Cartas.
-        '''
         print(f' --> Escala escolhida: {self.combobox_cartas.get()}')
         self.escala = self.combobox_cartas.get()
 
-    # Evento de Combobox Cartas atualizado
     def evento_combobox_cartas(self, event):
-        '''
-        Evento de Combobox Cartas atualizado.
-        '''
         self.get_combobox_cartas()
         # self.selecionar_carta_gpkg(self.escala)
         self.selecionar_carta_postgres(self.escala)
 
-    # Atualiza valores de Combobox Folhas
     def atualizar_combobox_folha(self):
-        '''
-        Método para atualizar valores de Combobox Folhas.
-        '''
         # Atualiza valores de Combobox Folhas
         if self.cartas is not None:
             codigos = list(self.cartas.keys())
@@ -91,12 +75,7 @@ class SeletorFolhas:
         self.id_folhas_original = codigos
         self.combobox_folha['values'] = codigos
 
-    # Filtra códigos de folhas com base no texto inserido
     def filtrar_ids_folhas(self, event):
-        '''
-        Método para filtrar códigos de folhas do combobox_folha com base no
-        texto inserido.
-        '''
         texto_filtro = self.combobox_folha.get()
         if not texto_filtro:
             id_filtrados = self.id_folhas_original
@@ -113,12 +92,8 @@ class SeletorFolhas:
             print('')
             self.combobox_folha['values'] = self.id_folhas_original
 
-    # Seleciona Folhas a partir das esclas disponíveis em meta_cartas
+    # ---------------------------- Métodos ------------------------------------
     def selecionar_carta_postgres(self, escala):
-        '''
-        Método para selecionar folhas a partir das escalas disponíveis em
-        meta_cartas.
-        '''
         try:
             print('')
             print(' --------- Selecionando Carta Postgres ---------')
@@ -141,12 +116,7 @@ class SeletorFolhas:
             print(f' --> self.cartas: {len(self.cartas)}')
             return None
 
-    # Seleciona Folhas a partir das esclas disponíveis em meta_cartas
     def selecionar_carta_gpkg(self, escala):
-        '''
-        Método para selecionar folhas a partir das escalas disponíveis em
-        meta_cartas.
-        '''
         try:
             carta = reverse_meta_cartas[escala]
             self.cartas = self.admin_folhas.seleciona_escala_gpkg(carta)
@@ -162,22 +132,27 @@ class SeletorFolhas:
             print(f' --> carta: {carta}')
             print(f' --> self.cartas: {len(self.cartas)}')
 
-    # Define área de estudo
+    # ---------------------------- Métodos ------------------------------------
     def define_area_de_estudo(self) -> Dict:
-        '''
-        Método para definir a área de estudo.
-        Cria um novo dicionário de folhas que representa a área de estudo
-        Este dicionário contêm todas as folhas que compõem a área de estudo
-        Com folha_id, geometry e epsg, escala
-        Ele será formado a partir dos valores de combobox_folha
-        Recebe:
-            combobox_values: str - valores de combobox_folha
-        Retorna:
-            cartas_estudo: dicionário - dicionário de folhas que representa a
-                área de estudo
-        '''
         plot_folhas = PlotFolhas(self)
         combobox_values = self.combobox_folha['values']
+        if not combobox_values:
+            print(f' --> COMBOBOX_VALUES: {combobox_values}')
+            print(f' --> IDs disponíveis: {self.id_folhas_original}\n')
+        print(f' --> Combobox_values: {combobox_values}')
+        print(f' -> {type(combobox_values)}')
+        print(f' --> self.cartas: {len(self.cartas)}')
+
+        if isinstance(combobox_values, str):
+            print(' --> Combobox_values é uma string')
+            combobox_values = [combobox_values]
+        elif isinstance(combobox_values, (tuple)):
+            print(' --> Combobox_values é uma tupla')
+            print(' --> Convertendo para lista')
+            combobox_values = list(combobox_values)
+        elif isinstance(combobox_values, (list)):
+            print(' --> Combobox_values é uma lista')
+
         try:
             for codigo in combobox_values:
                 self.folhas_estudo[codigo] = self.cartas[codigo]
@@ -189,18 +164,8 @@ class SeletorFolhas:
             print('')
             print(' --> SeletorFolhas.define_area_de_estudo falhou!')
             print(f' !ERROR!: {e}')
-            print('')
-            print('Parâmetros:')
-            print(f' --> combobox_values: {combobox_values}')
-            # print(f' --> self.cartas: {len(self.cartas)}')
-            print('')
 
-    # Adiciona folha de estudo à área de estudo
     def old_adicionar_folha_estudo(self):
-        '''
-        Método para adicionar folha de estudo à área de estudo.
-        '''
-        # Lista de área de estudo
         self.area_de_estudo = getattr(self, 'area_de_estudo', [])
         try:
             print(' Executando SeletorFolhas.adicionar_folha_estudo')
@@ -234,12 +199,7 @@ class SeletorFolhas:
             print(f' --> self.area_de_estudo: {len(self.area_de_estudo)}')
             print('')
 
-    # Método para determinar folha clicada
     def determine_folha_clicada(self, ax_x, ax_y):
-        '''
-        Define qual folha foi clicada no canvas a partir das coordenadas ax_x e
-        ax_y pelo método contains.
-        '''
         click = shapely.geometry.Point(ax_x, ax_y)
         for id, poly in self.dicionarioFolhas.carta_1kk.iterrows():
             if poly.geometry.contains(click):
@@ -248,12 +208,7 @@ class SeletorFolhas:
 
         return folhaEstudo
 
-    # Método para ver click no canvas
     def on_canvas_click(self, click_event):
-        '''
-        Evento de click no canvas.
-        '''
-        # geographic coordinates from the click of mouse button
         x, y = self.ax.transData.inverted().transform((click_event.x,
                                                        click_event.y))
         print('')

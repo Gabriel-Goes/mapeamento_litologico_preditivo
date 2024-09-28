@@ -189,18 +189,18 @@ def nomeador_grid(left, right, top, bottom, escala=5):
         else:
             id_folha += 'N'
             index = math.floor(bottom / 4)
-        numero = math.ceil((180+right)/6)
+        numero = math.ceil((180 + right) / 6)
         print(numero)
-        id_folha += e1kk[index]+str(numero)
-        lat_gap = abs(top-bottom)
+        id_folha += e1kk[index] + str(numero)
+        lat_gap = abs(top - bottom)
         # p500k-----------------------
         if (lat_gap <= 2) & (escala >= 1):
-            LO = math.ceil(right/3) % 2 == 0
-            NS = math.ceil(top/2) % 2 != 0
-            id_folha += '_'+e500k[LO][NS]
+            LO = math.ceil(right / 3) % 2 == 0
+            NS = math.ceil(top / 2) % 2 != 0
+            id_folha += '_' + e500k[LO][NS]
         # p250k-----------------------
         if (lat_gap <= 1) & (escala >= 2):
-            LO = math.ceil(right/1.5) % 2 == 0
+            LO = math.ceil(right / 1.5) % 2 == 0
             NS = math.ceil(top) % 2 != 0
             id_folha += e250k[LO][NS]
         # p100k-----------------------
@@ -490,7 +490,15 @@ def batch_verde(quadricula=None):
 # ----------------------------------------------------------------------------
 
 
-def interpolar(splines=None, cubico=None, mag=None, gama=None, geof=None, dic_cartas=None, dic_raw_meta=None):
+def interpolar(
+        splines=None,
+        cubico=None,
+        mag=None,
+        gama=None,
+        geof=None,
+        dic_cartas=None,
+        dic_raw_meta=None
+):
     if splines:
         dic_cartas['splines'] = {}
         print('# Inicio dos processos de interpolação pelo método cúbico')
@@ -522,11 +530,16 @@ def interpolar(splines=None, cubico=None, mag=None, gama=None, geof=None, dic_ca
                                    shuffle=True)
                 for i in lista_at_geof:
                     chain.fit(coordinates, data[i])
-                    grid = chain.grid(spacing=200, data_names=[i],
-                                      pixel_register=True)
-                    grids[i] = vd.distance_mask(coordinates,
-                                                maxdist=1000,
-                                                grid=grid)
+                    grid = chain.grid(
+                        spacing=200,
+                        data_names=[i],
+                        pixel_register=True
+                    )
+                    grids[i] = vd.distance_mask(
+                        coordinates,
+                        maxdist=1000,
+                        grid=grid
+                    )
                 y = {index: grids}
                 dic_cartas['splines'].update(y)
                 print('__________________________________________')
@@ -603,14 +616,14 @@ def interpolar(splines=None, cubico=None, mag=None, gama=None, geof=None, dic_ca
                     UKRAZAO = np.array(gdf_geof.UKRAZAO)
                     UTHRAZAO = np.array(gdf_geof.UTHRAZAO)
                     x2, y2 = np.array(gdf_geof.X), np.array(gdf_geof.Y)
-                    eTh_ = td.interp_at(x2, y2, eTh, xu, yu, algorithm='cubic', extrapolate=True)
-                    eu_ = td.interp_at(x2, y2, eU, xu, yu, algorithm='cubic', extrapolate=True)
-                    kperc_ = td.interp_at(x2, y2, KPERC, xu, yu, algorithm='cubic', extrapolate=True)
-                    ctcor_ = td.interp_at(x2, y2, CTCOR, xu, yu, algorithm='cubic', extrapolate=True)
-                    mdt_ = td.interp_at(x2, y2, MDT, xu, yu, algorithm='cubic', extrapolate=True)
-                    uthrazao_ = td.interp_at(x2, y2, UTHRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
-                    ukrazao_ = td.interp_at(x2, y2, UKRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
-                    thkrazao_ = td.interp_at(x2, y2, THKRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
+                    eTh_ = interp_at(x2, y2, eTh, xu, yu, algorithm='cubic', extrapolate=True)
+                    eu_ = interp_at(x2, y2, eU, xu, yu, algorithm='cubic', extrapolate=True)
+                    kperc_ = interp_at(x2, y2, KPERC, xu, yu, algorithm='cubic', extrapolate=True)
+                    ctcor_ = interp_at(x2, y2, CTCOR, xu, yu, algorithm='cubic', extrapolate=True)
+                    mdt_ = interp_at(x2, y2, MDT, xu, yu, algorithm='cubic', extrapolate=True)
+                    uthrazao_ = interp_at(x2, y2, UTHRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
+                    ukrazao_ = interp_at(x2, y2, UKRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
+                    thkrazao_ = interp_at(x2, y2, THKRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
                     # intialise data of lists.
                     data = {'X': xu, 'Y': yu, 'MDT': mdt_, 'CTCOR': ctcor_,
                             'KPERC': kperc_, 'eU': eu_, 'eTH': eTh_,
