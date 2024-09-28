@@ -7,34 +7,23 @@ import pygmt
 from shapely.wkb import loads
 
 # -----------------------------------------------------------------------------
+# Esta classe será responsável por atualizar o canvas com as folhas disponí
+# veis no self.seletorFolhas.dicionario e self.seletorFolhas.folhaEstudo.
+# Utilizando a biblioteca pygmt para plotar as folhas.
 
 
 # ------------------------------- CLASSES ------------------------------------
 class PlotFolhas:
-    '''
-    Esta classe será responsável por atualizar o canvas com as folhas disponí
-    veis no self.seletorFolhas.dicionario e self.seletorFolhas.folhaEstudo.
-    Utilizando a biblioteca pygmt para plotar as folhas.
-    '''
 
     def __init__(self, folhas_estudo):
-        '''
-        Construtor da classe PlotFolhas.
-        '''
         self.folhas_estudo = folhas_estudo
 
     def plot_basemap(self):
-        '''
-        Método para plotar o basemap no canvas.
-        '''
         fig = pygmt.Figure()
         fig.basemap(region=[-85, -30, -55, 20], projection='M6i', frame=True)
         fig.show()
 
     def plot_folha_estudo(self):
-        '''
-        Método para plotar a folha de estudo no canvas.
-        '''
         fig = pygmt.Figure()
         fig.basemap(region=[-45, -40, -23, -20], projection='M6i', frame=True)
         fe = self.folhas_estudo

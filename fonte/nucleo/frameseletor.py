@@ -9,16 +9,14 @@ import tkinter as tk
 from nucleo.seletorfolhas import SeletorFolhas
 from nucleo.utils import reverse_meta_cartas
 # --------------------------------------------------------------------------- #
+#    '''
+#    Esta classe é responsável por criar o Frame que contêm as ferramentas de
+#    seleção e geração de folhas de cartas.
+#    '''
 
 
 # ------------------------------- CLASSES ------------------------------------
 class FrameSeletor():
-    '''
-    Esta classe é responsável por criar o Frame que contêm as ferramentas de
-    seleção e geração de folhas de cartas.
-    '''
-
-    # Construtor da classe Seletor de Folhas
     def __init__(self, admin_folhas, main_frame, style):
         print('-> Inicializando Frame de Seletor')
         self.admin_folhas = admin_folhas
@@ -32,25 +30,13 @@ class FrameSeletor():
                                  self.seletor_folhas.filtrar_ids_folhas)
         self.setupt_botão_selecionar()
 
-    # Configuração do seletor de folhas
     def setup_seletor_folhas(self):
-        '''
-        Método responsável por configurar a classe SeletorFolhas, que é a
-        classe responsável por mediar a interação entre FrameSeletor e
-        AbrirFolhas. Sendo assim, SeletorFolhas é a classe responsável por
-        gerenciar a seleção de folhas de cartas.
-        '''
         seletor_folhas = SeletorFolhas(self.combobox_carta,
                                        self.combobox_folha,
                                        self.admin_folhas)
         return seletor_folhas
 
-    # Método para criar o seletor de folhas de cartas
     def setup_frame_seletor(self):
-        '''
-        Configura o frame responsável pelos widgets de seleção de escala e
-        ids de folhas.
-        '''
         # ------------------- Frame - Seletor de Folhas de Cartas -------------
         # Cria Frame para o Seletor
         self.seletor_frame = ttk.Frame(self.main_frame,
@@ -111,8 +97,9 @@ class FrameSeletor():
         # Simbolo de mais
         # plus_sign = u"\u2795"
         # Simbolo de correto
+        print('Clicou')
         check_sign = u"\u2713"
-        comando = self.seletor_folhas.define_area_de_estudo
+        comando = self.seletor_folhas.define_estudo
         self.botao_adicionar_folha = ttk.Button(self.folha_estudo_frame,
                                                 text=check_sign,
                                                 width=3,
@@ -120,11 +107,7 @@ class FrameSeletor():
                                                 command=comando)
         self.botao_adicionar_folha.grid(row=2, column=1, padx=5, pady=5)
 
-    # Transforma texto em maiúsculo
     def on_text_change(self, sv):
-        '''
-        Método para transformar texto em maiúsculo.
-        '''
         current_text = sv.get().upper()
         sv.set(current_text)
 

@@ -1,0 +1,42 @@
+2024-09-28 14:43:46,965 - nucleo.seletorfolhas - DEBUG - -> Iniciando SeletorFolhas
+2024-09-28 14:43:49,675 - nucleo.seletorfolhas - DEBUG - Escala escolhida: 1:1.000.000
+2024-09-28 14:43:49,675 - nucleo.seletorfolhas - DEBUG - Iniciando seleção da carta no PostgreSQL...
+2024-09-28 14:43:49,676 - nucleo.seletorfolhas - DEBUG -  --------- Selecionando Carta Postgres ---------
+2024-09-28 14:43:49,698 - nucleo.seletorfolhas - DEBUG - 49 folhas importadas para a escala 1:1.000.000
+2024-09-28 14:43:49,698 - nucleo.seletorfolhas - DEBUG - Combobox atualizada com 49 códigos de folhas
+2024-09-28 14:43:53,098 - nucleo.seletorfolhas - DEBUG - Escala escolhida: 1:500.000
+2024-09-28 14:43:53,098 - nucleo.seletorfolhas - DEBUG - Iniciando seleção da carta no PostgreSQL...
+2024-09-28 14:43:53,098 - nucleo.seletorfolhas - DEBUG -  --------- Selecionando Carta Postgres ---------
+2024-09-28 14:43:53,118 - nucleo.seletorfolhas - DEBUG - 210 folhas importadas para a escala 1:500.000
+2024-09-28 14:43:53,118 - nucleo.seletorfolhas - DEBUG - Combobox atualizada com 210 códigos de folhas
+2024-09-28 14:43:59,926 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF. Folhas disponíveis: 18
+2024-09-28 14:44:00,001 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF. Folhas disponíveis: 18
+2024-09-28 14:44:00,515 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF23. Folhas disponíveis: 5
+2024-09-28 14:44:00,588 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF23. Folhas disponíveis: 5
+2024-09-28 14:44:18,455 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF23. Folhas disponíveis: 5
+2024-09-28 14:44:20,799 - nucleo.seletorfolhas - DEBUG - Filtrando por: _. Folhas disponíveis: 161
+2024-09-28 14:44:20,811 - nucleo.seletorfolhas - DEBUG - Filtrando por: _. Folhas disponíveis: 161
+2024-09-28 14:44:22,801 - nucleo.seletorfolhas - DEBUG - Filtrando por: . Folhas disponíveis: 210
+2024-09-28 14:44:22,950 - nucleo.seletorfolhas - DEBUG - Filtrando por: . Folhas disponíveis: 210
+2024-09-28 14:44:23,172 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF. Folhas disponíveis: 18
+2024-09-28 14:44:23,249 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF. Folhas disponíveis: 18
+2024-09-28 14:44:23,700 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF23. Folhas disponíveis: 5
+2024-09-28 14:44:23,740 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF23. Folhas disponíveis: 5
+2024-09-28 14:44:24,017 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF23_. Folhas disponíveis: 4
+2024-09-28 14:44:24,032 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF23_. Folhas disponíveis: 4
+2024-09-28 14:44:25,100 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF23_Y. Folhas disponíveis: 1
+2024-09-28 14:44:27,741 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF23_Y. Folhas disponíveis: 1
+2024-09-28 14:44:28,757 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF23_Y. Folhas disponíveis: 1
+2024-09-28 14:44:28,987 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF23_Y. Folhas disponíveis: 1
+2024-09-28 14:44:29,139 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF23_Y. Folhas disponíveis: 1
+2024-09-28 14:44:29,263 - nucleo.seletorfolhas - DEBUG - Filtrando por: SF23_Y. Folhas disponíveis: 1
+2024-09-28 14:44:30,373 - nucleo.seletorfolhas - DEBUG -  --> COMBOBOX_VALUES: ('SF23_Y',)
+2024-09-28 14:44:30,374 - nucleo.seletorfolhas - DEBUG -  --> self.cartas: 210
+2024-09-28 14:44:30,374 - nucleo.seletorfolhas - DEBUG - 1 Folhas de Estudo adicionadas
+2024-09-28 14:44:30,382 - nucleo.seletorfolhas - ERROR - SeletorFolhas.define_estudo falhou!
+Traceback (most recent call last):
+  File "/home/ggrl/projetos/PreditorTerra/fonte/nucleo/seletorfolhas.py", line 119, in define_estudo
+    plot_folhas.plot_folha_estudo()
+  File "/home/ggrl/projetos/PreditorTerra/fonte/nucleo/plotfolhas.py", line 41, in plot_folha_estudo
+    for key, value in fe:
+TypeError: 'SeletorFolhas' object is not iterable
