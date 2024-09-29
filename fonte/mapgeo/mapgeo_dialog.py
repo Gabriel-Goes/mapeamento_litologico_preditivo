@@ -56,24 +56,17 @@ class mapgeoDialog(QDialog, FORM_CLASS):
         super(mapgeoDialog, self).__init__(parent)
         self.iface = iface  # Armazena a interface QGIS
         self.setupUi(self)
-
         logger.info("Inicializando o mapgeoDialog")
-
-        # Conectar o botão "Selecionar Geometria" à função
         self.selectGeometryButton.clicked.connect(self.select_geometry)
-        logger.debug("Botão de seleção de geometria conectado")
-
-        # Conectar o botão de execução
         self.runButton.clicked.connect(self.find_intersecting_maps)
-        logger.debug("Botão de execução conectado")
-
-        # Adicionar opções de escala ao ComboBox
-        self.scaleComboBox.addItems(['1:1.000.000', '1:500.000', '1:250.000'])
-        logger.info("Opções de escala adicionadas ao ComboBox")
-
-        # Adicionar opções de escala ao ComboBox
         if hasattr(self, 'scaleComboBox'):
-            self.scaleComboBox.addItems(['1:1.000.000', '1:500.000', '1:250.000'])
+            self.scaleComboBox.addItems(
+                ['1:1.000.000',
+                 '1:500.000',
+                 '1:250.000',
+                 '1:100.000',
+                 '1:50.000',
+                 '1:25.000'])
             logger.info("Opções de escala adicionadas ao ComboBox")
         else:
             logger.error("scaleComboBox não encontrado no layout")

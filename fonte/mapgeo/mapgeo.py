@@ -21,120 +21,135 @@
  *                                                                         *
  ***************************************************************************/
 """
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
-from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction
-from .resources import *
-from .mapgeo_dialog import mapgeoDialog
-import os.path
+import os
 import logging
+from qgis.PyQt import uic
+from qgis.PyQt.QtWidgets import QDialog, QMessageBox
+from qgis.core import QgsProject, QgsVectorLayer, QgsGeometry
+from .nucleo.databaseengine import DatabaseEngine
+from .nucleo.utils import reverse_meta_cartas
 
-# MAPGEO
-# from .nucleo.databaseengine import DatabaseEngine
+# Configuração do logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
-# Configure logging to file
 log_file = os.path.join(os.path.dirname(__file__), 'mapgeo.log')
 file_handler = logging.FileHandler(log_file)
 file_handler.setLevel(logging.DEBUG)
-logging.basicConfig(filename=log_file, level=logging.DEBUG,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('mapgeo')
 
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
 
-class mapgeo:
-    """QGIS Plugin Implementation."""
+logger.addHandler(file_handler)
 
-    def __init__(self, iface):
-        logger.info("################################################################################")
-        logger.info("Inicializando o plugin mapgeo")
+# Carrega a interface do plugin (arquivo UI)
+FORM_CLASS, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), 'mapgeo_dialog_base.ui'))
+
+class mapgeoDialog(QDialog, FORM_CLASS):
+    def __init__(self, iface, parent=None):
+        """Construtor do diálogo."""
+        super(mapgeoDialog, self).__init__(parent)
         self.iface = iface
-        self.plugin_dir = os.path.dirname(__file__)
-        locale = QSettings().value('locale/userLocale')[0:2]
-        locale_path = os.path.join(self.plugin_dir, 'i18n', 'mapgeo_{}.qm'.format(locale))
+        self.setupUi(self)
 
-        if os.path.exists(locale_path):
-            self.translator = QTranslator()
-            self.translator.load(locale_path)
-            QCoreApplication.installTranslator(self.translator)
+        # Conecta botões aos métodos
+        self.selectGeometryButton.clicked.connect(self.select_geometry)
+        self.runButton.clicked.connect(self.find_intersecting_maps)
 
-        self.actions = []
-        self.menu = self.tr(u'&Mapeamento Geologico')
-        self.first_start = None
+        # Sessão do banco de dados
+        self.db_session = None
+        self.selected_geometry = None
 
-        logger.info("mapgeo plugin initialized")
+        try:
+            # Preenche o combobox de escalas
+            self.scaleComboBox.addItems(['1:1.000.000', '1:500.000', '1:250.000', '1:100.000', '1:50.000', '1:25.000'])
+            self.db_session = DatabaseEngine.get_session()
+            logger.info("Conexão ao banco de dados estabelecida com sucesso.")
+        except Exception as e:
+            logger.error(f"Erro ao conectar ao banco de dados: {str(e)}")
+            QMessageBox.critical(self, "Erro de Conexão", f"Falha ao conectar ao banco de dados: {str(e)}")
 
-    def tr(self, message):
-        return QCoreApplication.translate('mapgeo', message)
+    def select_geometry(self):
+        """Seleciona a geometria da camada ativa no QGIS."""
+        try:
+            layer = self.iface.activeLayer()
+            if layer is None:
+                raise ValueError("Nenhuma camada ativa selecionada no QGIS.")
 
-    def add_action(
-        self,
-        icon_path,
-        text,
-        callback,
-        enabled_flag=True,
-        add_to_menu=True,
-        add_to_toolbar=True,
-        status_tip=None,
-        whats_this=None,
-        parent=None
-    ) -> QAction:
+            selected_features = layer.selectedFeatures()
+            if not selected_features:
+                raise ValueError("Nenhuma feição selecionada. Por favor, selecione uma feição primeiro.")
 
-        icon = QIcon(icon_path)
-        action = QAction(icon, text, parent)
-        action.triggered.connect(callback)
-        action.setEnabled(enabled_flag)
+            self.selected_geometry = selected_features[0].geometry()
+            wkt_geometry = self.selected_geometry.asWkt()
 
-        if status_tip is not None:
-            action.setStatusTip(status_tip)
+            logger.info(f"Geometria selecionada: {wkt_geometry}")
+            QMessageBox.information(self, "Geometria Selecionada", f"Geometria selecionada:\n{wkt_geometry}")
+        except Exception as e:
+            logger.error(f"Erro na seleção de geometria: {str(e)}")
+            QMessageBox.critical(self, "Erro na Seleção", f"Erro ao selecionar geometria: {str(e)}")
 
-        if whats_this is not None:
-            action.setWhatsThis(whats_this)
+    def find_intersecting_maps(self):
+        """Encontra e adiciona ao QGIS as folhas cartográficas que intersectam a geometria selecionada."""
+        if self.selected_geometry is None:
+            QMessageBox.warning(self, "Geometria Não Selecionada", "Por favor, selecione uma geometria antes de continuar.")
+            return
 
-        if add_to_toolbar:
-            self.iface.addToolBarIcon(action)
+        try:
+            # Obtem a escala selecionada no combobox
+            selected_scale = self.scaleComboBox.currentText()
+            logger.info(f"Escala selecionada: {selected_scale}")
 
-        if add_to_menu:
-            self.iface.addPluginToDatabaseMenu(self.menu, action)
+            # Converte a geometria para WKT
+            wkt_geometry = self.selected_geometry.asWkt()
 
-        self.actions.append(action)
-        logger.debug(f"Action '{text}' added to the menu and toolbar.")
-        return action
+            # Usa reverse_meta_cartas para obter o código da escala
+            scale_key = reverse_meta_cartas.get(selected_scale)
+            if not scale_key:
+                raise ValueError(f"Escala inválida selecionada: {selected_scale}")
 
-    def initGui(self):
-        icon_path = ':/plugins/mapgeo/icon.png'
-        self.add_action(
-            icon_path,
-            text=self.tr(u'mapgeo'),
-            callback=self.run,
-            parent=self.iface.mainWindow()
-        )
+            # Consulta SQL para encontrar as folhas que intersectam a geometria selecionada
+            query = f"""
+                SELECT codigo, escala, ST_AsEWKB(wkb_geometry) AS wkb_geometry
+                FROM folhas_cartograficas
+                WHERE escala = '{scale_key}'
+                AND ST_Intersects(
+                    wkb_geometry,
+                    ST_GeomFromText('{wkt_geometry}', 4326)
+                );
+            """
+            logger.debug(f"Consulta SQL: {query}")
 
-        self.first_start = True
-        logger.info("mapgeo plugin GUI initialized.")
+            # Executa a consulta
+            result = self.db_session.execute(query).fetchall()
+            logger.info(f"{len(result)} resultados encontrados na consulta.")
 
-    def unload(self):
-        for action in self.actions:
-            self.iface.removePluginDatabaseMenu(self.tr(u'&Mapeamento Geologico'), action)
-            self.iface.removeToolBarIcon(action)
-        logger.info("mapgeo plugin unloaded.")
+            # Cria uma camada temporária de memória para as folhas intersectadas
+            if result:
+                layer = QgsVectorLayer("Polygon?crs=EPSG:4326", "Folhas Intersectadas", "memory")
+                pr = layer.dataProvider()
 
-    def run(self):
-        if self.first_start:
-            self.first_start = False
-            self.dlg = mapgeoDialog(self.iface)
-            logger.info("Dialog initialized.")
+                for row in result:
+                    wkb_geometry = row['wkb_geometry']
+                    if isinstance(wkb_geometry, memoryview):
+                        wkb_geometry = wkb_geometry.tobytes()
+                    geom = QgsGeometry().fromWkb(wkb_geometry)
 
-        # Check if dialog is correctly loaded
-        if self.dlg is not None:
-            logger.debug("Displaying the dialog.")
-            self.dlg.show()
-        else:
-            logger.error("Failed to load the dialog.")
+                    if geom.isEmpty():
+                        logger.warning(f"Geometria vazia para o código {row['codigo']}")
+                        continue
 
-        # Run the dialog event loop
-        result = self.dlg.exec_()
 
-        if result:
-            logger.info("Dialog executed successfully.")
-        else:
-            logger.warning("Dialog execution was canceled or failed.")
+                    feat = QgsFeature()
+                    feat.setGeometry(geom)
+                    pr.addFeatures([feat])
+
+                QgsProject.instance().addMapLayer(layer)
+                QMessageBox.information(self, "Sucesso", f"{len(result)} folhas foram encontradas e adicionadas ao QGIS.")
+                logger.info(f"{len(result)} folhas cartográficas adicionadas ao QGIS.")
+            else:
+                QMessageBox.information(self, "Nenhuma Interseção", "Nenhuma folha cartográfica foi encontrada.")
+                logger.info("Nenhuma folha cartográfica foi encontrada.")
+        except Exception as e:
+            logger.error(f"Erro ao executar a consulta SQL: {str(e)}")
+            QMessageBox.critical(self, "Erro na Consulta", f"Erro ao executar a consulta SQL: {str(e)}")
