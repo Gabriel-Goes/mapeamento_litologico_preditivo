@@ -21,24 +21,150 @@
  *                                                                         *
  ***************************************************************************/
 """
-
 import os
-
+import logging
 from qgis.PyQt import uic
-from qgis.PyQt import QtWidgets
+from qgis.PyQt.QtWidgets import QDialog, QMessageBox
+from qgis.core import QgsProject, QgsGeometry
+from qgis.PyQt.QtCore import Qt
+from .nucleo.databaseengine import DatabaseEngine, Folha
 
-# This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
+# Configuração do logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# Configura o arquivo de log
+log_file = os.path.join(os.path.dirname(__file__), 'mapgeo.log')
+file_handler = logging.FileHandler(log_file)
+file_handler.setLevel(logging.DEBUG)
+
+# Formatação do log
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+
+# Adiciona o manipulador ao logger
+logger.addHandler(file_handler)
+
+# Load the UI file for the plugin dialog
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'mapgeo_dialog_base.ui'))
 
 
-class mapgeoDialog(QtWidgets.QDialog, FORM_CLASS):
-    def __init__(self, parent=None):
+class mapgeoDialog(QDialog, FORM_CLASS):
+    def __init__(self, iface, parent=None):
         """Constructor."""
         super(mapgeoDialog, self).__init__(parent)
-        # Set up the user interface from Designer through FORM_CLASS.
-        # After self.setupUi() you can access any designer object by doing
-        # self.<objectname>, and you can use autoconnect slots - see
-        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
-        # #widgets-and-dialogs-with-auto-connect
+        self.iface = iface  # Armazena a interface QGIS
         self.setupUi(self)
+
+        logger.info("Inicializando o mapgeoDialog")
+
+        # Conectar o botão "Selecionar Geometria" à função
+        self.selectGeometryButton.clicked.connect(self.select_geometry)
+        logger.debug("Botão de seleção de geometria conectado")
+
+        # Conectar o botão de execução
+        self.runButton.clicked.connect(self.find_intersecting_maps)
+        logger.debug("Botão de execução conectado")
+
+        # Adicionar opções de escala ao ComboBox
+        self.scaleComboBox.addItems(['1:1.000.000', '1:500.000', '1:250.000'])
+        logger.info("Opções de escala adicionadas ao ComboBox")
+
+        # Adicionar opções de escala ao ComboBox
+        if hasattr(self, 'scaleComboBox'):
+            self.scaleComboBox.addItems(['1:1.000.000', '1:500.000', '1:250.000'])
+            logger.info("Opções de escala adicionadas ao ComboBox")
+        else:
+            logger.error("scaleComboBox não encontrado no layout")
+
+        # Conectar ao banco de dados
+        try:
+            self.db_session = DatabaseEngine.get_session()
+            logger.info("Conexão ao banco de dados estabeleccodigoa")
+        except Exception as e:
+            logger.error(f"Erro ao conectar ao banco de dados: {str(e)}")
+
+    def select_geometry(self):
+        logger.info("Tentando selecionar geometria no QGIS")
+        layer = self.get_active_layer()
+        if not layer:
+            QMessageBox.warning(self, "Erro", "Nenhuma camada ativa encontrada.")
+            logger.warning("Nenhuma camada ativa encontrada")
+            return
+
+        selected_features = layer.selectedFeatures()
+        if not selected_features:
+            QMessageBox.warning(self, "Erro", "Nenhuma geometria selecionada.")
+            logger.warning("Nenhuma geometria selecionada")
+            return
+
+        self.selected_geometry = selected_features[0].geometry()
+        QMessageBox.information(self, "Sucesso", "Geometria selecionada com sucesso.")
+        logger.info("Geometria selecionada com sucesso")
+
+    def get_active_layer(self):
+        layer = self.iface.activeLayer()
+        if layer is None:
+            logger.error("Nenhuma camada ativa encontrada")
+            return None
+        else:
+            logger.info(f"Camada ativa encontrada: {layer.name()}")
+        return layer
+
+    def find_intersecting_maps(self):
+        if not hasattr(self, 'selected_geometry'):
+            QMessageBox.warning(self, "Erro", "Nenhuma geometria selecionada.")
+            logger.error("Tentativa de buscar interseções sem geometria selecionada")
+            return
+
+        selected_scale = self.scaleComboBox.currentText()
+        logger.info(f"Escala selecionada: {selected_scale}")
+        QMessageBox.information(self, "Processando", f"Escala selecionada: {selected_scale}")
+        intersecting_maps = self.get_intersecting_maps(selected_scale)
+
+        if intersecting_maps:
+            QMessageBox.information(self, "Resultados", f"Encontrado {len(intersecting_maps)} folhas que intersectam.")
+            logger.info(f"Encontrado {len(intersecting_maps)} folhas que intersectam")
+            self.update_results_list(intersecting_maps)
+        else:
+            QMessageBox.information(self, "Resultados", "Nenhuma interseção encontrada.")
+            logger.info("Nenhuma interseção encontrada")
+
+    def get_intersecting_maps(self, scale):
+        logger.info(f"Consultando banco de dados para folhas na escala {scale}")
+        try:
+            logger.debug('Folha: {}'.format(Folha))
+            query = self.db_session.query(Folha).filter(Folha.escala == scale)
+            result = []
+            logger.debug(f'Query executada: {query}')
+            for folha in query:
+                folha_geom = QgsGeometry.fromWkb(folha.geometry)
+                logger.debug(f"Geometria da folha {folha.codigo}: {folha_geom}")
+                logger.debug(f"Folha {folha.codigo} - Escala: {folha.scale} - Geometria (WKT): {folha_geom.asWkt()}")
+                logger.debug(f"SRID da geometria selecionada: {self.selected_geometry.crs().authcodigo()}")
+                logger.debug(f"SRID da geometria da folha {folha.codigo}: {folha_geom.crs().authid()}")
+                if self.selected_geometry.intersects(folha_geom):
+                    result.append(folha)
+                    logger.debug(f"Folha {folha.codigo} intersecta a geometria selecionada")
+                else:
+                    logger.debug(f"Folha {folha.codigo} não intersecta a geometria selecionada")
+
+            logger.info(f"Consulta concluída, {len(result)} folhas encontradas")
+            logger.debug(f"Folhas encontradas: {result}")
+            logger.debug(f"Tipo de retorno: {type(result)}")
+            return result
+        except Exception as e:
+            logger.error(f"Erro ao consultar o banco de dados: {str(e)}")
+            QMessageBox.warning(self, "Erro", f"Erro ao consultar o banco de dados: {str(e)}")
+            return []
+
+    def update_results_list(self, results):
+        """Atualiza a interface com a lista de folhas que intersectam."""
+        if hasattr(self, 'resultListWidget'):
+            self.resultListWidget.clear()
+            for result in results:
+                logger.debug(f"Adicionando folha {result.codigo} à lista de resultados")
+                self.resultListWidget.addItem(f"Folha: {result.id} - Escala: {result.scale}")
+        else:
+            logger.error("resultListWidget não encontrado no layout")

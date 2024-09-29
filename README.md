@@ -98,7 +98,7 @@ git clone https://github.com/Gabriel-Goes/mapeamento-litologico-preditivo.git Pr
 cd PreditorTerra
 ```
 Execute o script [intsll.sh](https://github.com/Gabriel-Goes/mapeamento-litologico-preditivo/tree/main/install.sh)
-para criar um ambiente virtual com [venv](https://docs.python.org/3/library/venv.html).  
+para criar um ambiente virtual com [venv](https://docs.python.org/3/library/venv.html).
 ```
 # Habilitando modo execução do arquivo
 chmod +x ./install.sh
