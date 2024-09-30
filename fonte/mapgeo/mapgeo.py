@@ -4,7 +4,14 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMessageBox
 from .resources import *
 from .mapgeo_dialog import mapgeoDialog
-from __init__ import logger
+
+import logging
+logger = logging.getLogger('mapgeo')
+# file log
+logging.basicConfig(filename='~/mapgeo.log', level=logging.DEBUG)
+logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler())
+file_handler = logging.FileHandler('mapgeo.log')
 
 
 class mapgeo:

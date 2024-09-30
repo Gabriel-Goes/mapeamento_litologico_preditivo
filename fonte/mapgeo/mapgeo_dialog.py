@@ -5,8 +5,14 @@ from qgis.core import QgsProject, QgsVectorLayer, QgsGeometry, QgsFeature, QgsFi
 from qgis.PyQt.QtCore import QVariant
 
 from .databaseengine import DatabaseEngine
-from .utils import reverse_meta_cartas
-from __init__ import logger
+from .resources import reverse_meta_cartas
+
+import logging
+logger = logging.getLogger('mapgeo')
+logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler())
+logger.propagate = False
+logger.debug("Logger inicializado.")
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), 'mapgeo_dialog_base.ui'))
 
