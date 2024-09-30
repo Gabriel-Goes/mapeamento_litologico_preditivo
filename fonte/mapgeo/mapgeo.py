@@ -1,17 +1,8 @@
 import os
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QMessageBox
-from .resources import *
+from qgis.PyQt.QtWidgets import QAction
 from .mapgeo_dialog import mapgeoDialog
-
-import logging
-logger = logging.getLogger('mapgeo')
-# file log
-logging.basicConfig(filename='~/mapgeo.log', level=logging.DEBUG)
-logger.setLevel(logging.DEBUG)
-logger.addHandler(logging.StreamHandler())
-file_handler = logging.FileHandler('mapgeo.log')
 
 
 class mapgeo:
@@ -28,8 +19,6 @@ class mapgeo:
             self.translator = QTranslator()
             self.translator.load(locale_path)
             QCoreApplication.installTranslator(self.translator)
-
-        logger.info("mapgeo plugin initialized")
 
     def tr(self, message):
         """Tradução."""
@@ -65,7 +54,6 @@ class mapgeo:
             self.iface.addPluginToDatabaseMenu(self.menu, action)
 
         self.actions.append(action)
-        logger.debug(f"Action '{text}' added to the menu and toolbar.")
         return action
 
     def initGui(self):
@@ -78,33 +66,21 @@ class mapgeo:
             parent=self.iface.mainWindow()
         )
         self.first_start = True
-        logger.info("mapgeo plugin GUI initialized.")
 
     def unload(self):
         """Remove o plugin do QGIS."""
         for action in self.actions:
             self.iface.removePluginDatabaseMenu(self.tr(u'&Mapeamento Geológico'), action)
             self.iface.removeToolBarIcon(action)
-        logger.info("mapgeo plugin unloaded.")
 
     def run(self):
         """Executa o diálogo do plugin."""
         if self.first_start:
             self.first_start = False
             self.dlg = mapgeoDialog(self.iface)
-            logger.info("Dialog initialized.")
 
-        # Verifica se o diálogo foi carregado corretamente
         if self.dlg is not None:
-            logger.debug("Displaying the dialog.")
             self.dlg.show()
         else:
-            logger.error("Failed to load the dialog.")
-
-        # Executa o loop de eventos do diálogo
-        result = self.dlg.exec_()
-
-        if result:
-            logger.info("Dialog executed successfully.")
-        else:
-            logger.warning("Dialog execution was canceled or failed.")
+            self.dlg = mapgeoDialog(self.iface)
+            self.dlg.show()
