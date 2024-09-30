@@ -25,7 +25,8 @@ import os
 import logging
 from qgis.PyQt import uic
 from qgis.PyQt.QtWidgets import QDialog, QMessageBox
-from qgis.core import QgsProject, QgsVectorLayer, QgsGeometry
+from qgis.core import QgsProject, QgsVectorLayer, QgsGeometry, QgsFeature, QgsField
+from qgis.PyQt.QtCore import QVariant
 from .nucleo.databaseengine import DatabaseEngine
 from .nucleo.utils import reverse_meta_cartas
 
@@ -45,6 +46,7 @@ logger.addHandler(file_handler)
 # Carrega a interface do plugin (arquivo UI)
 FORM_CLASS, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), 'mapgeo_dialog_base.ui'))
 
+
 class mapgeoDialog(QDialog, FORM_CLASS):
     def __init__(self, iface, parent=None):
         """Construtor do diálogo."""
@@ -52,16 +54,12 @@ class mapgeoDialog(QDialog, FORM_CLASS):
         self.iface = iface
         self.setupUi(self)
 
-        # Conecta botões aos métodos
         self.selectGeometryButton.clicked.connect(self.select_geometry)
         self.runButton.clicked.connect(self.find_intersecting_maps)
-
-        # Sessão do banco de dados
         self.db_session = None
         self.selected_geometry = None
 
         try:
-            # Preenche o combobox de escalas
             self.scaleComboBox.addItems(['1:1.000.000', '1:500.000', '1:250.000', '1:100.000', '1:50.000', '1:25.000'])
             self.db_session = DatabaseEngine.get_session()
             logger.info("Conexão ao banco de dados estabelecida com sucesso.")
@@ -96,19 +94,12 @@ class mapgeoDialog(QDialog, FORM_CLASS):
             return
 
         try:
-            # Obtem a escala selecionada no combobox
             selected_scale = self.scaleComboBox.currentText()
             logger.info(f"Escala selecionada: {selected_scale}")
-
-            # Converte a geometria para WKT
             wkt_geometry = self.selected_geometry.asWkt()
-
-            # Usa reverse_meta_cartas para obter o código da escala
             scale_key = reverse_meta_cartas.get(selected_scale)
             if not scale_key:
                 raise ValueError(f"Escala inválida selecionada: {selected_scale}")
-
-            # Consulta SQL para encontrar as folhas que intersectam a geometria selecionada
             query = f"""
                 SELECT codigo, escala, ST_AsEWKB(wkb_geometry) AS wkb_geometry
                 FROM folhas_cartograficas
@@ -119,15 +110,13 @@ class mapgeoDialog(QDialog, FORM_CLASS):
                 );
             """
             logger.debug(f"Consulta SQL: {query}")
-
-            # Executa a consulta
             result = self.db_session.execute(query).fetchall()
             logger.info(f"{len(result)} resultados encontrados na consulta.")
-
-            # Cria uma camada temporária de memória para as folhas intersectadas
             if result:
                 layer = QgsVectorLayer("Polygon?crs=EPSG:4326", "Folhas Intersectadas", "memory")
                 pr = layer.dataProvider()
+                pr.addAttributes([QgsField("codigo", QVariant.String), QgsField("escala", QVariant.String)])
+                layer.updateFields()
 
                 for row in result:
                     wkb_geometry = row['wkb_geometry']
@@ -139,10 +128,10 @@ class mapgeoDialog(QDialog, FORM_CLASS):
                         logger.warning(f"Geometria vazia para o código {row['codigo']}")
                         continue
 
-
                     feat = QgsFeature()
                     feat.setGeometry(geom)
-                    pr.addFeatures([feat])
+                    feat.setAttributes([row['codigo'], row['escala']])
+                    pr.addFeature(feat)
 
                 QgsProject.instance().addMapLayer(layer)
                 QMessageBox.information(self, "Sucesso", f"{len(result)} folhas foram encontradas e adicionadas ao QGIS.")

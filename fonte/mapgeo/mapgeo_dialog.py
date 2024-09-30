@@ -28,6 +28,7 @@ from qgis.PyQt.QtWidgets import QDialog, QMessageBox
 from qgis.core import QgsProject, QgsGeometry
 from qgis.PyQt.QtCore import Qt
 from .nucleo.databaseengine import DatabaseEngine, Folha
+from .nucleo.metacartas import reverse_meta_cartas
 
 # Configuração do logger
 logger = logging.getLogger(__name__)
@@ -126,6 +127,11 @@ class mapgeoDialog(QDialog, FORM_CLASS):
 
     def get_intersecting_maps(self, scale):
         logger.info(f"Consultando banco de dados para folhas na escala {scale}")
+
+        selected_scale = self.scaleComboBox.currentText()
+        reverse_scale = reverse_meta_cartas.get(selected_scale)
+        if not reverse_scale:
+            raise ValueError("Escala selecionada não é válida.")
         try:
             logger.debug('Folha: {}'.format(Folha))
             query = self.db_session.query(Folha).filter(Folha.escala == scale)
