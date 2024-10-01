@@ -129,28 +129,3 @@ def qCleanupResources():
 
 
 qInitResources()
-
-meta_cartas = {
-    '1kk': {'escala': '1:1.000.000',
-            'incrementos': (4, 6),
-            'codigos': ['A', 'B', 'C', 'D', 'E', 'F', 'G',
-                        'H', 'I', 'J', 'K', 'L', 'M', 'N',
-                        'O', 'P', 'Q', 'R', 'S', 'T']},
-    '500k': {'escala': '1:500.000',
-             'incrementos': (2, 3),
-             'codigos': [['V', 'Y'], ['X', 'Z']]},
-    '250k': {'escala': '1:250.000',
-             'incrementos': (1, 1.5),
-             'codigos': [['A', 'C'], ['B', 'D']]},
-    '100k': {'escala': '1:100.000',
-             'incrementos': (0.5, 0.5),
-             'codigos': [['I', 'IV'], ['II', 'V'], ['III', 'VI']]},
-    '50k': {'escala': '1:50.000',
-            'incrementos': (0.25, 0.25),
-            'codigos': [['1', '3'], ['2', '4']]},
-    '25k': {'escala': '1:25.000',
-            'incrementos': (0.125, 0.125),
-            'codigos': [['NW', 'SW'], ['NE', 'SE']]}
-}
-
-reverse_meta_cartas = {meta_cartas[k]['escala']: k for k in meta_cartas}

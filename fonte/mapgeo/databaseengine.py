@@ -40,7 +40,7 @@ class DatabaseEngine:
 
 
 class Folha(Base):
-    __tablename__ = 'folhas_cartograficas'
+    __tablename__ = 'fc'
     codigo = Column(String, primary_key=True)
     epsg = Column(String, nullable=False)
     escala = Column(String, nullable=False)

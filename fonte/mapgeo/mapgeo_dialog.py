@@ -1,17 +1,12 @@
+import logging
 import os
 from qgis.PyQt import uic
 from qgis.PyQt.QtWidgets import QDialog, QMessageBox
 from qgis.core import QgsProject, QgsVectorLayer, QgsGeometry, QgsFeature, QgsField
 from qgis.PyQt.QtCore import QVariant
-
 from .databaseengine import DatabaseEngine
-from .resources import reverse_meta_cartas
 
-import logging
-
-# Configurar o caminho de log corretamente
 log_file = os.path.expanduser('~/MAPGEO.LOG')
-
 logger = logging.getLogger('mapgeo')
 logger.setLevel(logging.DEBUG)
 file_handler = logging.FileHandler(log_file)
@@ -23,6 +18,33 @@ if not logger.hasHandlers():
     logger.addHandler(file_handler)
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), 'mapgeo_dialog_base.ui'))
+
+meta_cartas = {
+    '1kk': {'escala': '1:1.000.000',
+            'incrementos': (4, 6),
+            'codigos': ['A', 'B', 'C', 'D', 'E', 'F', 'G',
+                        'H', 'I', 'J', 'K', 'L', 'M', 'N',
+                        'O', 'P', 'Q', 'R', 'S', 'T']},
+    '500k': {'escala': '1:500.000',
+             'incrementos': (2, 3),
+             'codigos': [['V', 'Y'], ['X', 'Z']]},
+    '250k': {'escala': '1:250.000',
+             'incrementos': (1, 1.5),
+             'codigos': [['A', 'C'], ['B', 'D']]},
+    '100k': {'escala': '1:100.000',
+             'incrementos': (0.5, 0.5),
+             'codigos': [['I', 'IV'], ['II', 'V'], ['III', 'VI']]},
+    '50k': {'escala': '1:50.000',
+            'incrementos': (0.25, 0.25),
+            'codigos': [['1', '3'], ['2', '4']]},
+    '25k': {'escala': '1:25.000',
+            'incrementos': (0.125, 0.125),
+            'codigos': [['NW', 'SW'], ['NE', 'SE']]}
+}
+
+reverse_meta_cartas = {meta_cartas[k]['escala']: k for k in meta_cartas}
+
+
 
 
 class mapgeoDialog(QDialog, FORM_CLASS):
@@ -68,68 +90,54 @@ class mapgeoDialog(QDialog, FORM_CLASS):
             QMessageBox.critical(self, "Erro na Seleção", f"Erro ao selecionar geometria: {str(e)}")
 
     def find_intersecting_maps(self):
+        if self.selected_geometry is None:
+            QMessageBox.warning(self, "Geometria Não Selecionada", "Por favor, selecione uma geometria antes de continuar.")
+            return
+
         try:
             selected_scale = self.scaleComboBox.currentText()
             logger.info(f"Escala selecionada: {selected_scale}")
             wkt_geometry = self.selected_geometry.asWkt()
             scale_key = reverse_meta_cartas.get(selected_scale)
-            QMessageBox.information(self, "Seleções: ", f"{scale_key} - {wkt_geometry}")
-        except Exception as e:
-            logger.error(f"Erro ao obter escala e geometria: {str(e)}")
-            raise ValueError(f" {selected_scale} - {wkt_geometry}")
+            #scale_key = '25k'
 
-        try:
             query = f"""
-                SELECT codigo, escala, ST_AsEWKB(wkb_geometry) AS wkb_geometry
-                FROM folhas_cartograficas WHERE escala = '{scale_key}'
+                SELECT codigo, escala, epsg, ST_AsText(wkb_geometry) AS wkt_geometry
+                FROM folha_cartografica
+                WHERE escala = '{scale_key}'
                 AND ST_Intersects(
                     wkb_geometry,
                     ST_GeomFromText('{wkt_geometry}', 4326)
                 );
             """
             logger.debug(f"Consulta SQL: {query}")
-            QMessageBox.information(self, "Consulta SQL", f"Consulta SQL:\n{query}")
             result = self.db_session.execute(query).fetchall()
-            logger.info(f"{len(result)} resultados encontrados na consulta.")
-        except Exception as e:
-            logger.error(f"Erro ao executar a consulta SQL: {str(e)}")
-            QMessageBox.critical(self, "Erro na Consulta", f"Erro ao executar a consulta SQL: {str(e)}")
-            return
 
-        try:
-            if result:
-                layer = QgsVectorLayer("Polygon?crs=EPSG:4326", "Folhas Intersectadas", "memory")
-                pr = layer.dataProvider()
-                pr.addAttributes([QgsField("codigo", QVariant.String), QgsField("escala", QVariant.String), QgsField("wkb_geometry", QVariant.ByteArray), QgsField("wkt_geometry", QVariant.String)])
-                layer.updateFields()
-
-                for row in result:
-                    wkb_geometry = row['wkb_geometry']
-                    if isinstance(wkb_geometry, memoryview):
-                        wkb_geometry = wkb_geometry.tobytes()
-
-                    try:
-                        geom = QgsGeometry()
-                        geom = geom.fromWkb(wkb_geometry)
-                        if geom.isEmpty():
-                            logger.warning(f"Geometria vazia para o código {row['codigo']}")
-                            continue
-                        feat = QgsFeature()
-                        feat.setGeometry(geom)
-                        feat.setAttributes([row['codigo'], row['escala']])
-                        pr.addFeature(feat)
-
-                        logger.debug(f"Folha {row['codigo']} adicionada ao mapa.")
-                        logger.debug(f"Variáveis: {row.keys()}")
-                    except Exception as e:
-                        logger.error(f"Erro ao converter a geometria WKB para WKT para o código {row['codigo']}: {str(e)}")
-
-                QgsProject.instance().addMapLayer(layer)
-                QMessageBox.information(self, "Sucesso", f"{len(result)} folhas foram encontradas e adicionadas ao QGIS.")
-                logger.info(f"{len(result)} folhas cartográficas adicionadas ao QGIS.")
-            else:
+            if not result:
                 QMessageBox.information(self, "Nenhuma Interseção", "Nenhuma folha cartográfica foi encontrada.")
-                logger.info("Nenhuma folha cartográfica foi encontrada.")
+                return
+
+            logger.debug(f"Resultado:\n{result}")
+            layer = QgsVectorLayer("Polygon?crs=EPSG:4326", "Folhas Intersectadas", "memory")
+            pr = layer.dataProvider()
+            pr.addAttributes([QgsField("codigo", QVariant.String), QgsField("escala", QVariant.String), QgsField("epsg", QVariant.Int), QgsField("wkt_geometry")])
+            layer.updateFields()
+
+            for row in result:
+                try:
+                    wkt_geometry = row['wkt_geometry']
+                    wkt_geometry = QgsGeometry.fromWkt(wkt_geometry)
+                    feat = QgsFeature()
+                    feat.setGeometry(wkt_geometry)
+                    feat.setAttributes([row['codigo'], row['escala'], row['epsg'], row['wkt_geometry']])
+                    pr.addFeature(feat)
+
+                except Exception as e:
+                    logger.error(f"Erro: {str(e)}")
+                    continue
+
+            QgsProject.instance().addMapLayer(layer)
+            QMessageBox.information(self, "Sucesso", f"{len(result)} folhas foram encontradas e adicionadas ao QGIS.")
         except Exception as e:
             logger.error(f"Erro ao processar os resultados: {str(e)}")
             QMessageBox.critical(self, "Erro na Consulta", f"Erro ao processar os resultados: {str(e)}")

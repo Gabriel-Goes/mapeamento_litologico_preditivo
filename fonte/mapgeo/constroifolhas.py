@@ -15,11 +15,9 @@
 # ------------------------------ IMPORTS ------------------------------------
 import math
 from tqdm import tqdm
-from shapely.geometry import mapping
 from shapely. geometry import Polygon
-
-import fiona
-from fiona.crs import CRS
+import geopandas as gpd
+import os
 
 from sqlalchemy import Column
 from sqlalchemy import Integer
@@ -28,35 +26,75 @@ from sqlalchemy import Index
 
 from geoalchemy2 import Geometry
 
-from utils import get_epsg
-from utils import set_db
-from utils import float_range
-from utils import meta_cartas
-from utils import brasil
-from utils import delimt
-
-from DatabaseEngine import DatabaseEngine
-from DatabaseEngine import Base
+from databaseengine import DatabaseEngine
+from databaseengine import Base
 
 # ------------------------------ PARAMETROS ---------------------------------
+delimt = '------------------------------------------------------\n'
+
+
+def set_db(path=''):
+    return '/home/database/' + path
+
+
+def list_files(path):
+    return os.listdir(path)
+
+
+def float_range(start, stop, step):
+    while start < stop:
+        yield start
+        start += step
+
+
+def get_epsg(folha_id):
+    if folha_id.startswith('S'):
+        return '327' + folha_id[2:4]
+    else:
+        return '326' + folha_id[2:4]
+
+
+# define geometria do Brasil
+ibge = set_db('shapefiles/IBGE/')
+regioes = gpd.read_file(ibge + 'ANMS2010_06_grandesregioes.shp')
+brasil = regioes.unary_union
+
+meta_cartas = {
+    '1kk': {'escala': '1:1.000.000',
+            'incrementos': (4, 6),
+            'codigos': ['A', 'B', 'C', 'D', 'E', 'F', 'G',
+                        'H', 'I', 'J', 'K', 'L', 'M', 'N',
+                        'O', 'P', 'Q', 'R', 'S', 'T']},
+    '500k': {'escala': '1:500.000',
+             'incrementos': (2, 3),
+             'codigos': [['V', 'Y'], ['X', 'Z']]},
+    '250k': {'escala': '1:250.000',
+             'incrementos': (1, 1.5),
+             'codigos': [['A', 'C'], ['B', 'D']]},
+    '100k': {'escala': '1:100.000',
+             'incrementos': (0.5, 0.5),
+             'codigos': [['I', 'IV'], ['II', 'V'], ['III', 'VI']]},
+    '50k': {'escala': '1:50.000',
+            'incrementos': (0.25, 0.25),
+            'codigos': [['1', '3'], ['2', '4']]},
+    '25k': {'escala': '1:25.000',
+            'incrementos': (0.125, 0.125),
+            'codigos': [['NW', 'SW'], ['NE', 'SE']]}
+}
+
+reverse_meta_cartas = {meta_cartas[k]['escala']: k for k in meta_cartas}
 
 
 # ------------------------------ CLASSES ------------------------------------
 class CartografiaSistematica(Base):
-    '''
-    Esta classe é responsável por criar as folhas de meta_cartas de acordo com
-    a escala.
-
-    '''
-    __tablename__ = 'folhas_cartograficas'
+    __tablename__ = 'folha_cartografica'
     fid = Column(Integer, primary_key=True, autoincrement=True)
     wkb_geometry = Column(Geometry('POLYGON'))
     codigo = Column(String, nullable=False)
     epsg = Column(String, nullable=False)
     escala = Column(String, nullable=False)
-
     __table_args__ = (
-        Index('ix_folhas_cartograficas_geom',
+        Index('ix_folha_cartografica_geom',
               'wkb_geometry',
               postgresql_using='gist'),
     )
@@ -69,9 +107,6 @@ class CartografiaSistematica(Base):
 # -------------------------------- MÉTODOS ------------------------------------
     @staticmethod
     def gerar_id(left, right, top, bottom):
-        '''
-        Gera o id da folha de acordo com a escala (Carta).
-        '''
         # Adquire o valor de carta do método criar_folhas
         e1kk = meta_cartas['1kk']['codigos']
         e500k = meta_cartas['500k']['codigos']
@@ -129,9 +164,7 @@ class CartografiaSistematica(Base):
 
     # Método para criar as folhas de meta_cartas
     def criar_folhas(self, carta):
-        '''
-        Cria as folhas de meta_cartas de acordo com a escala (Carta).
-        '''
+        self.folhas = {}
         self.carta = carta
         lat_incremen, lon_incremen = meta_cartas[carta]['incrementos']
         (lon_min_brasil, lat_min_brasil,
@@ -158,7 +191,6 @@ class CartografiaSistematica(Base):
                                    (lon_range[1], lat_range[1]),
                                    (lon_range[0], lat_range[1]),
                                    (lon_range[0], lat_range[0])])
-                # Seleciona apenas poligonos que intersectam com o Brasil
                 if polygon.intersects(brasil):
                     left, bottom, right, top = polygon.bounds
                     codigo = self.gerar_id(left,
@@ -170,48 +202,8 @@ class CartografiaSistematica(Base):
 
         return self.folhas
 
-    # Método para salvar as camadas em um geopackage com fiona
-    def salvar_folhas_gpkg(self, folhas=None, file_name='fc.gpkg'):
-        '''
-        Salva as folhas de meta_cartas em um geopackage.
-        '''
-        print(' -> Salvando folhas de meta_cartas em geopackage\n')
-        if self.folhas is None:
-            print('Crie as folhas cartográficas primeiro')
-            return
-        if folhas is None:
-            folhas = self.folhas
-        carta = self.carta
-        # Esquema para geopackage
-        schema = {
-            'geometry': 'Polygon',
-            'properties': {'codigo': 'str',
-                           'epsg': 'str'}
-        }
-        # Define o CRS como WGS84
-        crs = CRS.from_epsg(4326)
-        # Nome da camada baseada na carta
-        layer_name = f'fc_{carta}'
-        # Cria o geopackage
-        with fiona.open(set_db(file_name), 'w', driver='GPKG',
-                        crs=crs, layer=layer_name, schema=schema) as layer:
-
-            for codigo, poligono in folhas.items():
-                epsg_code = get_epsg(codigo)
-                # Adiciona o poligono e o id da folha no geopackage
-                element = {
-                    'geometry': mapping(poligono),
-                    'properties': {'codigo': codigo,
-                                   'epsg': epsg_code}
-                }
-                layer.write(element)
-
     # Método para salvar as camadas em um banco de dados
     def salvar_folhas_geodatabase(self):
-        '''
-        Salva as folhas de meta_cartas em banco de dados utilizando a
-        engine e session fornecidas pela classe singleton DatabaseEngine.
-        '''
         print(' -> Salvando cartas no banco de dados\n')
         if self.folhas is None:
             print('Crie as folhas cartográficas primeiro')
@@ -228,7 +220,6 @@ class CartografiaSistematica(Base):
                 nova_folha.wkb_geometry = 'SRID={};{}'.format(4326,
                                                               poligono.wkt)
                 nova_folha.escala = self.carta
-                print(nova_folha.__tablename__)
                 session.add(nova_folha)
             # Salva as folhas no banco de dados
             session.commit()
@@ -239,9 +230,6 @@ class CartografiaSistematica(Base):
 
 
 def test():
-    '''
-    Função para criar folhas de meta_cartas de acordo com a escala (Carta).
-    '''
     print(delimt)
     print(' -> Criando folhas de meta_cartas')
     print(delimt)
@@ -250,7 +238,6 @@ def test():
         print(carta)
         cs.criar_folhas(carta=carta)
         cs.salvar_folhas_geodatabase()
-        # cs.salvar_folhas_gpkg()
 
 
 # ----------------------- MAIN -----------------------------------------------
