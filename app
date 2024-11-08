@@ -5,10 +5,4 @@
 # Reads data, outputs classes.
 #
 
-pushd $HOME/projetos/PreditorTerra/
-
-if [ ! -d $HOME/.local/bin/app ]; then
-    cp app $HOME/.local/bin/
-fi
-
-python fonte/nucleo/interface.py
+exec plugin_CT
