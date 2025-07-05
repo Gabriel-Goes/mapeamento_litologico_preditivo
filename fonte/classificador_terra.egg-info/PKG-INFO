@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: classificador_terra
+Version: 0.1.0
+Summary: Classificador Terra
+Author-email: Gabriel Góes <gabrielgoes@usp.br>
+License: MIT License
+Project-URL: Homepage, https://github.com/gabriel/classificador_terra
+Project-URL: Documentation, https://github.com/gabriel/classificador_terra/wiki
+Requires-Python: >=3.13
+Provides-Extra: gui
+Requires-Dist: PyQt5; extra == "gui"

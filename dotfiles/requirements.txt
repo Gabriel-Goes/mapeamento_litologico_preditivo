@@ -1,16 +1,10 @@
-# run: "conda env create --file  ~/PATH/environment.yml"  or "conda env create -f ~/PATH/environment.yml";
-# o ambiente conda será instalado com as seguintes bibliotecas:
-
-name: geologia  # The name can be changed to anything of your like;
+# requirementes.txt
+name: geologia;
 dependencies:
-
 fiona
 geopandas
 matplotlib
 pygmt
-
-sqlalchemoy
+sqlalchemy
 geoalchemy2
-databaseengine
-
 verde

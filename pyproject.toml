@@ -2,19 +2,23 @@
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool-setuptools]
-packages = ['nucleo']
-package-dir = {"" = "fonte"}
+[tool.setuptools]
+# aponta a raiz de onde virão os pacotes
+package-dir = { "" = "fonte/mapgeo" }
 include-package-data = true
+
+[tool.setuptools.packages.find]
+# varre apenas dentro de fonte/mapgeo
+where  = ["fonte/mapgeo"]
+# inclui só o pacote nucleo e seus subpacotes
+include = ["nucleo", "nucleo.*", "mapgeo", "mapgeo.*"]
 
 [project]
 name = "classificador_terra"
-version = "0.2.0"
+version = "0.1.0"
 description = "Classificador Terra"
-requires-python = ">=3.14"
-dependencies = [
-
-]
+requires-python = ">=3.13"
+dependencies = []
 
 authors = [
   {name = "Gabriel Góes", email = "gabrielgoes@usp.br"},
@@ -25,6 +29,6 @@ license = {text = "MIT License"}
 [project.optional-dependencies]
 gui = ["PyQt5"]
 
-# [project.urls]
-Homepage = "https://github.com/gabriel/classificador_terra"
+[project.urls]
+Homepage      = "https://github.com/gabriel/classificador_terra"
 Documentation = "https://github.com/gabriel/classificador_terra/wiki"
