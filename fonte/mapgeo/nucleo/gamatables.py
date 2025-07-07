@@ -9,7 +9,7 @@
 from sqlalchemy import Column, Integer, Float
 from geoalchemy2 import Geometry
 
-from DatabaseEngine import Base
+from .databaseengine import Base, DatabaseEngine
 
 
 # ------------------------------ CLASSES ------------------------------------
