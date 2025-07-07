@@ -2,6 +2,7 @@ import os
 import matplotlib.pyplot as plt
 import pygmt
 import geopandas as gpd
+from shapely.ops import unary_union
 
 
 # funções e variáveis úteis podem ser adicionadas aqui conforme necessário
@@ -49,7 +50,7 @@ def get_epsg(folha_id):
 # define geometria do Brasil
 ibge = set_db('shapefiles/IBGE/')
 regioes = gpd.read_file(ibge + 'ANMS2010_06_grandesregioes.shp')
-brasil = regioes.unary_union
+brasil = unary_union(regioes.geometry)
 
 
 meta_cartas = {
