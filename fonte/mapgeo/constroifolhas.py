@@ -26,8 +26,7 @@ from sqlalchemy import Index
 
 from geoalchemy2 import Geometry
 
-from databaseengine import DatabaseEngine
-from databaseengine import Base
+from .databaseengine import Base, DatabaseEngine
 
 # ------------------------------ PARAMETROS ---------------------------------
 delimt = '------------------------------------------------------\n'
