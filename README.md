@@ -117,7 +117,7 @@ chmod +x ./install.sh
 Gabriel Góes
 
 ## Licença
-Este projeto é licenciado sob a GPL - veja o arquivo 'LICENÇA' para detalhes.
+Este projeto é licenciado sob a MIT License - veja o arquivo 'LICENSE' para detalhes.
 
 ## Contato
 Para mais informações, entre em contato pelo correio eletrônico gabrielgoes@usp.br
