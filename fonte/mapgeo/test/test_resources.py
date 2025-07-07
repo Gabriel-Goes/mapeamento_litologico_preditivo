@@ -36,7 +36,7 @@ class mapgeoDialogTest(unittest.TestCase):
         self.assertFalse(icon.isNull())
 
 if __name__ == "__main__":
-    suite = unittest.makeSuite(mapgeoResourcesTest)
+    suite = unittest.makeSuite(mapgeoDialogTest)
     runner = unittest.TextTestRunner(verbosity=2)
     runner.run(suite)
 
