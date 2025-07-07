@@ -51,7 +51,7 @@ class mapgeo:
             self.iface.addToolBarIcon(action)
 
         if add_to_menu:
-            self.iface.addPluginToDatabaseMenu(self.menu, action)
+            self.iface.addPluginToMenu(self.menu, action)
 
         self.actions.append(action)
         return action
@@ -70,7 +70,7 @@ class mapgeo:
     def unload(self):
         """Remove o plugin do QGIS."""
         for action in self.actions:
-            self.iface.removePluginDatabaseMenu(self.tr(u'&Mapeamento Geológico'), action)
+            self.iface.removePluginMenu(self.tr(u'&Mapeamento Geológico'), action)
             self.iface.removeToolBarIcon(action)
 
     def run(self):
