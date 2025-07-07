@@ -17,7 +17,10 @@ delimt = '------------------------------------------------------\n'
 
 
 # configura PostgreSQL para conexão
-gdb_url = 'postgresql+psycopg2://postgres:postgres@localhost:5432/geodatabase'
+gdb_url = os.getenv(
+    "DB_URL",
+    "postgresql+psycopg2://postgres:postgres@localhost:5432/geodatabase",
+)
 
 
 def set_db(path=''):

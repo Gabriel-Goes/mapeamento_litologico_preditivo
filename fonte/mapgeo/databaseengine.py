@@ -11,10 +11,14 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, String
 from geoalchemy2 import Geometry
+import os
 
 
 # ------------------------------ PARAMETR ------------------------------------
-url = 'postgresql+psycopg2://postgres:postgres@localhost:5432/geodatabase'
+url = os.getenv(
+    "DB_URL",
+    "postgresql+psycopg2://postgres:postgres@localhost:5432/geodatabase",
+)
 Base = declarative_base()
 
 

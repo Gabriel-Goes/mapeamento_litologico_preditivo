@@ -107,6 +107,14 @@ chmod +x ./install.sh
 <span style="font-size:smaller;">_Este processo deve ser facilitando no futuro utilizando [docker]()_</span>
 <span style="font-size:smaller;">_Ou refatorando a interface de TKinter para PyQT e adicioanndo ao QGIS como um plugin_</span>
 
+## Variáveis de Ambiente
+Defina a variável `DB_URL` com a string de conexão para o banco PostGIS.
+Caso ela não seja fornecida, será utilizado o padrão
+`postgresql+psycopg2://postgres:postgres@localhost:5432/geodatabase`.
+
+```bash
+export DB_URL="postgresql+psycopg2://usuario:senha@localhost:5432/geodatabase"
+```
 
 ## Uso
 ```
