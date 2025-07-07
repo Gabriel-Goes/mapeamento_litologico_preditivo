@@ -116,6 +116,24 @@ Caso ela não seja fornecida, será utilizado o padrão
 export DB_URL="postgresql+psycopg2://usuario:senha@localhost:5432/geodatabase"
 ```
 
+## Compilação do Plugin QGIS
+Para compilar e instalar o plugin **mapgeo** utilize o
+[pb_tool](https://github.com/g-sherman/plugin_build_tool) ou o `Makefile`
+disponível em `fonte/mapgeo`.
+
+```bash
+# A partir do diretório raiz do projeto
+cd fonte/mapgeo
+
+# Usando pb_tool
+pb_tool clean
+pb_tool build
+pb_tool deploy
+
+# Ou utilizando make
+make deploy
+```
+
 ## Uso
 ```
 ./PreditorTerra
