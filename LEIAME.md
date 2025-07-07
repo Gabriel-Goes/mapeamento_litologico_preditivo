@@ -1,21 +1,10 @@
-# Mapeamento Litológico Preditivo
+# Preditor Terra
 
-Este repositório contém o código e a documentação para um projeto de mapeamento litológico com técnicas preditivas. A iniciativa visa reunir algoritmos, dados e utilitários usados na predição de tipos litológicos, além de armazenar relatórios e análises sobre resultados.
+## Descrição
+Software python para armazenar e gerenciar dados geoespaciais coletados em campo
+ou por meio do STAC ou por meio do [GeoPortal - SGB](https://geoportal.sgb.gov.br/geosgb/)
+em um postgresql POSTGIS em [GeoServer](geodatabase.duckdns.org).
 
-## Objetivo
-
-Construir um conjunto de ferramentas que auxiliem a comunidade geocientífica a aplicar métodos automatizados de classificação de litologias, explorando conceitos de geoprocessamento e aprendizagem de máquina. A nova base de código será desenvolvida de forma incremental, priorizando simplicidade e clareza.
-
-## Estrutura Inicial
-
-Apenas os arquivos essenciais serão adicionados aos poucos. Cada componente do sistema será implementado em etapas, permitindo que as versões sejam revisadas e aprimoradas continuamente. Sugestões de melhorias são bem-vindas conforme o projeto evolui.
-
-## Contribuição
-
-1. Crie uma issue descrevendo a melhoria ou correção desejada.
-2. Aguarde a aprovação para iniciar a implementação.
-3. Ao contribuir, mantenha o foco na legibilidade e na modularização do código.
-
-## Licença
-
-Este projeto está sob a licença MIT. Consulte o arquivo `LICENSE` (a ser adicionado) para mais detalhes.
+Este software poderá ser utilizado com a ferramenta plugin builder do qgis, para
+implementar as funcionalidades como um plugin para o qgis, e de lá, poderemos interagir
+com o nosso Banco de dados atualizando e analizandos os resultados.
