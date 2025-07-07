@@ -107,6 +107,26 @@ chmod +x ./install.sh
 <span style="font-size:smaller;">_Este processo deve ser facilitando no futuro utilizando [docker]()_</span>
 <span style="font-size:smaller;">_Ou refatorando a interface de TKinter para PyQT e adicioanndo ao QGIS como um plugin_</span>
 
+## Criando o Ambiente
+Você pode configurar o ambiente de duas maneiras:
+
+### Usando conda
+```bash
+conda env create -f dotfiles/environment.yml
+conda activate geologist_environment
+```
+
+### Usando pip
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r dotfiles/requirements.txt
+```
+
+É necessário ter o **QGIS** instalado para utilizar o plugin. Copie o diretório
+`fonte/mapgeo` para a pasta de plugins do QGIS e habilite o plugin pelo
+Gerenciador de Complementos.
+
 ## Variáveis de Ambiente
 Defina a variável `DB_URL` com a string de conexão para o banco PostGIS.
 Caso ela não seja fornecida, será utilizado o padrão
