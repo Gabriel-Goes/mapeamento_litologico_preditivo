@@ -17,8 +17,22 @@ include = ["nucleo", "nucleo.*", "mapgeo", "mapgeo.*"]
 name = "classificador_terra"
 version = "0.1.0"
 description = "Classificador Terra"
-requires-python = ">=3.13"
-dependencies = []
+requires-python = ">=3.10"
+dependencies = [
+    "fiona",
+    "geopandas",
+    "matplotlib",
+    "pygmt",
+    "sqlalchemy",
+    "geoalchemy2",
+    "psycopg2",
+    "pandas",
+    "tqdm",
+    "pyproj",
+    "shapely",
+    "verde",
+    "folium",
+]
 
 authors = [
   {name = "Gabriel Góes", email = "gabrielgoes@usp.br"},
