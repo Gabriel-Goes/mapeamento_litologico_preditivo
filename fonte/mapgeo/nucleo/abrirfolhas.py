@@ -12,7 +12,7 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, String
 from geoalchemy2 import Geometry
 from nucleo.utils import set_db, gdb_url, delimt
-from nucleo.databaseengine import DatabaseEngine
+from ..databaseengine import DatabaseEngine
 from typing import Dict
 
 
