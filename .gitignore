@@ -1,17 +1,1 @@
-# Os arquivos presentes nos diretorios a seguir serao ignorados durante os commits:
-.ipynb_checkpoints/
-__pycache__/
 
-# Arquivos de log
-*.log
-
-# Artefatos de empacotamento Python
-*.egg-info/
-
-# Documentação compilada
-help/build/
-docs/**/build/
-
-# Outros arquivos gerados
-*.pyc
-*.pyo
