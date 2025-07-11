@@ -1,5 +1,0 @@
-<RCC>
-    <qresource prefix="/plugins/mapgeo" >
-        <file>icon.png</file>
-    </qresource>
-</RCC>
