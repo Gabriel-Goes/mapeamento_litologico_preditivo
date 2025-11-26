@@ -1,6 +1,8 @@
 arquivado/*
 .ipynb_checkpoints/
 __pycache__/*
+.venv/
+**/__pycache__/
 Docs/*
 *.tif
 ./recortes_orbitais/*

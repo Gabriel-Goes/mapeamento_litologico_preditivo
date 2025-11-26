@@ -52,6 +52,42 @@ def coverage_fraction(
     return float(inter.area / folha_proj.area)
 
 
+def estimate_aster_cloud_fraction(
+    aster_item: Any,
+    folha_geom_geojson: Dict[str, Any],
+    brightness_percentile: float = 98.0,
+) -> Tuple[float, float]:
+    """Heurística simples para estimar nuvem em ASTER sobre a folha.
+
+    Como o produto ``aster-l1t`` não fornece uma máscara explícita de nuvem,
+    usamos o brilho da banda 1 do VNIR como proxy: a fração de pixels acima
+    de um percentil alto é tomada como nuvem potencial. Também retornamos a
+    fração de ``nodata`` para referência.
+    """
+
+    if "VNIR" in aster_item.assets:
+        asset_key = "VNIR"
+    else:
+        asset_key = next(iter(aster_item.assets.keys()))
+
+    href = aster_item.assets[asset_key].href
+    da_clip = clip_raster_to_folha(href, folha_geom_geojson)
+    nodata_frac, _ = compute_nodata_fraction(da_clip, return_mask=True)
+
+    data = da_clip.values
+    if data.ndim == 3:
+        data = data[0]
+
+    valid = data[~np.isnan(data)]
+    if valid.size == 0:
+        return 1.0, nodata_frac
+
+    threshold = float(np.nanpercentile(valid, brightness_percentile))
+    cloud_mask = (~np.isnan(data)) & (data >= threshold)
+    cloud_frac = float(cloud_mask.sum() / cloud_mask.size)
+    return cloud_frac, nodata_frac
+
+
 def search_aster_cloudfree_for_folha(
     codigo_folha: str,
     aster_target_date_str: str,
@@ -59,6 +95,7 @@ def search_aster_cloudfree_for_folha(
     search_datetime: str = "2000-01-01/2025-12-31",
     min_coverage: float = 0.99,
     max_cloud: float = 90.0,
+    max_local_cloud_frac: float = 0.02,
     max_items: int = 2000,
 ) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
     folha_geom = get_folha_geom_geojson(codigo_folha)
@@ -104,6 +141,22 @@ def search_aster_cloudfree_for_folha(
         if frac < min_coverage:
             continue
 
+        try:
+            local_cloud_frac, nodata_frac = estimate_aster_cloud_fraction(
+                aster_item=item,
+                folha_geom_geojson=folha_geom,
+            )
+        except Exception as e:
+            print(f"[ASTER] Erro ao estimar nuvem local para {item.id}: {e}")
+            continue
+
+        if local_cloud_frac > max_local_cloud_frac:
+            print(
+                f"[ASTER] {item.id} rejeitado: nuvem local={local_cloud_frac:.4f} "
+                f"(limite={max_local_cloud_frac:.4f})."
+            )
+            continue
+
         candidates.append(
             {
                 "id": item.id,
@@ -112,6 +165,8 @@ def search_aster_cloudfree_for_folha(
                 "coverage_fraction": frac,
                 "coverage_percent": frac * 100.0,
                 "cloud_cover": cloud,
+                "local_cloud_frac": local_cloud_frac,
+                "nodata_frac": nodata_frac,
                 "item": item,
             }
         )
@@ -122,7 +177,12 @@ def search_aster_cloudfree_for_folha(
 
     candidates_sorted = sorted(
         candidates,
-        key=lambda d: (d["cloud_cover"], d["delta_days"], -d["coverage_fraction"]),
+        key=lambda d: (
+            d["local_cloud_frac"],
+            d["cloud_cover"],
+            d["delta_days"],
+            -d["coverage_fraction"],
+        ),
     )
 
     print("\n[ASTER] Itens candidatos (ordenados):")
@@ -131,7 +191,9 @@ def search_aster_cloudfree_for_folha(
             f"  id={c['id']}, datetime={c['datetime']}, "
             f"Δt={c['delta_days']} dias, "
             f"cov={c['coverage_percent']:.2f}%, "
-            f"cloud={c['cloud_cover']:.2f}%"
+            f"cloud={c['cloud_cover']:.2f}%, "
+            f"local_cloud_frac={c['local_cloud_frac']:.4f}, "
+            f"nodata_frac={c['nodata_frac']:.4f}"
         )
 
     best = candidates_sorted[0]
@@ -141,7 +203,9 @@ def search_aster_cloudfree_for_folha(
         f"  datetime={best['datetime']}\n"
         f"  Δt={best['delta_days']} dias\n"
         f"  cov={best['coverage_percent']:.2f}%\n"
-        f"  cloud={best['cloud_cover']:.2f}%"
+        f"  cloud={best['cloud_cover']:.2f}%\n"
+        f"  local_cloud_frac={best['local_cloud_frac']:.4f}\n"
+        f"  nodata_frac={best['nodata_frac']:.4f}"
     )
     return best, candidates_sorted
 
