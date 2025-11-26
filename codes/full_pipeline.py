@@ -277,6 +277,14 @@ def main() -> None:
     parser.add_argument("--skip-gs", action="store_true", help="Pular GS+super-cubo e usar super-cubo já existente")
     parser.add_argument("--skip-datasets", action="store_true", help="Pular geração dos datasets")
     parser.add_argument('--debug-s2-plots', action='store_true', help='Habilita plots de SCL de cada cena S2 candidata')
+    parser.add_argument(
+        "--search-only",
+        action="store_true",
+        help=(
+            "Executa apenas a busca/seleção das cenas (resolve_pair) e a análise de qualidade "
+            "(summarize_imagery_quality), sem rodar GS/super-cubo nem gerar datasets."
+        ),
+    )
 
 
     args = parser.parse_args()
@@ -293,6 +301,22 @@ def main() -> None:
         print(f"[FULL PIPELINE] Folha: {folha}")
         print(f"[FULL PIPELINE] Log em: {log_path}")
         print("=" * 80)
+
+        if args.search_only:
+            aster_id, s2_id, best_aster, best_s2 = resolve_pair(
+                folha=folha,
+                aster_id=args.aster_id,
+                s2_id=args.s2_id,
+                aster_date=args.aster_date,
+                return_best=True,
+            )
+            summarize_imagery_quality(
+                folha=folha,
+                best_aster=best_aster,
+                best_s2=best_s2,
+            )
+            print("[FULL PIPELINE] --search-only acionado; parando após busca e resumo de qualidade.")
+            return
 
         if not args.skip_gs:
             aster_id, s2_id, best_aster, best_s2 = resolve_pair(
