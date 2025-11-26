@@ -217,6 +217,7 @@ def build_datasets(
         X=X_pix,
         y=y_pix,
         bands=np.array(list(super_cube.band.values)),
+        band_metadata=np.array([super_cube.attrs.get("band_metadata", {})], dtype=object),
     )
     print(f"[OUTPUT] Dataset de pixels salvo em: {pixels_path}")
 
@@ -242,6 +243,7 @@ def build_datasets(
         bands=np.array(list(super_cube.band.values)),
         patch_size=np.array([patch_size]),
         stride=np.array([stride]),
+        band_metadata=np.array([super_cube.attrs.get("band_metadata", {})], dtype=object),
     )
     print(f"[OUTPUT] Dataset de patches salvo em: {patches_path}")
 
