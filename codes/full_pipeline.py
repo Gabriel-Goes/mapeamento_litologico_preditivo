@@ -130,7 +130,7 @@ def run_gs_and_supercube(
     aster_id: str,
     s2_id: str,
     orbital_dir: str,
-) -> xr.DataArray:
+) -> tuple[xr.DataArray, str, str, str]:
     print("=" * 80)
     print("[STEP] Fusão GS ASTER+S2")
     print("=" * 80)
@@ -159,6 +159,10 @@ def run_gs_and_supercube(
         orbital_dir,
         f"{folha}_ASTER_{aster_id}_VNIR_SWIR_GS_10m.tif",
     )
+    supercube_out_path = os.path.join(
+        orbital_dir,
+        f"{folha}_S2_ASTER_GS_supercube_10m.tif",
+    )
 
     print("=" * 80)
     print("[STEP] Construindo super-cubo S2+ASTER_GS")
@@ -168,9 +172,9 @@ def run_gs_and_supercube(
         folha_codigo=folha,
         s2_stack_path=s2_stack_path,
         aster_gs_path=aster_gs_path,
-        out_path=None,
+        out_path=supercube_out_path,
     )
-    return super_cube
+    return super_cube, aster_gs_path, s2_stack_path, supercube_out_path
 
 
 def build_datasets(
@@ -182,7 +186,7 @@ def build_datasets(
     max_patches_per_class: Optional[int],
     out_pixels: Optional[str],
     out_patches: Optional[str],
-) -> None:
+    ) -> dict:
     print("=" * 80)
     print("[STEP] Carregando super-cubo e raster de rótulos")
     print("=" * 80)
@@ -247,6 +251,15 @@ def build_datasets(
     )
     print(f"[OUTPUT] Dataset de patches salvo em: {patches_path}")
 
+    return {
+        "pixels_path": pixels_path,
+        "patches_path": patches_path,
+        "pixels_shape": X_pix.shape,
+        "patches_shape": X_patch.shape,
+        "n_pixel_classes": np.unique(y_pix).size,
+        "n_patch_classes": np.unique(y_patch).size,
+    }
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -303,12 +316,21 @@ def main() -> None:
         print("=" * 80)
 
         if args.search_only:
+            print(
+                "[FULL PIPELINE] Chamando resolve_pair com: "
+                f"folha={folha}, aster_id={args.aster_id}, s2_id={args.s2_id}, "
+                f"aster_date={args.aster_date}, return_best=True"
+            )
             aster_id, s2_id, best_aster, best_s2 = resolve_pair(
                 folha=folha,
                 aster_id=args.aster_id,
                 s2_id=args.s2_id,
                 aster_date=args.aster_date,
                 return_best=True,
+            )
+            print(
+                "[FULL PIPELINE] resolve_pair retornou: "
+                f"ASTER={aster_id}, S2={s2_id}"
             )
             summarize_imagery_quality(
                 folha=folha,
@@ -319,6 +341,11 @@ def main() -> None:
             return
 
         if not args.skip_gs:
+            print(
+                "[FULL PIPELINE] Chamando resolve_pair com: "
+                f"folha={folha}, aster_id={args.aster_id}, s2_id={args.s2_id}, "
+                f"aster_date={args.aster_date}, return_best=True"
+            )
             aster_id, s2_id, best_aster, best_s2 = resolve_pair(
                 folha=folha,
                 aster_id=args.aster_id,
@@ -326,16 +353,30 @@ def main() -> None:
                 aster_date=args.aster_date,
                 return_best=True,
             )
+            print(
+                "[FULL PIPELINE] resolve_pair retornou: "
+                f"ASTER={aster_id}, S2={s2_id}"
+            )
             summarize_imagery_quality(
                 folha=folha,
                 best_aster=best_aster,
                 best_s2=best_s2,
             )
-            super_cube = run_gs_and_supercube(
+            print(
+                "[FULL PIPELINE] Chamando run_gs_and_supercube com: "
+                f"folha={folha}, aster_id={aster_id}, s2_id={s2_id}, "
+                f"orbital_dir={orbital_dir}"
+            )
+            super_cube, aster_gs_path, s2_stack_path, supercube_out_path = run_gs_and_supercube(
                 folha=folha,
                 aster_id=aster_id,
                 s2_id=s2_id,
                 orbital_dir=orbital_dir,
+            )
+            print(
+                "[FULL PIPELINE] run_gs_and_supercube outputs: "
+                f"s2_stack_path={s2_stack_path}, aster_gs_path={aster_gs_path}, "
+                f"supercube_path={supercube_out_path}"
             )
             print(f"[FULL PIPELINE] Super-cubo gerado: shape={super_cube.values.shape}")
         else:
@@ -346,7 +387,14 @@ def main() -> None:
             print("[FULL PIPELINE] --skip-datasets acionado; não serão gerados datasets.")
             return
 
-        build_datasets(
+        print(
+            "[FULL PIPELINE] Chamando build_datasets com: "
+            f"supercube_dir={args.supercube_dir}, max_samples_per_class={args.max_samples_per_class}, "
+            f"patch_size={args.patch_size}, stride={args.stride}, "
+            f"max_patches_per_class={args.max_patches_per_class}, "
+            f"out_pixels={args.out_pixels}, out_patches={args.out_patches}"
+        )
+        dataset_stats = build_datasets(
             folha=folha,
             supercube_dir=args.supercube_dir,
             max_samples_per_class=args.max_samples_per_class,
@@ -355,6 +403,13 @@ def main() -> None:
             max_patches_per_class=args.max_patches_per_class,
             out_pixels=args.out_pixels,
             out_patches=args.out_patches,
+        )
+        print(
+            "[FULL PIPELINE] build_datasets outputs: "
+            f"pixels_path={dataset_stats['pixels_path']} (shape={dataset_stats['pixels_shape']}), "
+            f"patches_path={dataset_stats['patches_path']} (shape={dataset_stats['patches_shape']}), "
+            f"n_pixel_classes={dataset_stats['n_pixel_classes']}, "
+            f"n_patch_classes={dataset_stats['n_patch_classes']}"
         )
 
 if __name__ == "__main__":
