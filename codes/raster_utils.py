@@ -106,12 +106,56 @@ def sanitize_long_name(da: xr.DataArray) -> xr.DataArray:
     return da
 
 
+def _extract_stac_band_metadata(asset: Any) -> List[Dict[str, Any]]:
+    extra = getattr(asset, "extra_fields", {}) or {}
+    for key in ("eo:bands", "raster:bands", "bands"):
+        bands = extra.get(key)
+        if isinstance(bands, list):
+            return [band if isinstance(band, dict) else {} for band in bands]
+    return []
+
+
+def _build_band_labels(
+    asset: Any,
+    prefix: str,
+    n_bands: int,
+    fallback_ids: Optional[List[str]] = None,
+) -> Tuple[List[str], Dict[str, Dict[str, Any]]]:
+    stac_bands = _extract_stac_band_metadata(asset)
+    labels: List[str] = []
+    metadata: Dict[str, Dict[str, Any]] = {}
+
+    for idx in range(n_bands):
+        band_meta = stac_bands[idx] if idx < len(stac_bands) else {}
+        default_name = fallback_ids[idx] if fallback_ids and idx < len(fallback_ids) else f"{idx + 1}"
+
+        name = str(band_meta.get("name") or default_name)
+        common_name = band_meta.get("common_name")
+        label_parts = [prefix, name]
+        if common_name and str(common_name).lower() != name.lower():
+            label_parts.append(str(common_name))
+        label = "_".join(label_parts)
+
+        labels.append(label)
+        metadata[label] = {
+            "asset": getattr(asset, "title", None) or getattr(asset, "href", None),
+            "band_index": idx,
+            "band_id": default_name,
+            "common_name": common_name,
+            "center_wavelength": band_meta.get("center_wavelength"),
+            "full_width_half_max": band_meta.get("full_width_half_max"),
+            "description": band_meta.get("description") or getattr(asset, "description", None),
+        }
+
+    return labels, metadata
+
+
 def load_s2_bands_for_folha(
     item: Any,
     folha_geom: Dict[str, Any],
     band_ids: List[str],
     cache_dir: Optional[str] = None,
-) -> Tuple[xr.DataArray, Dict[str, xr.DataArray]]:
+) -> Tuple[xr.DataArray, Dict[str, xr.DataArray], Dict[str, Dict[str, Any]]]:
     assets = item.assets
     if "B02" not in assets:
         raise RuntimeError("Asset B02 não encontrado no item Sentinel-2.")
@@ -120,6 +164,7 @@ def load_s2_bands_for_folha(
     ref_da = clip_raster_to_folha(ref_href, folha_geom, cache_dir=cache_dir)
 
     s2_bands: Dict[str, xr.DataArray] = {}
+    s2_band_metadata: Dict[str, Dict[str, Any]] = {}
     for bname in band_ids:
         asset = assets.get(bname)
         if asset is None:
@@ -127,9 +172,21 @@ def load_s2_bands_for_folha(
             continue
         da_b = clip_raster_to_folha(asset.href, folha_geom, cache_dir=cache_dir)
         da_b = da_b.rio.reproject_match(ref_da)
-        s2_bands[bname] = da_b
 
-    return ref_da, s2_bands
+        band_labels, band_meta = _build_band_labels(
+            asset=asset,
+            prefix="S2",
+            n_bands=da_b.sizes.get("band", 1),
+            fallback_ids=[bname] * da_b.sizes.get("band", 1),
+        )
+        da_b = da_b.assign_coords(band=("band", band_labels))
+        da_b.attrs.setdefault("long_name", band_labels)
+        da_b.attrs["band_metadata"] = band_meta
+
+        s2_bands[bname] = da_b
+        s2_band_metadata.update(band_meta)
+
+    return ref_da, s2_bands, s2_band_metadata
 
 
 def load_aster_vnir_swir_for_folha(
@@ -144,8 +201,11 @@ def load_aster_vnir_swir_for_folha(
     if "SWIR" not in assets:
         raise RuntimeError("Asset 'SWIR' não encontrado no item ASTER.")
 
-    da_vnir = clip_raster_to_folha(assets["VNIR"].href, folha_geom, cache_dir=cache_dir)
-    da_swir = clip_raster_to_folha(assets["SWIR"].href, folha_geom, cache_dir=cache_dir)
+    vnir_asset = assets["VNIR"]
+    swir_asset = assets["SWIR"]
+
+    da_vnir = clip_raster_to_folha(vnir_asset.href, folha_geom, cache_dir=cache_dir)
+    da_swir = clip_raster_to_folha(swir_asset.href, folha_geom, cache_dir=cache_dir)
 
     da_vnir_match = da_vnir.rio.reproject_match(s2_ref_da)
     da_swir_match = da_swir.rio.reproject_match(s2_ref_da)
@@ -154,11 +214,22 @@ def load_aster_vnir_swir_for_folha(
 
     nb_vnir = da_vnir_match.sizes["band"]
     nb_swir = da_swir_match.sizes["band"]
-    band_names = (
-        [f"VNIR_{i+1}" for i in range(nb_vnir)] +
-        [f"SWIR_{i+4}" for i in range(nb_swir)]
+    vnir_labels, vnir_meta = _build_band_labels(
+        asset=vnir_asset,
+        prefix="ASTER_VNIR",
+        n_bands=nb_vnir,
     )
+    swir_labels, swir_meta = _build_band_labels(
+        asset=swir_asset,
+        prefix="ASTER_SWIR",
+        n_bands=nb_swir,
+        fallback_ids=[str(i + 4) for i in range(nb_swir)],
+    )
+    band_names = vnir_labels + swir_labels
+    band_metadata = {**vnir_meta, **swir_meta}
     aster_all = aster_all.assign_coords(band=("band", band_names))
+    aster_all.attrs.setdefault("long_name", band_names)
+    aster_all.attrs["band_metadata"] = band_metadata
     aster_all = sanitize_long_name(aster_all)
     return aster_all
 

@@ -133,10 +133,32 @@ def gs_fusion_aster_with_pan(
             "y": aster_ms.y,
             "x": aster_ms.x,
         },
-        attrs=aster_ms.attrs,
+        attrs={**aster_ms.attrs},
     )
     aster_fused.rio.write_crs(aster_ms.rio.crs, inplace=True)
     aster_fused.rio.write_transform(aster_ms.rio.transform(), inplace=True)
+    band_metadata = {**aster_ms.attrs.get("band_metadata", {})}
+    if "band" in pan_da.coords:
+        band_coord = pan_da.coords["band"]
+        if getattr(band_coord, "ndim", 0) == 0:
+            ref_band = str(band_coord.values.item())
+        else:
+            ref_band = str(band_coord.values[0])
+    else:
+        ref_band = "B08"
+
+    for band_name in aster_fused.band.values:
+        key = str(band_name)
+        meta = band_metadata.get(key, {}).copy()
+        meta.update(
+            {
+                "process": "Gram-Schmidt fusion (ASTER VNIR/SWIR upscaled using Sentinel-2 B08 as PAN)",
+                "reference_band": ref_band,
+            }
+        )
+        band_metadata[key] = meta
+    aster_fused.attrs["band_metadata"] = band_metadata
+    aster_fused.attrs.setdefault("long_name", list(aster_fused.band.values))
     aster_fused = sanitize_long_name(aster_fused)
     return aster_fused
 
@@ -161,7 +183,7 @@ def run_gs_pair_pipeline(
     s2_item = get_signed_item(s2_collection, s2_id)
     print(f"[GS PIPELINE] S2 item: {s2_item.id}")
 
-    s2_ref_da, s2_bands = load_s2_bands_for_folha(
+    s2_ref_da, s2_bands, _s2_meta = load_s2_bands_for_folha(
         item=s2_item,
         folha_geom=folha_geom,
         band_ids=s2_band_ids,
@@ -170,6 +192,7 @@ def run_gs_pair_pipeline(
 
     s2_stack_list = []
     s2_labels: List[str] = []
+    s2_band_metadata: Dict[str, Any] = {}
     for bname in s2_band_ids:
         da_b = s2_bands.get(bname)
         if da_b is None:
@@ -179,7 +202,10 @@ def run_gs_pair_pipeline(
         else:
             arr = da_b.values[0, :, :]
         s2_stack_list.append(arr)
-        s2_labels.append(bname)
+
+        band_label = str(da_b.band.values[0]) if "band" in da_b.coords else bname
+        s2_labels.append(band_label)
+        s2_band_metadata[band_label] = da_b.attrs.get("band_metadata", {}).get(band_label, {})
 
     s2_stack = xr.DataArray(
         data=np.stack(s2_stack_list, axis=0),
@@ -189,7 +215,11 @@ def run_gs_pair_pipeline(
             "y": s2_ref_da.y,
             "x": s2_ref_da.x,
         },
-        attrs={"description": "Sentinel-2 bands recortadas"},
+        attrs={
+            "description": "Sentinel-2 bands recortadas",
+            "band_metadata": s2_band_metadata,
+            "source_item": s2_item.id,
+        },
     )
     s2_stack.rio.write_crs(s2_ref_da.rio.crs, inplace=True)
     s2_stack.rio.write_transform(s2_ref_da.rio.transform(), inplace=True)
