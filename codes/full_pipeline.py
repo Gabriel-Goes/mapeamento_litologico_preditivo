@@ -20,6 +20,15 @@ from labeling_lito import build_label_raster_for_folha
 from dataset_pixels import extract_pixel_dataset
 from dataset_patches import generate_patches
 from log_utils import log_stdout
+from db_conn import get_folha_geom_geojson
+from raster_utils import (
+    clip_raster_to_folha,
+    compute_nodata_fraction,
+    compute_scl_cloud_fraction,
+)
+
+
+DEFAULT_ASTER_TARGET_DATE = "2008-07-01"
 
 
 def resolve_pair(
@@ -27,9 +36,12 @@ def resolve_pair(
     aster_id: Optional[str],
     s2_id: Optional[str],
     aster_date: Optional[str],
-) -> tuple[str, str]:
+    return_best: bool = False,
+) -> tuple[str, str] | tuple[str, str, Optional[dict], Optional[dict]]:
     if aster_id and s2_id:
         print("[PAIR] Usando IDs fornecidos pelo usuário.")
+        if return_best:
+            return aster_id, s2_id, None, None
         return aster_id, s2_id
 
     if not aster_date:
@@ -58,7 +70,59 @@ def resolve_pair(
 
     s2_id_sel = best_s2["id"]
     print(f"[PAIR] S2 selecionado: {s2_id_sel} (Δt ASTER={best_s2['delta_days']} dias)")
+
+    if return_best:
+        return aster_id_sel, s2_id_sel, best_aster, best_s2
     return aster_id_sel, s2_id_sel
+
+
+def summarize_imagery_quality(
+    folha: str,
+    best_aster: Optional[dict],
+    best_s2: Optional[dict],
+) -> None:
+    """Reporta frações de nodata/nuvem para aster e S2 recortados na folha.
+
+    A geometria da folha é obtida diretamente do banco (via ``get_folha_geom_geojson``),
+    e cada asset relevante é recortado com ``clip_raster_to_folha`` antes de medir
+    ``nodata`` ou nuvens.
+    """
+
+    folha_geom = get_folha_geom_geojson(folha)
+    print("\n[QUALITY] Avaliando qualidade das cenas selecionadas...")
+
+    if best_aster is None:
+        print("[QUALITY][ASTER] Nenhum item ASTER disponível para avaliação.")
+    else:
+        aster_item = best_aster["item"]
+        if "VNIR" in aster_item.assets:
+            asset_key = "VNIR"
+        else:
+            asset_key = next(iter(aster_item.assets.keys()))
+            print(f"[QUALITY][ASTER] Asset 'VNIR' ausente; usando '{asset_key}'.")
+
+        href = aster_item.assets[asset_key].href
+        da_clip = clip_raster_to_folha(href, folha_geom)
+        aster_nodata_frac, _ = compute_nodata_fraction(da_clip, return_mask=True)
+        print(
+            f"[QUALITY][ASTER] id={aster_item.id} | nodata_frac={aster_nodata_frac:.4f} | "
+            f"cloud_cover_meta={aster_item.properties.get('eo:cloud_cover')}%"
+        )
+
+    if best_s2 is None:
+        print("[QUALITY][S2] Nenhum item Sentinel-2 disponível para avaliação.")
+    else:
+        s2_item = best_s2["item"]
+        if "SCL" not in s2_item.assets:
+            print(f"[QUALITY][S2] Asset SCL ausente em {s2_item.id}; impossível medir nuvem.")
+        else:
+            scl_href = s2_item.assets["SCL"].href
+            da_scl_clip = clip_raster_to_folha(scl_href, folha_geom)
+            scl_nodata_frac, scl_cloud_frac, *_ = compute_scl_cloud_fraction(da_scl_clip)
+            print(
+                f"[QUALITY][S2] id={s2_item.id} | scl_cloud_frac={scl_cloud_frac:.4f} | "
+                f"scl_nodata_frac={scl_nodata_frac:.4f} | meta_cloud={best_s2['meta_cloud']:.2f}%"
+            )
 
 
 def run_gs_and_supercube(
@@ -188,7 +252,14 @@ def main() -> None:
 
     parser.add_argument("--aster-id", default=None)
     parser.add_argument("--s2-id", default=None)
-    parser.add_argument("--aster-date", default=None, help="YYYY-MM-DD (usado se IDs não forem dados)")
+    parser.add_argument(
+        "--aster-date",
+        default=DEFAULT_ASTER_TARGET_DATE,
+        help=(
+            "YYYY-MM-DD (usado se IDs não forem dados); o padrão aponta para o período "
+            "do levantamento aerogeofísico (julho/2008)."
+        ),
+    )
 
     parser.add_argument("--orbital-dir", default=ORBITAL_DIR, help="Diretório de saída para rasters")
     parser.add_argument("--supercube-dir", default=ORBITAL_DIR, help="Diretório onde está o super-cubo")
@@ -222,11 +293,17 @@ def main() -> None:
         print("=" * 80)
 
         if not args.skip_gs:
-            aster_id, s2_id = resolve_pair(
+            aster_id, s2_id, best_aster, best_s2 = resolve_pair(
                 folha=folha,
                 aster_id=args.aster_id,
                 s2_id=args.s2_id,
                 aster_date=args.aster_date,
+                return_best=True,
+            )
+            summarize_imagery_quality(
+                folha=folha,
+                best_aster=best_aster,
+                best_s2=best_s2,
             )
             super_cube = run_gs_and_supercube(
                 folha=folha,
