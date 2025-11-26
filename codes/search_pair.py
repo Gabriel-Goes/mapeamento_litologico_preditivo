@@ -58,7 +58,7 @@ def search_aster_cloudfree_for_folha(
     collection_id: str = "aster-l1t",
     search_datetime: str = "2000-01-01/2025-12-31",
     min_coverage: float = 0.99,
-    max_cloud: float = 1.0,
+    max_cloud: float = 90.0,
     max_items: int = 2000,
 ) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
     folha_geom = get_folha_geom_geojson(codigo_folha)
@@ -93,6 +93,7 @@ def search_aster_cloudfree_for_folha(
 
         cloud = get_cloud_cover(item)
         if cloud is None or cloud > max_cloud:
+            print(f' Cloud: {cloud} - {item.id} skipped due to cloud cover.')
             continue
 
         frac = coverage_fraction(
