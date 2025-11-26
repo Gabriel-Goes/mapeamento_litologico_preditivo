@@ -18,6 +18,24 @@ def build_supercube(
     aster_gs_path: str,
     out_path: Optional[str] = None,
 ) -> xr.DataArray:
+    def _normalize_band_metadata(raw: object) -> dict:
+        """Return a dict from stored band metadata.
+
+        When written to GeoTIFF, complex attrs may be coerced to strings; this
+        helper safely parses JSON strings or falls back to an empty mapping.
+        """
+
+        if isinstance(raw, dict):
+            return raw
+        if isinstance(raw, str):
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict):
+                    return parsed
+            except Exception:
+                pass
+        return {}
+
     s2_stack = rioxarray.open_rasterio(s2_stack_path, masked=True).astype("float32")
     aster_gs = rioxarray.open_rasterio(aster_gs_path, masked=True).astype("float32")
     aster_gs = aster_gs.rio.reproject_match(s2_stack)
@@ -29,8 +47,8 @@ def build_supercube(
     super_cube = xr.concat([s2_stack, aster_gs], dim="band")
     super_cube = super_cube.assign_coords(band=("band", super_names))
     super_meta = {
-        **s2_stack.attrs.get("band_metadata", {}),
-        **aster_gs.attrs.get("band_metadata", {}),
+        **_normalize_band_metadata(s2_stack.attrs.get("band_metadata", {})),
+        **_normalize_band_metadata(aster_gs.attrs.get("band_metadata", {})),
     }
     super_cube.attrs["band_metadata"] = super_meta
     super_cube.attrs.setdefault("long_name", super_names)
