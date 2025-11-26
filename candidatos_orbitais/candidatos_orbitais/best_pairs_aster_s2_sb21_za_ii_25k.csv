@@ -1,0 +1,2 @@
+folha_codigo,aster_id,aster_datetime,aster_cloud,aster_coverage_fraction,aster_coverage_percent,s2_id,s2_datetime,s2_cloud,s2_coverage_fraction,s2_coverage_percent,delta_days_s2_minus_aster
+SB21_ZA_II1_NE,AST_L1T_00306012006141203_20150514154927,2006-06-01T14:12:03.804000+00:00,42.0,1.0,100.0,S2A_MSIL2A_20170609T141051_R110_T21MWP_20210209T214220,2017-06-09T14:10:51.026000+00:00,0.073414,1.0,100.0,4026

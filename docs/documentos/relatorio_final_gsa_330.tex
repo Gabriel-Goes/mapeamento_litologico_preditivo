@@ -1,0 +1,194 @@
+\documentclass[12pt,a4paper]{article}
+
+% -------------------- Pacotes básicos --------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath, amssymb}
+\usepackage{csquotes}
+\usepackage{enumitem}
+\usepackage{caption}
+
+\geometry{margin=2.5cm}
+\onehalfspacing
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue
+}
+
+% -------------------- Título --------------------
+\title{Mapeamento Geológico via CNN Integrando Sensoriamento Remoto e Geoquímica: \\[2pt]
+adaptação metodológica e perspectivas de aplicação em áreas vegetadas}
+\author{Nome do(a) autor(a) \\ \small Bacharelado em Geologia}
+\date{\today}
+
+% -------------------- Documento --------------------
+\begin{document}
+\maketitle
+
+% ======================================================
+\section{Introdução (Contexto e motivação)}
+O mapeamento geológico desempenha papel fundamental na compreensão da estrutura e da evolução da crosta terrestre, servindo de base para estudos de prospecção mineral, geotecnia, geodinâmica e planejamento territorial. Em regiões recobertas por vegetação densa ou de difícil acesso, essa atividade enfrenta limitações consideráveis, sobretudo devido à escassez de afloramentos e às restrições impostas pelos métodos convencionais de observação direta.
+
+Nas últimas décadas, os avanços nas tecnologias de sensoriamento remoto e nas técnicas de aprendizado de máquina transformaram a aquisição e a interpretação de dados geológicos. O uso combinado de imagens multiespectrais e hiperespectrais com levantamentos geoquímicos possibilita uma análise integrada das propriedades físicas e químicas das rochas. Entretanto, os classificadores tradicionais, como \emph{Random Forest} e \emph{Support Vector Machine}, ainda apresentam restrições quanto à interpretação espacial dos dados, resultando no chamado ``efeito sal e pimenta'' em mapas litológicos, caracterizado por classificações pontuais e pouco coerentes espacialmente.
+
+Diante desse contexto, o artigo de Pan, Zuo e Wang (2023) propõe uma abordagem que combina dados multiespectrais e geoquímicos em um modelo baseado em redes neurais convolucionais (CNNs). Essa metodologia busca superar as limitações dos classificadores convencionais ao incorporar a correlação espacial e espectral entre as variáveis analisadas, resultando em uma interpretação mais precisa e contínua das unidades geológicas.
+
+O presente relatório examina a metodologia proposta no artigo e discute sua aplicabilidade em diferentes contextos de mapeamento, especialmente em áreas cobertas por vegetação, enfatizando o potencial da integração entre dados geoquímicos e de sensoriamento remoto aliados a técnicas de inteligência artificial para aprimorar a identificação e a delimitação de unidades litológicas.
+
+% ======================================================
+\section{Resumo do artigo base (Fundamentação teórica)}
+\textbf{Objetivo.} Pan, Zuo e Wang (2023) investigam se a integração de dados multiespectrais (ASTER, Sentinel-2A) e geoquímicos regionais --- após fusão multiorigem --- combinada a uma CNN baseada em janelas espaciais pode aumentar a acurácia e a coerência espacial do mapeamento litológico em áreas sob cobertura vegetal.
+
+\textbf{Dados.} O estudo emprega: (i) imagens ASTER (30 m) e Sentinel-2A (10 m); (ii) 39 variáveis geoquímicas (elementos maiores e traço). Um mapa geológico serve de referência para rotular amostras e validar resultados.
+
+\textbf{Pré-processamento e fusão.} A etapa central é a fusão \emph{Gram--Schmidt} (GS), que transfere informação espacial de maior resolução (S2A, 10 m) para a resposta espectral ASTER (30 m), preservando assinaturas espectrais e realçando textura/linhas. Em seguida, procede-se à fusão multiorigem (decomposição por pirâmide de Laplace) entre o cubo espectral fundido e as camadas geoquímicas, gerando bandas geoquímicas de alta resolução compatíveis com a malha óptica.
+
+\textbf{Classificador.} Utiliza-se uma CNN de 10 camadas inspirada na AlexNet, com três convoluções intercaladas por três \emph{poolings}, duas camadas totalmente conectadas e saída \emph{softmax}. A entrada são \emph{patches} $21 \times 21$ empilhando bandas espectrais e variáveis geoquímicas, permitindo que o modelo aprenda contexto espacial (vizinhança) além da assinatura espectral.
+
+\textbf{Resultados.} A acurácia global ($\sim 83\%$) supera a de um \emph{Random Forest} ($\sim 78\%$) treinado com os mesmos insumos. A CNN reduz o efeito ``sal e pimenta'' e melhora a delimitação de unidades pequenas/heterogêneas. Os ganhos decorrem da captação de padrões espaciais e da resolução efetiva maior das camadas geoquímicas fundidas.
+
+\textbf{Limitações.} (i) Defasagem temporal entre ASTER (2003) e S2A (2020); (ii) densidade irregular de amostras geoquímicas; (iii) semelhanças espectrais entre litologias adjacentes. Ainda assim, demonstra-se a viabilidade e vantagem da abordagem CNN + fusão multiorigem para ambientes vegetados.
+
+\textbf{Pontos de interesse para a adaptação.} (1) Tamanho da janela espacial como hiperparâmetro crítico (controla a escala geológica capturada); (2) fusão de dados para ampliar poder discriminante quando há pobreza de afloramentos; (3) arquiteturas CNN como alternativa a classificadores por-pixel, diminuindo ruído e melhorando fronteiras.
+
+\begin{table}[htbp]
+\centering
+\caption{Síntese comparativa entre o artigo base e a proposta de adaptação.}
+\label{tab:comparativa}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{>{\raggedright\arraybackslash}p{3.2cm} >{\raggedright\arraybackslash}p{6.1cm} >{\raggedright\arraybackslash}p{6.1cm}}
+\toprule
+\textbf{Aspecto} & \textbf{Artigo original} & \textbf{Proposta do grupo} \\
+\midrule
+Problema estudado & Mapeamento litológico em área vegetada (Jilinbaolige, China). & Mapeamento litológico em área genérica com cobertura vegetal densa (escala regional). \\
+Tipo de dados & ASTER (30 m) + Sentinel-2A (10 m); 39 elementos geoquímicos; mapa geológico de referência. & Sentinel-2 L2A + ASTER; geoquímica regional (maiores e traço); opcional: DEM, magnetometria, gamaespectrometria. \\
+Método (adaptação?) & Fusão GS + fusão multiorigem (pirâmide de Laplace) + CNN (patch-based $21\times 21$). & Repetir o pipeline, ajustando tamanho de \emph{patch}, bandas e hiperparâmetros; considerar UNet/ResNet-34 se houver rótulos poligonais densos. \\
+Limitações & Defasagem temporal, densidade geoquímica irregular, semelhança espectral. & Geoquímica rala, heterogeneidade radiométrica, classes desbalanceadas; custo computacional. \\
+Resultados obtidos / esperados & Acurácia $\approx 83\%$; redução ``sal e pimenta''; melhor identificação de unidades pequenas. & Acurácia $\geq 80\%$, kappa e F1 por classe elevadas; fronteiras mais contínuas; incerteza quantificada. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ======================================================
+\section{Proposta de aplicação/adaptação}
+\textbf{Novo problema/área.} Aplicar o método em região fortemente vegetada (escala 1:100\,000--1:250\,000), visando discriminar litologias em contexto de afloramento escasso e heterogeneidade estrutural.
+
+\textbf{Dados pretendidos.}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textit{Óptico:} Sentinel-2 L2A (10--20 m; bandas VNIR/SWIR; índices espectrais derivados).
+  \item \textit{Óptico complementar:} ASTER (VNIR/SWIR/TIR; 15/30/90 m).
+  \item \textit{Geoquímica regional:} elementos maiores e traço (ICP-MS/FRX) em malha regional; interpolação se necessário.
+  \item \textit{Base geológica:} mapa de referência (polígonos litológicos) para amostragem supervisionada e validação.
+  \item \textit{Opcionais (recomendados):} DEM (derivados geomorfológicos), magnetometria e gamaespectrometria.
+\end{itemize}
+
+\textbf{Semelhanças e diferenças versus o artigo.} Semelhanças: tipo de problema (área vegetada), dupla fonte (espectral + geoquímica), uso de CNN com janelas. Diferenças: disponibilidade/qualidade de geoquímica; possíveis novas co-variáveis (DEM, magnetometria); sistemas de referência e escala.
+
+\textbf{Aplicabilidade direta do método.} O \emph{pipeline} é aplicável com ajustes:
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Pré-processamento (correção atmosférica, mosaico, registro, mascaramento de nuvens).
+  \item Fusão GS (S2A$\rightarrow$ASTER) com preservação espectral.
+  \item Fusão multiorigem (pirâmide de Laplace) para refinar geoquímica à malha óptica.
+  \item Engenharia de atributos (índices espectrais; texturas GLCM; derivadas do DEM; filtros de lineamentos).
+  \item Amostragem supervisionada (\emph{patches} centrados em polígonos bem mapeados; controle de desbalanceamento).
+  \item Treino da CNN (tamanho de \emph{patch} otimizado; \emph{data augmentation}; \emph{class weights}/focal loss).
+  \item Inferência (deslizante/FCN) e pós-processamento (suavização morfológica/CRF).
+  \item Validação (hold-out e validação cruzada espacial; métricas por classe; matriz de confusão; PR-curves para classes raras).
+  \item Quantificação de incerteza (MC-\emph{Dropout}/\emph{ensembles}) para guiar trabalho de campo.
+\end{enumerate}
+
+\textbf{Ajustes necessários.} Hiperparâmetros: tamanho de \emph{patch} (e.g., 15--31 px), \emph{batch size}, \emph{learning rate} e épocas; calibrar a escala à geologia local. Arquitetura: manter AlexNet-like para comparabilidade ou testar UNet/ResNet-34 se houver rótulos contínuos (segmentação semântica). Geoquímica rala: interpolação (IDW/krigagem) com máscara de suporte; avaliar incerteza de interpolação; ponderar por distância à amostra. Integração geofísica: empilhar bandas mag/gama normalizadas; padronizar por \emph{z-score} após imputação simples (mediana). Desbalanceamento: \emph{focal loss} ou \emph{class weights}; amostragem estratificada em polígonos menores.
+
+\textbf{Avaliação do sucesso.} Métricas principais: acurácia global, kappa, F1 por classe (macro/micro), e IoU (se segmentação). Estratégia: validação cruzada espacial (k-fold por blocos) para reduzir \emph{leakage} espacial. Comparativos: RF/SVM por-pixel (baseline), CNN \emph{patch}-based e (havendo rótulo denso) UNet/ResNet-Seg. Verificação de campo direcionada por incerteza (amostrar fronteiras com alta entropia/baixa confiança).
+
+\textbf{Recursos necessários.} Computação: GPU única ($\geq$ 8--12 GB) suficiente para \emph{patches} $21\times 21$; se UNet ($512^2$), ideal $\geq$16 GB; CPU para pré-processamento GDAL. Armazenamento: $\sim$50--200 GB (mosaicos, cubos fundidos, \emph{tiles} de treino). Tempo: pré-processamento (horas) e treino (horas a $\sim$1 dia, conforme arquitetura/dados).
+
+\textbf{Fluxo (diagrama textual).}
+\[
+\text{Aquisição \& Pré-processamento} \;\rightarrow\; \text{Fusão GS} \;\rightarrow\; \text{Fusão multiorigem (geoquímica)}
+\]
+\[
+\downarrow \hspace{1cm} \text{Engenharia de atributos (índices, DEM, texturas, geofísica)} \hspace{1cm} \downarrow
+\]
+\[
+\text{Amostragem supervisionada (\emph{patches})} \;\rightarrow\; \text{Treino CNN} \;\rightarrow\; \text{Inferência} \;\rightarrow\; \text{Pós-processamento} \;\rightarrow\; \text{Validação \& Incerteza}
+\]
+
+% ======================================================
+\section{Desafios e limitações}
+\textbf{Disponibilidade e qualidade de dados.} Geoquímica pode ser esparsa e temporalmente não coeva com o óptico; ASTER/S2A têm datas distintas. \textit{Mitigação:} interpolação com incerteza, máscaras de confiança e priorização de bandas/épocas contemporâneas; estratificar por estação seca/úmida.
+
+\textbf{Complexidade computacional.} Treino de CNN com muitos canais aumenta memória e tempo. \textit{Mitigação:} seleção de bandas (importância/permutação), PCA para compactação e modelos mais leves (ResNet-34 ``slim'').
+
+\textbf{Semelhança espectral e mistura.} Litologias próximas (e.g., arenitos vs.\ riolitos alterados) geram confusão de classes. \textit{Mitigação:} índices diagnósticos (ferro/argilas), TIR/ASTER, texturas, mag/gama e janelas maiores (sem perder detalhe).
+
+\textbf{Rotulagem imperfeita.} Mapas de referência têm incerteza cartográfica; fronteiras difusas. \textit{Mitigação:} \textit{buffer} de fronteiras na amostragem, pós-suavização (CRF/morfologia), aprendizado ruidoso (\emph{label smoothing}).
+
+\textbf{Generalização espacial.} Risco de \emph{overfitting} quando treino e teste são vizinhos. \textit{Mitigação:} validação cruzada espacial, \emph{hold-out} por blocos e avaliação por distância.
+
+% ======================================================
+\section{Resultados esperados e perspectivas}
+\textbf{Resultados esperados.}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Acurácia $\geq 80\%$ com F1 macro superior ao \emph{baseline} por-pixel; kappa elevado.
+  \item Redução do ``sal e pimenta'' e fronteiras mais contínuas.
+  \item Mapas de incerteza úteis para planejamento de campo.
+  \item Melhor detecção de unidades pequenas/heterogêneas.
+\end{itemize}
+
+\textbf{Contribuições.} Protocolo reprodutível de fusão e CNN para áreas vegetadas; integração efetiva de geoquímica e óptico (e, quando disponível, geofísica).
+
+\textbf{Perspectivas.} Piloto em subárea com validação de campo; extensão para arquiteturas de segmentação (UNet/DeepLab) quando houver rótulos densos; aprendizado auto-supervisionado/pré-treino multimodal; integração de \emph{Vision Transformers} para contexto de longo alcance com dados mais abundantes.
+
+% ======================================================
+\section{Conclusão}
+A adaptação do método de Pan et al.\ mostra-se viável para mapeamento litológico em ambientes vegetados, desde que se ajuste a escala do \emph{patch}, se mitigue desbalanceamento e se modele a incerteza decorrente da geoquímica esparsa e das defasagens temporais. A fusão multiorigem aliada a CNNs permite ganhos mensuráveis de acurácia e melhor continuidade espacial, posicionando o fluxo proposto como alternativa superior aos classificadores por-pixel em cenários de afloramento limitado.
+
+% ======================================================
+\section{Referências}
+\begin{thebibliography}{9}
+
+\bibitem{Pan2023}
+PAN, T.; ZUO, R.; WANG, Z.
+Geological Mapping via Convolutional Neural Network Based on Remote Sensing and Geochemical Survey Data in Vegetation Coverage Areas.
+\textit{IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing}, v.~16, p.~3485--3494, 2023.
+
+\bibitem{Pohl1998}
+POHL, C.; VAN GENDEREN, J. L.
+Multisensor image fusion in remote sensing: concepts, methods and applications.
+\textit{International Journal of Remote Sensing}, v.~19, n.~5, p.~823--854, 1998.
+
+\bibitem{Ronneberger2015}
+RONNEBERGER, O.; FISCHER, P.; BROX, T.
+U-Net: Convolutional Networks for Biomedical Image Segmentation.
+In: \textit{MICCAI}, 2015.
+
+\bibitem{He2016}
+HE, K.; ZHANG, X.; REN, S.; SUN, J.
+Deep Residual Learning for Image Recognition.
+In: \textit{CVPR}, 2016.
+
+\end{thebibliography}
+
+% ======================================================
+\section*{Sugestões para a apresentação oral (10 min)}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Contexto \& problema (1 slide):} desafios em áreas vegetadas; efeito ``sal e pimenta''.
+  \item \textbf{Artigo \& método (2 slides):} dados, fusões (GS + multiorigem), CNN \emph{patch}-based.
+  \item \textbf{Proposta (2 slides):} dados locais, ajustes (patch, bandas, métricas), diagrama do fluxo.
+  \item \textbf{Desafios \& mitigação (2 slides):} dados ralos, defasagem temporal, desbalanceamento.
+  \item \textbf{Resultados esperados (1 slide):} métricas-alvo, mapas de incerteza, comparação com RF.
+  \item \textbf{Conclusão (1 slide):} mensagem principal e próximos passos (piloto/validação de campo).
+\end{itemize}
+
+\end{document}

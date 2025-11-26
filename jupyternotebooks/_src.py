@@ -2,7 +2,7 @@
 
 import seaborn as sns
 import geopandas as gpd
-# import xarray as xr
+gpd.options.io_engine = "fiona"
 import pandas as pd
 import fiona
 import verde as vd
@@ -10,12 +10,29 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import pyproj
+import rasterio
 
 from verde_source import regular, interp_at
 from tqdm import tqdm
 from shapely import geometry
 from shapely.ops import transform
 from pylab import cm
+
+import matplotlib.pyplot as plt
+import matplotlib
+from matplotlib.colors import ListedColormap, BoundaryNorm
+from matplotlib.colors import TwoSlopeNorm
+
+# PATH
+import os
+from rasterio.transform import from_origin
+from pathlib import Path
+
+from ipywidgets import SelectMultiple, IntSlider, FloatSlider, Button, VBox, HBox, Output, Checkbox
+
+from sklearn_som.som import SOM
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer  # (opcional, p/ NaNs)
 
 # -----------------------------------------------------------------------------
 # Gama Titulos
@@ -44,15 +61,15 @@ cmap = cm.get_cmap('rainbow', 15)
 
 def set_gdb(path=''):
     '''
-    Diretório raíz dos dados : '/home/ggrl/database/'
+    Diretório raíz dos dados : '/home/database/'
 
         path : caminho até o  arquivo desejado
     '''
     gdb = '/home/database/' + path
     return gdb
-
-
 # -----------------------------------------------------------------------------
+
+
 def importar_geometrias(camada=None, mapa=None):
     '''
     Recebe:
@@ -72,54 +89,49 @@ def importar_geometrias(camada=None, mapa=None):
     if mapa:
         folha = lito[lito.MAPA == 'Carta geológica da folha ' + mapa]
         if len(folha) == 0:
-            print("O mapa escolhido não existe na coluna MAPA do vetor.")
-            print("Os mapas disponiveis serão listados a seguir.")
-            print('')
-            print('# Selecionando apenas os caracteres apos ''folha''')
+            print("O mapa escolhido nao est'a presente na coluna MAPA da\
+             camada veotiral. Os mapas disponiveis serao listados a seguir.")
             print(f"# -- Lista de mapas: {list(lito.MAPA.unique())}")
             lista_mapas = list(lito.MAPA.unique())
             return lista_mapas
         return folha
     else:
         return lito
+
 # -----------------------------------------------------------------------------
-
-
 def import_malha_cartog(escala='25k', ID=None, IDs=None):
-    mc = gpd.read_file(set_gdb('geodatabase.gpkg'),
-                       driver='GPKG',
-                       layer='mc_' + escala)
-    print(mc.head())
+    mc = gpd.read_file(set_gdb('geodatabase.gpkg'), driver='GPKG', layer='mc_'+escala, engine="fiona")
+
     if IDs:
-        mc_slct = gpd.GeoDataFrame()
-        for id in tqdm(IDs):
-            mc_slct = mc_slct._append(mc[mc['id_folha'] == id])
+        # seleção exata de múltiplos IDs, sem loop
+        mc_slct = mc[mc['id_folha'].astype(str).isin(IDs)].copy()
         return mc_slct
 
     elif ID:
-        mc_slct = mc[mc['id_folha'].str.contains(ID)]
-
+        # se ID for string: substring; se for lista: junta tudo numa regex
+        if isinstance(ID, (list, tuple, set)):
+            import re
+            pattern = "|".join(map(re.escape, ID))
+            mc_slct = mc[mc['id_folha'].astype(str).str.contains(pattern, na=False)]
+        else:
+            mc_slct = mc[mc['id_folha'].astype(str).str.contains(str(ID), na=False)]
         return mc_slct
 
     else:
         return mc
+
 # -----------------------------------------------------------------------------
-
-
 def import_mc(escala=None, ID=None):
     mc = gpd.read_file(set_gdb('geodatabase.gpkg'),
                        driver='GPKG',
-                       layer='mc_' + escala)
-    mc_slct = gpd.GeoDataFrame()
-    if type(ID) is list:
-        for id in tqdm(ID):
-            mc_slct = mc_slct._append(mc[mc['id_folha'].str.contains(id)])
-        return mc_slct
-    elif type(ID) is str:
-        mc_slct = mc[mc['id_folha'] == ID]
-        return mc_slct
-    elif type(ID) is str:
-        mc_slct = mc[mc['id_folha'] == ID]
+                       layer='mc_'+escala)
+    if ID:
+        import re
+        if isinstance(ID, (list, tuple, set)):
+            pattern = "|".join(map(re.escape, ID))
+        else:
+            pattern = re.escape(str(ID))
+        mc_slct = mc[mc['id_folha'].astype(str).str.contains(pattern, na=False)].copy()
         return mc_slct
     else:
         return mc
@@ -185,22 +197,22 @@ def nomeador_grid(left, right, top, bottom, escala=5):
         id_folha = ''
         if top <= 0:
             id_folha += 'S'
-            index = math.floor(-top / 4)
+            index = math.floor(-top/4)
         else:
             id_folha += 'N'
-            index = math.floor(bottom / 4)
-        numero = math.ceil((180 + right) / 6)
+            index = math.floor(bottom/4)
+        numero = math.ceil((180+right)/6)
         print(numero)
-        id_folha += e1kk[index] + str(numero)
-        lat_gap = abs(top - bottom)
+        id_folha += e1kk[index]+str(numero)
+        lat_gap = abs(top-bottom)
         # p500k-----------------------
         if (lat_gap <= 2) & (escala >= 1):
-            LO = math.ceil(right / 3) % 2 == 0
-            NS = math.ceil(top / 2) % 2 != 0
-            id_folha += '_' + e500k[LO][NS]
+            LO = math.ceil(right/3) % 2 == 0
+            NS = math.ceil(top/2) % 2 != 0
+            id_folha += '_'+e500k[LO][NS]
         # p250k-----------------------
         if (lat_gap <= 1) & (escala >= 2):
-            LO = math.ceil(right / 1.5) % 2 == 0
+            LO = math.ceil(right/1.5) % 2 == 0
             NS = math.ceil(top) % 2 != 0
             id_folha += e250k[LO][NS]
         # p100k-----------------------
@@ -232,6 +244,8 @@ def set_EPSG(mc):
             EPSG.append('326'+str(i[2:4]))
     mc['EPSG'] = EPSG
     return mc
+
+
 # -----------------------------------------------------------------------------
 
 def nomeador_malha(gdf):
@@ -250,23 +264,22 @@ def regions(mc):
     bounds = mc.bounds
     for index, row in mc.iterrows():
         mc['region'] = [(left, right, bottom, top) for
-                                    left, right, bottom, top in
-                                    zip(bounds['minx'],bounds['maxx'],
-                                        bounds['miny'],bounds['maxy'])]
-
-        crs__= row.EPSG
-        mc_proj=mc.to_crs("EPSG:"+str(crs__))
-        bounds_proj = mc_proj.bounds
+                        left, right, bottom, top in
+                        zip(bounds['minx'], bounds['maxx'],
+                            bounds['miny'], bounds['maxy'])]
+#        crs__ = row.EPSG
+#        mc_proj = mc.to_crs("EPSG:"+str(crs__))
+#        bounds_proj = mc_proj.bounds
         mc['region_proj'] = [(left, right, bottom, top) for
-                                left, right, bottom, top in
-                                    zip(bounds['minx'], bounds['maxx'],
-                                        bounds['miny'], bounds['maxy'])]
+                             left, right, bottom, top in
+                             zip(bounds['minx'], bounds['maxx'],
+                                 bounds['miny'], bounds['maxy'])]
     return mc
 
 # -----------------------------------------------------------------------------
 
 
-def cartas(escala="", ids=""):
+def cartas(escala=None, ids=None):
     print('# --- Iniciando seleção de área de estudo')
     mc_select = import_malha_cartog(escala, ids)
     regions(mc_select)
@@ -277,8 +290,8 @@ def cartas(escala="", ids=""):
     dic_cartas = mc_select.to_dict()
     # MAIS DE UMA FOLHA DE CARTA SELECIONADA
     if len(dic_cartas['raw_data']) > 1:
-        print(f"{len(dic_cartas['raw_data'])} \
-                folhas cartográfica selecionadas")
+        print(f"{len(dic_cartas['raw_data'])}\
+                    folhas cartográfica selecionadas")
         print("")
     # APENAS UMA FOLHA DE CARTA SELECIONADA
     if len(dic_cartas['raw_data']) == 1:
@@ -314,8 +327,8 @@ def lista_cols(geof):
             lista_atributo_proj.append(atributo)
         else:
             lista_atributo_geof.append(atributo)
-    codigo = str(geof)
-    print(f"# --- # Listagem de dados do aerolevantamento:  ")
+#    codigo = str(geof)
+    print("# --- # Listagem de dados do aerolevantamento:  ")
     print(f"Lista de atributos geofísicos = {lista_atributo_geof}")
     print(f"lista de atributos geograficos = {lista_atributo_geog}")
     print(f"lista de atributos projetados = {lista_atributo_proj}")
@@ -380,8 +393,8 @@ def set_region(escala, id, geof, camada, mapa=None, crs__=None):
     Recebe:
         escala : Escalas disponíveis para recorte: '50k', '100k', '250k', '1kk'
             id : ID da folha cartográfica (Articulação Sistemática de Folhas Cartográficas)
-          geof : Dado aerogeofísico disponível na base de dados (/home/ggrl/database/geof/)
-        camada : Litologias disponíveis na base de dados (/home/ggrl/database/geodatabase.gpkg)
+          geof : Dado aerogeofísico disponível na base de dados (/home/database/geof/)
+        camada : Litologias disponíveis na base de dados (/home/database/geodatabase.gpkg)
         mapa   : Nome do mapa caso necessário.
     '''
     # LISTANDO REGIOES DAS FOLHAS DE CARTAS
@@ -396,10 +409,10 @@ def set_region(escala, id, geof, camada, mapa=None, crs__=None):
     litologia = importar_geometrias(camada, mapa)
     print('')
     print('# -- Contruindo dicionario de metadados')
-    metadatadict, \
-        lista_at_geof, \
-        lista_at_geog, \
-        lista_at_proj, \
+    metadatadict,\
+        lista_at_geof,\
+        lista_at_geog,\
+        lista_at_proj,\
         geof_descrito = descricao(geof_df)
     dic_raw_meta = {'Metadata': metadatadict,
                     'Lista_at_geof': lista_at_geof,
@@ -429,7 +442,7 @@ def set_region(escala, id, geof, camada, mapa=None, crs__=None):
             x = {index: data}
             dict_cartas['raw_data'].update(x)
             print(f" com {len(data)} pontos de amostragem.")
-            litologia.to_crs('EPSG:' + crs__, inplace=True)
+            litologia.to_crs('EPSG:'+crs__, inplace=True)
             lito_cut = litologia.cx[row.region_proj[0]:row.region_proj[1],
                                     row.region_proj[2]:row.region_proj[3]]
             print(f" - Atualizando dados litológicos em \
@@ -447,7 +460,7 @@ def set_region(escala, id, geof, camada, mapa=None, crs__=None):
 # --------------------------------------------------------------------------------------
 
 
-def batch_verde(quadricula=None):
+def batch_verde(dic_cartas=None, dic_raw_meta=None):
     lista_at_geof = dic_raw_meta['Lista_at_geof']
     dic_cartas['splines'] = {}
     for index, row in tqdm(dic_raw_meta['Malha_cartografica'].iterrows()):
@@ -467,7 +480,7 @@ def batch_verde(quadricula=None):
             print(f" com {len(data)} pontos de contagens radiométricas coletados com linhas de voo de 500 metros")
             coordinates = (data.X.values.astype(float), data.Y.values.astype(float))
             # region = dic_cartas['region_proj'][index]
-            chain = vd.Chain([('trend', vd.Trend(degree=1)),
+            chain = vd.Chain([('trend',  vd.Trend(degree=1)),
                               ('reduce', vd.BlockReduce(np.mean, spacing=1000)),
                               ('spline', vd.Spline())])
             for i in tqdm(lista_at_geof):
@@ -477,7 +490,6 @@ def batch_verde(quadricula=None):
                                   pixel_register=True)
 
                 y = {i: ''}
-                grid = chain.grid(spacing=200, data_names=[i], pixel_register=True)
                 dic_cartas['splines'][index].update(y)
                 dic_cartas['splines'][index][i] = \
                     vd.distance_mask(coordinates, maxdist=500, grid=grid)
@@ -490,15 +502,7 @@ def batch_verde(quadricula=None):
 # ----------------------------------------------------------------------------
 
 
-def interpolar(
-        splines=None,
-        cubico=None,
-        mag=None,
-        gama=None,
-        geof=None,
-        dic_cartas=None,
-        dic_raw_meta=None
-):
+def interpolar(splines=None,cubico=None,mag=None, gama=None, geof=None,dic_cartas=None, dic_raw_meta=None):
     if splines:
         dic_cartas['splines'] = {}
         print('# Inicio dos processos de interpolação pelo método cúbico')
@@ -520,27 +524,19 @@ def interpolar(
                 print(f" com {len(data)} pontos de contagens radiométricas coletados com linhas de voo de 500 metros")
                 coordinates = (data.X.values, data.Y.values)
                 region = dic_cartas['region_proj'][index]
-                chain = vd.Chain([('trend', vd.Trend(degree=1)),
+                chain = vd.Chain([('trend',  vd.Trend(degree=1)),
                                   ('reduce', vd.BlockReduce(np.mean, spacing=1000)),
                                   ('spline', vd.Spline())])
                 print(f"# Folha de código: {index}")
                 print(f" Atualizando dados brutos em dic_cartas['raw_data']")
-                cv = vd.BlockKFold(spacing=1000,
-                                   n_splits=5,
-                                   shuffle=True)
+                cv     = vd.BlockKFold(spacing=1000,
+                                       n_splits=5,
+                                       shuffle=True)
                 for i in lista_at_geof:
-                    chain.fit(coordinates, data[i])
-                    grid = chain.grid(
-                        spacing=200,
-                        data_names=[i],
-                        pixel_register=True
-                    )
-                    grids[i] = vd.distance_mask(
-                        coordinates,
-                        maxdist=1000,
-                        grid=grid
-                    )
-                y = {index: grids}
+                    chain.fit(coordinates,data[i])
+                    grid = chain.grid(spacing=200,data_names=[i],pixel_register=True)
+                    grid[i]=vd.distance_mask(coordinates,maxdist=1000,grid=grid)
+                y = {index: grid}
                 dic_cartas['splines'].update(y)
                 print('__________________________________________')
             print(" ")
@@ -564,7 +560,7 @@ def interpolar(
                 print(f" Retirando dados brutos em dic_cartas['raw_data']['{index}']")
                 print(f" com {len(data)} pontos de contagens radiométricas coletados com linhas de voo de 500 metros")
                 data['geometry'] = [geometry.Point(x, y) for x, y in zip(data['X'], data['Y'])]
-                crs = "+proj=utm +zone="+crs__+" +south +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+                crs = "+proj=utm +zone=" + crs_+ " +south +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
                 gdf_geof = gpd.GeoDataFrame(data, geometry='geometry', crs=crs)
                 area = dic_cartas['region_proj'][index]
                 xu, yu = vd.regular(shape=(1272, 888),
@@ -616,14 +612,14 @@ def interpolar(
                     UKRAZAO = np.array(gdf_geof.UKRAZAO)
                     UTHRAZAO = np.array(gdf_geof.UTHRAZAO)
                     x2, y2 = np.array(gdf_geof.X), np.array(gdf_geof.Y)
-                    eTh_ = interp_at(x2, y2, eTh, xu, yu, algorithm='cubic', extrapolate=True)
-                    eu_ = interp_at(x2, y2, eU, xu, yu, algorithm='cubic', extrapolate=True)
-                    kperc_ = interp_at(x2, y2, KPERC, xu, yu, algorithm='cubic', extrapolate=True)
-                    ctcor_ = interp_at(x2, y2, CTCOR, xu, yu, algorithm='cubic', extrapolate=True)
-                    mdt_ = interp_at(x2, y2, MDT, xu, yu, algorithm='cubic', extrapolate=True)
-                    uthrazao_ = interp_at(x2, y2, UTHRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
-                    ukrazao_ = interp_at(x2, y2, UKRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
-                    thkrazao_ = interp_at(x2, y2, THKRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
+                    eTh_ = vd.interp_at(x2, y2, eTh, xu, yu, algorithm='cubic', extrapolate=True)
+                    eu_ = vd.interp_at(x2, y2, eU, xu, yu, algorithm='cubic', extrapolate=True)
+                    kperc_ = vd.interp_at(x2, y2, KPERC, xu, yu, algorithm='cubic', extrapolate=True)
+                    ctcor_ = vd.interp_at(x2, y2, CTCOR, xu, yu, algorithm='cubic', extrapolate=True)
+                    mdt_ = vd.interp_at(x2, y2, MDT, xu, yu, algorithm='cubic', extrapolate=True)
+                    uthrazao_ = vd.interp_at(x2, y2, UTHRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
+                    ukrazao_ = vd.interp_at(x2, y2, UKRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
+                    thkrazao_ = vd.interp_at(x2, y2, THKRAZAO, xu, yu, algorithm='cubic', extrapolate=True)
                     # intialise data of lists.
                     data = {'X': xu, 'Y': yu, 'MDT': mdt_, 'CTCOR': ctcor_,
                             'KPERC': kperc_, 'eU': eu_, 'eTH': eTh_,
@@ -638,8 +634,6 @@ def interpolar(
 
     return dic_cartas, dic_raw_meta
 # --------------------------------------------------------------------------------------
-
-
 # RETIRANDO VALORES DE LITOLOGIA DE CADA PIXEL
 def describe(dic_cartas, dic_raw_data, crs__, vdm, ):
     print("")
@@ -692,36 +686,20 @@ def describe(dic_cartas, dic_raw_data, crs__, vdm, ):
             dic_cartas['lito_cubic'].update(x)
             print(dic_cartas['lito_cubic'][index].keys())
 # ----------------------------------------------------------------------------------------------------------------------
-
-
-def bounding_box(geometry):
-    recorte = [geometry.bounds['minx'].min(), geometry.bounds['maxx'].max(),
-               geometry.bounds['miny'].min(), geometry.bounds['maxy'].max()]
-
-    return recorte
-# ----------------------------------------------------------------------------------------------------------------------
-
-
-# FUNÇOES DE PLOTAGEM COM GEOPANDA
+# FUNÇOES DE PLOTAGEM COM GEOPANDAS
 def plot_brazil(gdf, atributo=None):
-    recorte = bounding_box(gdf)
-    world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
+    world = dado_bruto.gpd.read_file(dado_bruto.gpd.datasets.get_path('naturalearth_lowres'))
     brazil = world[world.name == 'Brazil']
-    recorte_brazil = brazil.clip(recorte[0], recorte[2],
-                                 recorte[1], recorte[3])
     if atributo:
-        ax = recorte_brazil.boundary.plot(color='black')
+        ax = brazil.boundary.plot(color='black')
         gdf.plot(atributo, ax=ax, color='black')
     else:
-        ax = recorte_brazil.boundary.plot(color='black')
+        ax = brazil.boundary.plot(color='black')
         gdf.plot(ax=ax, color='black')
 # ----------------------------------------------------------------------------------------------------------------------
-
-
 def plot_base(escala=None,ids=None,atributo=None, camada=None, mapa=None):
     litologia = importar_geometrias(camada, mapa)
-    gdf = import_malha_cartog(escala,IDs=ids)
-    gdf.set_geometry('geometry', inplace=True)
+    gdf = import_malha_cartog(escala,ids)
     gdf = gdf.boundary
     if atributo:
         ax = litologia.plot('SIGLA')
@@ -730,8 +708,6 @@ def plot_base(escala=None,ids=None,atributo=None, camada=None, mapa=None):
         ax = litologia.plot('SIGLA')
         gdf.plot(ax=ax, color='black')
 # ----------------------------------------------------------------------------------------------------------------------
-
-
 def labels(escala=None,ids=None):
     gdf = import_malha_cartog(escala=escala,ids=ids)
     gdf['centroid'] = gdf['geometry'].apply(lambda x: x.representative_point().coords[:])
@@ -739,8 +715,6 @@ def labels(escala=None,ids=None):
     for index, row in gdf.iterrows():
         plt.annotate(text=row['id_folha'], xy=row['centroid'], horizontalalignment='center')
 # ----------------------------------------------------------------------------------------------------------------------
-
-
 def plot_boxplots(folha, atributos):
     fig, axs = plt.subplots(figsize=(14,21),nrows = 2, ncols = 4)
     for ax, atributo in zip(axs.flat, atributos):
@@ -748,8 +722,6 @@ def plot_boxplots(folha, atributos):
         ax.set_title(atributo)
     plt.show()
 # ---------------------------------------------------------------------------------------------------
-
-
 def filtro(gdf, mineral):
     '''
     Recebe uma camada vetorial e uma 'str', navega pela coluna LITOTIPOS selecionando geometrias que contem a 'str'
@@ -761,27 +733,6 @@ def filtro(gdf, mineral):
     else:
         return filtrado
 # ---------------------------------------------------------------------------------------------------
-
-
-def plot_mc_base(quadricula=None):
-    for id in list(quadricula.keys()):
-        carta=quadricula[id]
-        plt.plot(*transform_to_carta_utm(carta['folha']).exterior.xy,color='black')
-        for data in list(carta.keys())[2:]:
-            if 'mag' in data:
-                pass
-            else:
-                plt.scatter(carta[data].X,carta[data].Y,
-                            c=carta[data].MDT,
-                            cmap='terrain',
-                            s=0.5,
-                            marker='H')
-                plt.axis('scaled')
-    plt.tight_layout()
-
-# ---------------------------------------------------------------------------------------------------
-
-
 def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
     mc = import_mc(escala,ID)
     mc.set_index('id_folha',inplace=True)
@@ -797,11 +748,9 @@ def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
         print(f'  {len(quadricula.keys())} folhas adicionadas.')
     return quadricula
 # ---------------------------------------------------------------------------------------------------
-
-
 def Upload_geof(quadricula=None,gama_xyz=None,mag_xyz=None,extend_size=0):
-    gama_data = import_xyz('/home/ggrl/database/geof/'+gama_xyz)
-    mag_data = import_xyz('/home/ggrl/database/geof/'+mag_xyz)
+    gama_data = import_xyz('/home/database/geof/'+gama_xyz)
+    mag_data = import_xyz('/home/database/geof/'+mag_xyz)
     list_atri=gama_data.columns
     if 'LAT_WGS' in list_atri:
         gama_data.rename(columns={'LAT_WGS':'LATITUDE','LONG_WGS':'LONGITUDE'},inplace=True)
@@ -812,47 +761,50 @@ def Upload_geof(quadricula=None,gama_xyz=None,mag_xyz=None,extend_size=0):
         mag_data.rename(columns={'LAT_WGS':'LATITUDE','LONG_WGS':'LONGITUDE'},inplace=True)
 
 
+    gama_coords=(gama_data.X,gama_data.Y)
+    mag_coords=(mag_data.X,mag_data.Y)
+    wgs84 = pyproj.CRS('EPSG:4326')
+    ids = list(quadricula.keys())
+    gama_df=pd.DataFrame()
+    mag_df=pd.DataFrame()
+    for id in tqdm(ids):
+        utm = pyproj.CRS('EPSG:'+quadricula[id]['folha']['EPSG'])
+        carta_wgs84 = quadricula[id]['folha']['geometry']
+        project = pyproj.Transformer.from_crs(wgs84,utm,always_xy=True).transform
+        carta_utm = transform(project,carta_wgs84)
+        region_utm = carta_utm.bounds
+        reg =(region_utm[0]-extend_size,region_utm[2]+extend_size,region_utm[1]-extend_size,region_utm[3]+extend_size)
+        if gama_xyz:
+            gama = gama_data[vd.inside(gama_coords,reg)]
+            if len(gama) > 1000:
+                quadricula[id].update({gama_xyz:gama})
+                gama_df=pd.concat([gama,gama_df])
+                print(f' - {gama_xyz} atualizado na folha: {id} com {len(gama_df)} pontos')
+        if mag_xyz:
+            mag = mag_data[vd.inside(mag_coords,reg)]
+            if len(mag) > 1000:
+                quadricula[id].update({mag_xyz:mag})
+                mag_df=pd.concat([mag,mag_df])
+                print(f' - {mag_xyz} atualizado na folha: {id} com {len(mag_df)} pontos')
+    return gama_df, mag_df
+# -----------------------------------------------------------------------------
 def pop_nodata(quadricula):
     for id in tqdm(list(quadricula.keys())):
         if len(quadricula[id]) <= 2:
             quadricula.pop(id)
     return quadricula
-# -----------------------------------------------------------------o
-def batch_grid_coordinates(quadricula,spacing=0.001, pixel_register=True):
-    list_id = list(quadricula.keys())
-    #print(f' Folhas disponíveis: {list_id}')
-    for id in list_id:
-        folha = quadricula[id]
-        print(f' Folha {id}')
-
-        df = quadricula[id]['area']
-        area = (df['geometry'].bounds[0],df['geometry'].bounds[2],
-                df['geometry'].bounds[1],df['geometry'].bounds[3])
-        xu,yu = grid_coordinates(region=area,spacing=spacing, pixel_register=pixel_register)
-
-        df['coords'] = xu,yu
-        df['area'] = area
-        x = {'area':df}
-        quadricula[id].update(x)
-        print('Quadricula atualizada')
-
-# -----------------------------------------------------------------
-
-
+# -----------------------------------------------------------------------------
 def Upload_litologia(quadricula=None,camada=None):
-    lito=geometrias(camada)
+    lito=importar_geometrias(camada)
     ids = list(quadricula.keys())
     for id in tqdm(ids):
         carta=quadricula[id]['folha']['geometry']
         region = carta.bounds
         lito_id = lito.cx[region[0]:region[2],region[1]:region[3]]
-        lito_id = lito_id[['LITOTIPOS','SIGLA','NOME','MAPA','geometry']]
         quadricula[id].update({camada:lito_id})
         if len(lito_id) > 0:
             print(f' - {camada} atualizado na folha: {id}')
 # ---------------------------------------------------------------------------------------------------
-
-
 def plot_quadricula(quadricula=None,xyz=None,canal=None):
     plt.figure(figsize=(16,8))
     for id in list(quadricula.keys()):
@@ -864,31 +816,25 @@ def plot_quadricula(quadricula=None,xyz=None,canal=None):
                 vmax=Folha[canal].max())
         plt.axis('scaled')
 # ---------------------------------------------------------------------------------------------------
-
-
 def plot_folha(Folha=None,xyz=None,canal=None):
     plt.figure(figsize=(16,8))
     df = Folha[xyz]
     coords=[df.X,df.Y]
     plt.scatter(coords[0],coords[1],
-                c=df[canal],s=2,cmap='bwr',
+                c=df[canal],s=2,cmap='hsv',
                 vmin=df[canal].min(),
                 vmax=df[canal].max())
     plt.axis('scaled')
     plt.colorbar()
 # ---------------------------------------------------------------------------------------------------
-
-
 def plot_df(df=None,canal=None,legenda=None):
     print(df.describe(percentiles=[0.01,0.25,0.5,0.75,0.995]).T)
     plt.figure(figsize=(18,12))
     coords=[df.X,df.Y]
-    plt.scatter(coords[0],coords[1],c=df[canal],cmap='bwr',vmin=df[canal].min(),vmax=df[canal].max(),marker='.')
+    plt.scatter(coords[0],coords[1],c=df[canal],cmap='hsv',vmin=df[canal].min(),vmax=df[canal].max(),marker='.')
     plt.axis('scaled')
     plt.colorbar(label=legenda,orientation='horizontal')
 # ---------------------------------------------------------------------------------------------------
-
-
 def parser_siglas(ID='SF23',quadricula=None):
     lito = quadricula[ID]['lito']
     lista_SIGLAS = lito.SIGLA.unique()
@@ -910,22 +856,8 @@ def parser_siglas(ID='SF23',quadricula=None):
         lista_periodos.append(periodo)
     lista_periodos_set = list(set(lista_periodos))
     return lista_SIGLAS,lista_periodos,lista_periodos_set
+
 # ---------------------------------------------------------------------------------------------------
-
-
-def remove_negative_gama(df):
-    df['K_pos'] = df['KPERC'] - df['KPERC'].min() + 0.01
-    df['eU_pos'] = df['eU'] - df['eU'].min() + 0.01
-    df['eTh_pos'] = df['eTh'] - df['eTh'].min() + 0.01
-    # excluindo os canais originais
-    df.drop(['KPERC', 'eU', 'eTh'], axis=1, inplace=True)
-    #renomeando os positivos para os nomes dos originais
-    df.rename(columns={'K_pos':'KPERC','eU_pos':'eU','eTh_pos':'eTh','CTCOR':'CT'}, inplace=True)
-    df = df[['CT', 'eTh','eU','KPERC','UTHRAZAO','UKRAZAO','THKRAZAO','MDT','X','Y','LATITUDE','LONGITUDE']]
-# ---------------------------------------------------------------------------------------------------
-
-
-'''
 def remove_negative_values(dataframe=None,lista=['X','Y','LATITUDE','LONGITUDE','geometry']):
     atributo = list(dataframe.columns)
     for i in lista:
@@ -933,24 +865,19 @@ def remove_negative_values(dataframe=None,lista=['X','Y','LATITUDE','LONGITUDE',
             atributo.remove(i)
         else:
             None
-'''
-
-
-def remove_negative_values(dataframe=None,high_pass=None):
-    atributo = list(dataframe.columns)[4:]
-    descrito_df = dataframe[atributo].describe(percentiles=(0.01,0.25,0.5,0.75,0.9,0.999))
     for i in atributo:
         print(f'Atributo - {i}')
+        print(dataframe.nsmallest(10, i)[['X','Y',i]])
         dataframe[i][dataframe[i] <= 0] = 0.001
-    if high_pass:
-        if descrito_df[i]['99.9%'] > descrito_df[i]['mean']:
-            print(descrito_df[i]['99.99%'])
-            dataframe[i][dataframe[i] > descrito_df[i]['99.99%']] = descrito_df[i]['99.99%']
-    print(descrito_df.T)
+
+    if 'CTC' in atributo:
+        dataframe.rename(columns={'CTC':'CTCOR','KC':'KPERC','UC':'eU','THC':'eTh'},inplace=True)
+    if 'MAGR' in atributo:
+        dataframe.rename(columns={'MAGR':'MAGIGRF'},inplace=True)
+
     return dataframe
+
 # ---------------------------------------------------------------------------------------------------
-
-
 def transform_to_carta_utm(carta):
     wgs84=pyproj.CRS('EPSG:4326')
     utm = pyproj.CRS('EPSG:'+carta['EPSG'])
@@ -958,213 +885,8 @@ def transform_to_carta_utm(carta):
     project=pyproj.Transformer.from_crs(wgs84,utm,always_xy=True).transform
     carta_utm=transform(project,carta_wgs84)
     return carta_utm
+
 # -----------------------------------------------------------------------------
-
-
-def sintetic_grid(quadricula,ID,spacing=0.001,projec='geog'):
-    if projec=='geog':
-        area=quadricula[ID]['area']['area']
-    elif projec=='proj':
-        area=transform_to_carta_utm(quadricula[ID]['folha']).bounds
-    elif projec=='merc':
-        projection=pyproj.Proj(proj='merc',lat_ts=data.latitude.mean())
-    spacing=0.001
-    xu, yu = regular(shape=(int((area[3]-area[2])/spacing),int((area[1]-area[0])/spacing)),area=area)
-    return xu,yu
-# -------------------------------------------------------------------------------------------------
-
-
-def Build_mc(escala='50k',ID=['SF23_YA'],verbose=None):
-    mc = import_mc(escala,ID)
-    mc.set_index('id_folha',inplace=True)
-    quadricula = {}
-    wgs84 = pyproj.CRS('EPSG:4326')
-    ids = list(quadricula.keys())
-    print(f' - Folhas selecionadas:')
-    for index,row in tqdm(mc.iterrows()):
-        carta_wgs84 = row['geometry']
-        utm = pyproj.CRS('EPSG:'+row['EPSG'])
-        carta_wgs84 = row['geometry']
-        project = pyproj.Transformer.from_crs(wgs84,utm,always_xy=True).transform
-        carta_utm = transform(project,carta_wgs84)
-        row['geometry_proj'] = carta_utm
-        y = {index:{'folha':row}}
-        quadricula.update(y)
-        if verbose:
-            print(f'"{index}"')
-    if verbose:
-        print('')
-        print(f'  {len(quadricula.keys())} folhas adicionadas.')
-    return quadricula
-# ---------------------------------------------------------------------------------------------------
-
-
-def Upload_geof_geografica(quadricula=None,gama_xyz=None,mag_xyz=None,extend_size=0):
-    gama_data = import_xyz(set_gdb('geof/')+gama_xyz)
-    mag_data = import_xyz(set_gdb('geof/')+mag_xyz)
-    list_atri=list(mag_data.columns)
-    if 'MAGIGRF' in list_atri:
-        mag_data.rename(columns={'LAT_WGS':'LATITUDE','LONG_WGS':'LONGITUDE'},inplace=True)
-        mag_data=mag_data[['X','Y','LATITUDE','LONGITUDE','MDT','MAGIGRF','ALTURA']]
-    if 'MAGR' in list_atri:
-        mag_data.rename(columns={'MAGR':'MAGIGRF'},inplace=True)
-        mag_data=mag_data[['X','Y','LATITUDE','LONGITUDE','MAGIGRF','MDT']]
-    list_atri=list(gama_data.columns)
-    if 'LAT_WGS' in list_atri:
-        gama_data.rename(columns={'LAT_WGS':'LATITUDE','LONG_WGS':'LONGITUDE'},inplace=True)
-    if 'eTH' in list_atri:
-        gama_data.rename(columns={'eTH':'eTh'},inplace=True)
-        gama_data=gama_data[['X','Y','LATITUDE','LONGITUDE','CTCOR','eU','eTh','KPERC','UTHRAZAO','THKRAZAO','UKRAZAO','MDT']]
-    if 'eth' in list_atri:
-        gama_data.rename(columns={'eTH':'eTh'},inplace=True)
-        gama_data=gama_data[['X','Y','LATITUDE','LONGITUDE','CTCOR','eU','eTh','KPERC','UTHRAZAO','THKRAZAO','UKRAZAO','MDT']]
-    if 'CTCOR' in list_atri:
-        gama_data=gama_data[['X','Y','LATITUDE','LONGITUDE','CTCOR','eU','eTh','KPERC','UTHRAZAO','THKRAZAO','UKRAZAO','MDT']]
-    if 'CTC' in list_atri:
-        gama_data=gama_data[['X','Y','LATITUDE','LONGITUDE','CTC','UC','THC','KC','MDT']]
-    gama_coords=(gama_data.LONGITUDE,gama_data.LATITUDE)
-    mag_coords=(mag_data.LONGITUDE,mag_data.LATITUDE)
-    ids = list(quadricula.keys())
-    gama_df=pd.DataFrame()
-    mag_df=pd.DataFrame()
-    for id in tqdm(ids):
-        area = quadricula[id]['area']['area']
-        region = (area[0] - extend_size,area[1]+ extend_size,
-                  area[2] - extend_size, area[3] + extend_size)
-        if gama_xyz:
-            gama = gama_data[vd.inside(gama_coords,region)]
-            if len(gama) > 10000:
-                quadricula[id].update({gama_xyz:gama})
-                print(f' - {gama_xyz} atualizado na folha: {id} com {len(gama)} pontos')
-        if mag_xyz:
-            mag = mag_data[vd.inside(mag_coords,region)]
-            if len(mag) > 10000:
-                quadricula[id].update({mag_xyz:mag})
-                print(f' - {mag_xyz} atualizado na folha: {id} com {len(mag)} pontos')
-    return
-#  -----------------------------------------------------------------------------
-
-
-def Upload_geof(quadricula=None,gama_xyz=None,mag_xyz=None,extend_size=0):
-    gama_data = import_xyz(set_gdb('geof/')+gama_xyz)
-    mag_data = import_xyz(set_gdb('geof/')+mag_xyz)
-    list_atri=list(mag_data.columns)
-    if 'MAGIGRF' in list_atri:
-        mag_data.rename(columns={'LAT_WGS':'LATITUDE','LONG_WGS':'LONGITUDE'},inplace=True)
-        mag_data=mag_data[['X','Y','LATITUDE','LONGITUDE','MDT','MAGIGRF']]
-    if 'MAGR' in list_atri:
-        mag_data.rename(columns={'MAGR':'MAGIGRF'},inplace=True)
-        mag_data=mag_data[['X','Y','LATITUDE','LONGITUDE','MAGIGRF','MDT']]
-    list_atri=list(gama_data.columns)
-    if 'LAT_WGS' in list_atri:
-        gama_data.rename(columns={'LAT_WGS':'LATITUDE','LONG_WGS':'LONGITUDE'},inplace=True)
-    if 'eTH' in list_atri:
-        gama_data.rename(columns={'eTH':'eTh'},inplace=True)
-        gama_data=gama_data[['X','Y','LATITUDE','LONGITUDE','CTCOR','eU','eTh','KPERC','UTHRAZAO','THKRAZAO','UKRAZAO','MDT']]
-    if 'CTCOR' in list_atri:
-        gama_data=gama_data[['X','Y','LATITUDE','LONGITUDE','CTCOR','eU','eTh','KPERC','UTHRAZAO','THKRAZAO','UKRAZAO','MDT']]
-    if 'CTC' in list_atri:
-        gama_data=gama_data[['X','Y','LATITUDE','LONGITUDE','CTC','UC','THC','KC','MDT']]
-    gama_coords=(gama_data.X,gama_data.Y)
-    mag_coords=(mag_data.X,mag_data.Y)
-    wgs84 = pyproj.CRS('EPSG:4326')
-    ids = list(quadricula.keys())
-    for id in tqdm(ids):
-        utm = pyproj.CRS('EPSG:'+quadricula[id]['folha']['EPSG'])
-        carta_wgs84 = quadricula[id]['folha']['geometry']
-        project = pyproj.Transformer.from_crs(wgs84,utm,always_xy=True).transform
-        carta_utm = transform(project,carta_wgs84)
-        region_utm = carta_utm.bounds[0],carta_utm.bounds[2],carta_utm.bounds[1],carta_utm.bounds[3]
-        reg =(region_utm[0]-extend_size,region_utm[2]+extend_size,region_utm[1]-extend_size,region_utm[3]+extend_size)
-        quadricula[id].update({'region_utm':region_utm})
-        if gama_xyz:
-            gama = gama_data[vd.inside(gama_coords,reg)]
-            if len(gama) > 10000:
-                quadricula[id].update({gama_xyz:gama})
-                print(f' - {gama_xyz} atualizado na folha: {id} com {len(gama)} pontos')
-        if mag_xyz:
-            mag = mag_data[vd.inside(mag_coords,reg)]
-            if len(mag) > 10000:
-                quadricula[id].update({mag_xyz:mag})
-                print(f' - {mag_xyz} atualizado na folha: {id} com {len(mag)} pontos')
-    return
-#  -----------------------------------------------------------------------------
-
-
-def traditional_interpolation(quadricula='',mag_xyz=None,gama_xyz=None,algorithm='cubic',geof=None,projec="geog",extrapolate=False):
-    for id in tqdm(list(quadricula.keys())):
-        if mag_xyz and gama_xyz in list(quadricula[id].keys()):
-            #print(f' - Folha: {id}')
-            gama_data=remove_negative_values(quadricula[id][gama_xyz])
-            mag_data=quadricula[id][mag_xyz]
-            CTCOR=np.array(gama_data.CTCOR)
-            eTh=np.array(gama_data.eTh)
-            eU=np.array(gama_data.eU)
-            KPERC=np.array(gama_data.KPERC)
-            if 'THKRAZAO' in gama_data.columns:
-                THKRAZAO=np.array(gama_data.THKRAZAO)
-                UKRAZAO=np.array(gama_data.UKRAZAO)
-                UTHRAZAO=np.array(gama_data.UTHRAZAO)
-                MAGIGRF=np.array(mag_data.MAGIGRF)
-                MDT=np.array(mag_data.MDT)
-                xu,yu=sintetic_grid(quadricula,id,projec)
-                x1,y1=np.array(gama_data.LONGITUDE),np.array(gama_data.LATITUDE)
-                x2,y2=np.array(mag_data.LONGITUDE),np.array(mag_data.LATITUDE)
-                df_xu_yu = pd.DataFrame(np.array([xu,yu]))
-                df_xu_yu=df_xu_yu.T
-                df_xu_yu.rename(columns={0:'xu',1:'yu'},inplace=True)
-                eth_=interp_at(x1,y1,eTh,xu,yu,algorithm=algorithm,extrapolate=extrapolate)
-                eu_=interp_at(x1,y1,eU,xu,yu,algorithm=algorithm,extrapolate=extrapolate)
-                kperc_=interp_at(x1,y1,KPERC, xu, yu, algorithm= algorithm,extrapolate=extrapolate)
-                ctcor_=interp_at(x1,y1,CTCOR,xu,yu,algorithm=algorithm,extrapolate=extrapolate)
-                uthrazao_=interp_at(x1,y1,UTHRAZAO,xu,yu,algorithm=algorithm,extrapolate=extrapolate)
-                ukrazao_=interp_at(x1,y1,UKRAZAO,xu,yu,algorithm=algorithm,extrapolate=extrapolate)
-                thkrazao_=interp_at(x1,y1,THKRAZAO,xu,yu,algorithm=algorithm,extrapolate=extrapolate)
-                mdt_=interp_at(x2,y2,MDT,xu,yu,algorithm=algorithm,extrapolate=extrapolate)
-                mag_=interp_at(x2,y2,MAGIGRF,xu,yu,algorithm=algorithm,extrapolate=extrapolate)
-                data={'LONGITUDE':xu,'LATITUDE':yu,'MDT': mdt_,'CTCOR':ctcor_,
-                      'KPERC': kperc_,'eU':eu_,'eTh':eth_,'GMT':mag_,
-                      'UTHRAZAO':uthrazao_,'UKRAZAO':ukrazao_,'THKRAZAO':thkrazao_}
-                df=pd.DataFrame(data)
-                ds = df.set_index(['LATITUDE','LONGITUDE']).to_xarray()
-                quadricula[id].update({geof+'_'+algorithm:ds})
-
-            else:
-                MAGIGRF=np.array(mag_data.MAGIGRF)
-                MDT=np.array(gama_data.MDT)
-                xu,yu=sintetic_grid(quadricula,id,200,projection)
-                x1,y1=np.array(gama_data.LONGITUDE),np.array(gama_data.LATITUDE)
-                x2,y2=np.array(mag_data.LONGITUDE),np.array(mag_data.LATITUDE)
-                df_xu_yu = pd.DataFrame(np.array([xu,yu]))
-                df_xu_yu=df_xu_yu.T
-                df_xu_yu.rename(columns={0:'xu',1:'yu'},inplace=True)
-                eth_=interp_at(x1,y1,eTh,xu,yu,algorithm=algorithm,extrapolate=extrapolate)
-                eu_=interp_at(x1,y1,eU,xu,yu,algorithm=algorithm,extrapolate=extrapolate)
-                kperc_=interp_at(x1,y1,KPERC, xu, yu, algorithm= algorithm,extrapolate=extrapolate)
-                ctcor_=interp_at(x1,y1,CTCOR,xu,yu,algorithm=algorithm,extrapolate=extrapolate)
-                mdt_=interp_at(x2,y2,MDT,xu,yu,algorithm=algorithm,extrapolate=extrapolate)
-                mag_=interp_at(x2,y2,MAGIGRF,xu,yu,algorithm=algorithm,extrapolate=extrapolate)
-                data={'LONGITUDE':xu,'LATITUDE':yu,'MDT': mdt_,'CTCOR':ctcor_,
-                      'KPERC': kperc_,'eU':eu_,'eTh':eth_,'GMT':mag_}
-                df=pd.DataFrame(data)
-                ds = df.set_index(['LATITUDE','LONGITUDE']).to_xarray()
-                quadricula[id].update({geof+'_'+algorithm:ds})
-# -----------------------------------------------------------------------------
-
-
-# Mag Titulos
-mag_FEAT=['MAGIGRF','MDT']
-mag_titles=['GMT (nT)', 'MDT (m)']
-mag_dic_titles = {}
-for f, t in zip(mag_FEAT, mag_titles):
-    mag_dic_titles[f] = t
-# Percentiles
-percentiles=(0.001,0.01,0.05,0.25,0.5,0.75,0.9995)
-# ColorMap
-#cmap=cm.get_cmap('rainbow',15)
-# -----------------------------------------------------------------------------
-
-
 def plot_raw_mag_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%'):
     fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize = (19,9),sharex='all',sharey='all')
     raw_data_describe = raw_data.describe(percentiles=percentiles)
@@ -1187,41 +909,10 @@ def plot_raw_mag_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%'
 
 # ---------------------------------------------------------------------------------------------------
 
-
-def plot_filtered_values(quadricula,c='MDT',cmap='terrain'):
-    plt.figure(figsize=(24,16))
-    for id in list(quadricula.keys()):
-        carta=quadricula[id]
-        plt.plot(*(carta['folha']['geometry']).exterior.xy,color='black')
-        plt.axis('scaled')
-        for data in list(carta.keys())[2:]:
-            data=quadricula[id][data]
-            print(data)
-            if 'geof' in data:
-                print(' - passou "geof_data"')
-                pass
-            if 'gama' in list(data.columns):
-                plt.scatter(carta[data].LONGITUDE,carta[data].LATITUDE,c=carta[data][c],cmap=cmap,s=1,marker='H')
-            else:
-                pass
-    plt.suptitle('Área de cobertura dos levantamentos aerogeofísicos')
-    plt.tight_layout()
-# -------------------------------------------------------------------------------------------------
-
-
 def plot_raw_gama_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%',orientation='horizontal',figsize=(26,16)):
     fig, axs = plt.subplots(nrows = 2, ncols = 4, figsize =figsize,sharex='all',sharey='all')
     raw_data_describe = raw_data.describe(percentiles=percentiles)
     X, Y = raw_data.X, raw_data.Y
-    gama_dic_titles={}
-    gama_FEAT=list(raw_data.columns)[4:]
-    if 'CTC' in gama_FEAT:
-        gama_titles=[ 'Urânio Corrigido (contagens/s)','Thório Corrigido (contagens/s)', 'Potássio Corrigido (contagens/s)', 'Contagem Total Corrigida (contagens/s)','MDT (m)']
-    if 'CTCOR':
-        gama_titles=['Contagem Total', 'Th (ppm)', 'U (ppm)','K (%)','U/Th', 'U/K', 'Th/K', 'MDT (m)']
-    for f, t in zip(gama_FEAT,gama_titles):
-        print(f'f: {f},t: {t}')
-        gama_dic_titles[f]=t
     for ax, f in zip(axs.flat, gama_dic_titles):
         vmin = raw_data_describe[f][minimo]
         vmax = raw_data_describe[f][maximo]
@@ -1238,84 +929,25 @@ def plot_raw_gama_data(raw_data,suptitle='SET TITLE',minimo='min',maximo='99.95%
     fig.suptitle(suptitle)
     plt.tight_layout()
 # -----------------------------------------------------------------------------
-
-
 def plot_histograms(dataframe=None,bins=500,suptitle='Distribuição de Contagens Radiométricas'):
     fig, axs = plt.subplots(nrows = 2, ncols = 4, figsize = (26, 13))
-    print(dataframe[['CTCOR','eTh','eU','KPERC','MDT','THKRAZAO','UTHRAZAO','UKRAZAO']].describe(percentiles).T)
-
-
-def plot_interpolated_histograms(dataframe=None,bins=100,suptitle='Distribuição de Contagens Radiométricas',verbose=False):
-    if 'CTCOR' in list(dataframe.columns):
-        print('Levantamento Novo')
-        dataframe=dataframe[['LONGITUDE','LATITUDE','MDT','CTCOR','eTh','eU','KPERC','UTHRAZAO','UKRAZAO','THKRAZAO']]
-        gama_FEAT = list(dataframe.columns)[2:]
-        fig, axs = plt.subplots(nrows = int(len(gama_FEAT)/4), ncols = int(len(gama_FEAT)/2), figsize = (21, 9))
-    if 'CTC' in list(dataframe.columns):
-        print('Levantamento Antigo')
-        gama_titles=['MDT (m)','Contagem Total Corrigida (contagens/s)','Urânio Corrigido (contagens/s)','Thório Corrigido (contagens/s)', 'Potássio Corrigido (contagens/s)']
-        dataframe=dataframe[['LONGITUDE','LATITUDE','MDT','CTC','THC','UC','KC']]
-        gama_FEAT = list(dataframe.columns)[2:]
-        fig, axs = plt.subplots(nrows = 2, ncols = 3, figsize = (21, 9))
-        fig.delaxes(axs[1][2])
+    # X,Y,LONGITUDE,LATITUDE,MAGR,THC,UC,KC,CTC
+    if 'CTC' in dataframe.columns:
+        print(dataframe[['CTC','THC','UC','KC']].describe(percentiles).T)
+        gama_FEAT = ['CTC', 'THC', 'UC', 'KC']
     else:
-        gama_titles=['MDT (m)','Contagem Total','Th (ppm)', 'U (ppm)','K (%)','U/Th', 'U/K', 'Th/K']
-    gama_dic_titles={}
-    for f, t in zip(gama_FEAT, gama_titles):
-        gama_dic_titles[f] = t
-    if verbose:
-        print(f'Features: {gama_FEAT}')
-        print(f'Titulos: {gama_dic_titles}')
+        print(dataframe[['CTCOR','eTh','eU','KPERC','MDT','THKRAZAO','UTHRAZAO','UKRAZAO']].describe(percentiles).T)
 
     for ax, f in zip(axs.flat, gama_FEAT):
-        if verbose:
-            print(f'feature: {f}, titles: {t}')
         _,_,bars = ax.hist(dataframe[f],color='blue',bins=bins)
         for bar in bars:
             if bar.get_x() < 0:
                 bar.set_facecolor("red")
                 ax.axvline(x=0,linestyle='--',linewidth=0.1,color='red')
-        ax.set_title(str(gama_dic_titles[f]))
+        #ax.set_title(str(gama_dic_titles[f]))
     plt.suptitle(suptitle)
     plt.tight_layout()
 # -----------------------------------------------------------------------------------
-
-
-def plot_histograms(dataframe=None,bins=100,suptitle='Distribuição de Contagens Radiométricas',verbose=False):
-    if 'CTCOR' in list(dataframe.columns):
-        print('Levantamento Novo')
-        dataframe=dataframe[['X','Y','LONGITUDE','LATITUDE','MDT','CTCOR','eTh','eU','KPERC','UTHRAZAO','UKRAZAO','THKRAZAO']]
-        gama_FEAT = list(dataframe.columns)[4:]
-        fig, axs = plt.subplots(nrows = int(len(gama_FEAT)/4), ncols = int(len(gama_FEAT)/2), figsize = (21, 9))
-    if 'CTC' in list(dataframe.columns):
-        print('Levantamento Antigo')
-        gama_titles=['MDT (m)','Contagem Total Corrigida (contagens/s)','Urânio Corrigido (contagens/s)','Thório Corrigido (contagens/s)', 'Potássio Corrigido (contagens/s)']
-        dataframe=dataframe[['X','Y','LONGITUDE','LATITUDE','MDT','CTC','THC','UC','KC']]
-        gama_FEAT = list(dataframe.columns)[4:]
-        fig, axs = plt.subplots(nrows = 2, ncols = 3, figsize = (21, 9))
-        fig.delaxes(axs[1][2])
-    else:
-        gama_titles=['MDT (m)','Contagem Total','Th (ppm)', 'U (ppm)','K (%)','U/Th', 'U/K', 'Th/K']
-    gama_dic_titles={}
-    for f, t in zip(gama_FEAT, gama_titles):
-        gama_dic_titles[f] = t
-    if verbose:
-        print(f'Features: {gama_FEAT}')
-        print(f'Titulos: {gama_dic_titles}')
-    for ax, f in zip(axs.flat, gama_FEAT):
-        if verbose:
-            print(f'feature: {f}, titles: {t}')
-        _,_,bars = ax.hist(dataframe[f],color='blue',bins=bins)
-        for bar in bars:
-            if bar.get_x() < 0:
-                bar.set_facecolor("red")
-                ax.axvline(x=0,linestyle='--',linewidth=0.1,color='red')
-        ax.set_title(str(gama_dic_titles[f]))
-    plt.suptitle(suptitle)
-    plt.tight_layout()
-# -----------------------------------------------------------------------------------
-
-
 def plotBoxplots(df, cols = None):
     """
     plotBoxplots(df :: dataframe, cols :: list)
@@ -1333,16 +965,12 @@ def plotBoxplots(df, cols = None):
         if f!=cols[n-1]:
             ax.axes.get_xaxis().set_visible(False)
 # -----------------------------------------------------------------------------
-
-
 def sintetic_grid(quadricula,ID,psize=100):
     area = transform_to_carta_utm(quadricula[ID]['folha']).bounds
     area = area[0],area[2],area[1],area[3]
     xu, yu = regular(shape=(int((area[3]-area[2])/psize),int((area[1]-area[0])/psize)),area=area)
     return xu,yu
 # -----------------------------------------------------------------------------
-
-
 def traditional_interpolation(quadricula=None,mag_xyz=None,gama_xyz=None,algorithm='cubic',geof=None):
     for id in list(quadricula.keys()):
         if mag_xyz and gama_xyz in list(quadricula[id].keys()):
@@ -1400,3 +1028,396 @@ def traditional_interpolation(quadricula=None,mag_xyz=None,gama_xyz=None,algorit
                       'KPERC': kperc_,'eU':eu_,'eTh':eth_,'GMT':mag_}
                 df=pd.DataFrame(data)
                 quadricula[id].update({geof+'_'+algorithm:df})
+
+
+def plot_corr(df, size=10, method='pearson', cluster=False,
+              mask_upper=True, annot='auto', fmt='.2f',
+              cmap='RdBu_r'):
+    """
+    df        : DataFrame (ideal apenas numérico)
+    size      : base do tamanho da figura
+    method    : 'pearson' | 'spearman' | 'kendall'
+    cluster   : usa clustermap (reordena por similaridade)
+    mask_upper: esconde triângulo superior
+    annot     : True|False|'auto' (liga só se n<=20)
+    fmt       : formato das anotações
+    cmap      : colormap divergente
+    """
+    num = df.select_dtypes(include=[np.number]).copy()
+    # remove colunas constantes (corr = NaN)
+    num = num.loc[:, num.nunique() > 1]
+
+    corr = num.corr(method=method, numeric_only=True)
+    n = corr.shape[0]
+    if annot == 'auto':
+        annot = n <= 20
+
+    # limites simétricos para centralizar o 0
+    vmin, vmax = -1, 1
+
+    if cluster:
+        g = sns.clustermap(
+            corr, cmap=cmap, center=0, vmin=vmin, vmax=vmax,
+            linewidths=0.5, figsize=(size + size*0.2, size),
+            annot=annot, fmt=fmt, cbar_kws={'label': 'Correlação'}
+        )
+        # rótulos
+        plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90, ha='right')
+        plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)
+        return g
+
+    mask = np.triu(np.ones_like(corr, dtype=bool), k=1) if mask_upper else None
+
+    plt.figure(figsize=(size + size*0.2, size), facecolor='w')
+    ax = sns.heatmap(
+        corr, cmap=cmap, center=0, vmin=vmin, vmax=vmax,
+        mask=mask, square=True, linewidths=0.5,
+        cbar_kws={'shrink': 0.85, 'label': 'Correlação'},
+        annot=annot, fmt=fmt, annot_kws={'size': 8}
+    )
+    ax.tick_params(axis='x', rotation=90, labelsize=8)
+    ax.tick_params(axis='y', rotation=0, labelsize=8)
+    plt.tight_layout()
+
+def _transform_from_mesh(xs_mesh, ys_mesh):
+    """
+    xs_mesh, ys_mesh: (ny, nx) com coordenadas UTM dos CENTROS dos pixels.
+    Retorna transform, nx, ny.
+    """
+    xs1d = np.unique(xs_mesh)
+    ys1d = np.unique(ys_mesh)
+    nx, ny = xs1d.size, ys1d.size
+    xres = float(np.median(np.diff(xs1d)))
+    yres = float(np.median(np.diff(ys1d)))
+    west  = xs1d.min() - xres/2
+    north = ys1d.max() + yres/2
+    transform = from_origin(west, north, xres, yres)
+    return transform, nx, ny
+
+def save_classes_tiff(fid, classes2d, xs_mesh, ys_mesh, epsg, outdir="out_som_tiff",
+                      cmap_name="Set3"):
+    """
+    classes2d: matriz (ny,nx) com índices inteiros [0..N-1]
+    xs_mesh, ys_mesh: malha (ny,nx) UTM dos CENTROS de pixel
+    epsg: inteiro (ex.: 31983 p/ SIRGAS 2000 / UTM 23S, ou 32723 p/ WGS84 / UTM 23S)
+    """
+    outdir = Path(outdir); outdir.mkdir(parents=True, exist_ok=True)
+    transform, nx, ny = _transform_from_mesh(xs_mesh, ys_mesh)
+
+    profile = dict(driver="GTiff", width=nx, height=ny, count=1,
+                   dtype="uint16", transform=transform,
+                   crs=None if epsg is None else f"EPSG:{int(epsg)}",
+                   compress="lzw", tiled=True, predictor=2)
+
+    path = outdir / f"{fid}_som_classes.tif"
+    with rasterio.open(path, "w", **profile) as dst:
+        dst.write(classes2d.astype("uint16"), 1)
+        # paleta opcional (fica bonito no QGIS)
+        try:
+            import matplotlib
+            base = matplotlib.colormaps.get_cmap(cmap_name)
+            n = int(np.nanmax(classes2d)) + 1
+            pal = {i: tuple(int(255*c) for c in (*base(i/max(n-1,1))[:3], 255)) for i in range(n)}
+            dst.write_colormap(1, pal)
+        except Exception:
+            pass
+    return str(path)
+
+def save_stack_tiff(fid, df_interp, features, xs_mesh, ys_mesh, epsg,
+                    outdir="out_stacks", dtype="float32", nodata=np.nan):
+    """
+    Salva 1 GeoTIFF multi-banda (stack) com as colunas `features` da geof_1105_linear.
+    """
+    outdir = Path(outdir); outdir.mkdir(parents=True, exist_ok=True)
+    transform, nx, ny = _transform_from_mesh(xs_mesh, ys_mesh)
+
+    # ordenar para casar com o reshape (mesma ordem usada no treino)
+    df_ord = df_interp.sort_values(
+        ["N_utm", "E_utm"],
+        ascending=[False, True],
+        kind="mergesort",
+        ignore_index=True
+    )
+
+    stack = np.stack([df_ord[col].to_numpy().reshape(ny, nx) for col in features], axis=0)
+
+    profile = dict(driver="GTiff", width=nx, height=ny, count=len(features),
+                   dtype=dtype, transform=transform,
+                   crs=None if epsg is None else f"EPSG:{int(epsg)}",
+                   compress="lzw", tiled=True, predictor=2, nodata=nodata)
+
+    path = outdir / f"{fid}_stack.tif"
+    with rasterio.open(path, "w", **profile) as dst:
+        dst.write(stack.astype(dtype))
+        # nomes das bandas
+        for i, name in enumerate(features, 1):
+            dst.set_band_description(i, name)
+    return str(path)
+
+def plot_mapa_preditivo(classes_by_fid, metas, n_clusters=5,
+                        titulo='Mapa preditivo (SOM)', flip_ns=True, save_path=None):
+    # colormap discreto e norma por classes inteiras
+    base = matplotlib.colormaps.get_cmap('Set3')
+    cmap = ListedColormap(base.colors[:n_clusters], name=f'Set3_{n_clusters}')
+    norm = BoundaryNorm(np.arange(-0.5, n_clusters + 0.5, 1), cmap.N, clip=True)
+
+    fig, ax = plt.subplots(figsize=(12, 12), facecolor='w')
+
+    for fid in sorted(classes_by_fid.keys()):
+        Z = classes_by_fid[fid]
+        if flip_ns:                    # use flip_ns=False se você já ordenou N_utm desc / E_utm asc
+            Z = np.flipud(Z)
+        xs = metas[fid]['xs']
+        ys = metas[fid]['ys']
+        ax.pcolormesh(xs, ys, Z, cmap=cmap, norm=norm, shading='nearest', rasterized=True)
+
+    ax.set_aspect('equal')
+    ax.set_title(titulo)
+    cbar = fig.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax,
+                        ticks=np.arange(n_clusters), pad=0.01)
+    cbar.ax.set_yticklabels([f'Classe {i+1}' for i in range(n_clusters)])
+    cbar.set_label('Classes')
+
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.show()
+
+# Substitui a definição atual
+def plot_histograms(df, cols=None, bins=30, suptitle=None):
+    """
+    Plota histogramas para as colunas numéricas informadas.
+    Se cols=None, tenta usar a global 'gama_FEAT'; se não existir, infere do df.
+    """
+    import math
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    if cols is None:
+        cols = globals().get("gama_FEAT")
+        if cols is None:
+            cols = df.select_dtypes(include="number").columns.tolist()
+
+    cols = list(cols)
+    n = len(cols)
+    if n == 0:
+        raise ValueError("Nenhuma coluna numérica encontrada para plotar.")
+
+    ncols = 3 if n >= 3 else n
+    nrows = math.ceil(n / ncols)
+
+    fig, axes = plt.subplots(nrows, ncols, figsize=(4*ncols, 3*nrows))
+    axes = np.atleast_1d(axes).ravel()
+
+    for ax, col in zip(axes, cols):
+        ax.hist(df[col].dropna(), bins=bins)
+        ax.set_title(col)
+
+    # Esconde eixos sobrando
+    for ax in axes[n:]:
+        ax.axis("off")
+
+    if suptitle:
+        fig.suptitle(suptitle)
+    fig.tight_layout()
+    return fig
+
+
+# Padroniza para snake_case (ou ajuste a chamada para o nome que você já tem)
+def plot_boxplots(df, cols=None, suptitle=None, per_feature=True,
+                  robust=True, q=(0.01, 0.99), ncols=3, showfliers=False):
+    """
+    Boxplots com escala Y única para todos os subplots.
+    - per_feature=True  -> 1 subplot por feature (compartilham o mesmo ylim)
+    - robust=True       -> usa quantis q para definir o ylim global (evita outliers extremos)
+    """
+    import math
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    if cols is None:
+        cols = globals().get("gama_FEAT")
+        if cols is None:
+            cols = df.select_dtypes(include="number").columns.tolist()
+    cols = list(cols)
+
+    if not cols:
+        raise ValueError("Nenhuma coluna para boxplot.")
+
+    def _ylim_global(series_list):
+        s = pd.concat([s.dropna() for s in series_list], ignore_index=True)
+        if s.empty:
+            return (0.0, 1.0)
+        if robust:
+            y_min, y_max = s.quantile(q[0]), s.quantile(q[1])
+        else:
+            y_min, y_max = float(s.min()), float(s.max())
+        if y_min == y_max:
+            eps = 1e-6 if y_min == 0 else abs(y_min) * 0.01
+            y_min, y_max = y_min - eps, y_max + eps
+        return (y_min, y_max)
+
+    if per_feature:
+        # 1 subplot por feature, todos compartilham o mesmo ylim
+        data_cols = [df[c] for c in cols]
+        y_min, y_max = _ylim_global(data_cols)
+
+        n = len(cols)
+        ncols = min(ncols, n)
+        nrows = math.ceil(n / ncols)
+        fig, axes = plt.subplots(nrows, ncols, figsize=(4*ncols, 3.2*nrows), sharey=True)
+        axes = np.atleast_1d(axes).ravel()
+
+        for ax, col in zip(axes, cols):
+            ax.boxplot(df[col].dropna(), labels=[col], showfliers=showfliers)
+            ax.set_ylim(y_min, y_max)
+            ax.tick_params(axis="x", rotation=45)
+            ax.set_title(col)
+
+        for ax in axes[n:]:
+            ax.axis("off")
+
+        if suptitle:
+            fig.suptitle(suptitle)
+        fig.tight_layout()
+        return fig
+
+    else:
+        # Todos os boxplots no mesmo eixo (escala única por definição)
+        data_cols = [df[c].dropna() for c in cols]
+        y_min, y_max = _ylim_global(data_cols)
+
+        fig, ax = plt.subplots(figsize=(max(6, 0.6*len(cols)), 4))
+        ax.boxplot(data_cols, labels=cols, showfliers=showfliers)
+        ax.set_ylim(y_min, y_max)
+        ax.tick_params(axis="x", rotation=45)
+        ax.set_title(suptitle or "Boxplots")
+        fig.tight_layout()
+        return fig
+
+
+# ---------- UI ----------
+all_possible_features = ['GMT','CTCOR','eTh','eU','KPERC','UTHRAZAO','UKRAZAO','THKRAZAO','MDT']
+
+w_feats = SelectMultiple(options=all_possible_features, value=tuple(all_possible_features),
+                         description='Features', rows=9)
+w_k = IntSlider(description='N classes', min=2, max=50, step=1, value=12)
+w_sigma = FloatSlider(description='sigma', min=0.1, max=5.0, step=0.1, value=1.5)
+w_iter = IntSlider(description='max_iter', min=500, max=30000, step=500, value=10000)
+w_seed = IntSlider(description='seed', min=0, max=9999, step=1, value=42)
+w_flip = Checkbox(description='flip N-S no plot', value=False)
+
+run_btn = Button(description='Gerar mapa', button_style='success')
+out = Output()
+
+
+
+data_grid = 'geof_1089_linear'
+# ---------- helpers ----------
+def make_discrete_cmap(n):
+    # cria um mapa com n cores (suporta >12)
+    if n <= 20:
+        return matplotlib.cm.get_cmap('tab20', n)
+    # fallback para qualquer n
+    return matplotlib.cm.get_cmap('nipy_spectral', n)
+
+def build_global_matrix(quadricula, features):
+    fids = sorted(quadricula.keys())
+    all_blocks, slc, metas = [], {}, {}
+    k = 0
+    for fid in fids:
+        q = quadricula[fid]
+        if data_grid not in q:
+            continue
+        df = q['geof_1089_linear'].copy()
+
+        # garantir colunas UTM
+        if not {'E_utm','N_utm'}.issubset(df.columns):
+            if {'X','Y'}.issubset(df.columns):
+                df.rename(columns={'X':'E_utm','Y':'N_utm'}, inplace=True)
+            else:
+                continue
+
+        # ordenar para reshape consistente (linha = Norte->Sul decrescente; coluna = E->W crescente)
+        df.sort_values(['N_utm','E_utm'], ascending=[False, True], inplace=True, ignore_index=True, kind='mergesort')
+
+        xs1d = np.sort(df['E_utm'].unique())
+        ys1d = np.sort(df['N_utm'].unique())
+        nx, ny = xs1d.size, ys1d.size
+        xs_mesh, ys_mesh = np.meshgrid(xs1d, ys1d)  # (ny, nx)
+
+        metas[fid] = {'nx': nx, 'ny': ny, 'xs': xs_mesh, 'ys': ys_mesh}
+        X = df[features].to_numpy(dtype='float32')  # (ny*nx, F)
+        if X.size == 0:
+            continue
+
+        all_blocks.append(X)
+        slc[fid] = slice(k, k + len(X))
+        k += len(X)
+
+    if not all_blocks:
+        raise RuntimeError("Nenhuma folha com 'geof_1105_linear' e as features escolhidas foi encontrada.")
+    X_all = np.vstack(all_blocks)
+    return X_all, slc, metas
+
+def som_predict_per_folha(som, X_all_std, slc, metas):
+    classes_by_fid = {}
+    for fid, s in slc.items():
+        pr = som.predict(X_all_std[s])  # (N,)
+        ny, nx = metas[fid]['ny'], metas[fid]['nx']
+        classes_by_fid[fid] = pr.reshape(ny, nx)
+    return classes_by_fid
+
+def plot_classes(classes_by_fid, metas, n_clusters, flip_ns=False, titulo='Mapa preditivo (SOM)'):
+    cmap = ListedColormap(make_discrete_cmap(n_clusters).colors if hasattr(make_discrete_cmap(n_clusters), 'colors')
+                          else make_discrete_cmap(n_clusters)(np.linspace(0,1,n_clusters)))
+    bounds = np.arange(-0.5, n_clusters + 0.5, 1)
+    norm = BoundaryNorm(bounds, ncolors=n_clusters, clip=True)
+
+    fig, ax = plt.subplots(figsize=(10, 10), facecolor='w')
+    for fid in sorted(classes_by_fid.keys()):
+        Z = classes_by_fid[fid]
+        if flip_ns:
+            Z = np.flipud(Z)
+        xs = metas[fid]['xs']; ys = metas[fid]['ys']
+        ax.pcolormesh(xs, ys, Z, cmap=cmap, norm=norm, shading='nearest', rasterized=True)
+
+    ax.set_aspect('equal')
+    ax.set_title(titulo)
+    cbar = fig.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, ticks=np.arange(n_clusters), pad=0.01)
+    cbar.ax.set_yticklabels([f'Classe {i+1}' for i in range(n_clusters)])
+    cbar.set_label('Classes')
+    plt.tight_layout()
+    plt.show()
+
+
+quadricula = {}
+
+def on_run_clicked(_):
+    out.clear_output()
+    with out:
+        feats = list(w_feats.value)
+        if len(feats) == 0:
+            print("Selecione ao menos 1 feature.")
+            return
+
+        np.random.seed(int(w_seed.value))
+        # 1) agrega tudo
+        X_all, slc, metas = build_global_matrix(quadricula, feats)
+
+        # 2) imput/escala global
+        imp = SimpleImputer(strategy='median')
+        X_imp = imp.fit_transform(X_all)
+        scaler = StandardScaler().fit(X_imp)
+        X_std = scaler.transform(X_imp)
+
+        # 3) SOM global
+        som = SOM(m=int(w_k.value), n=1, sigma=float(w_sigma.value), dim=len(feats), max_iter=int(w_iter.value))
+        som.fit(X_std)
+
+        # 4) previsão por folha + plot
+        classes_by_fid = som_predict_per_folha(som, X_std, slc, metas)
+        plot_classes(classes_by_fid, metas, n_clusters=int(w_k.value), flip_ns=bool(w_flip.value),
+                     titulo=f"SOM: k={int(w_k.value)} | sigma={float(w_sigma.value)} | it={int(w_iter.value)}"
+                    )

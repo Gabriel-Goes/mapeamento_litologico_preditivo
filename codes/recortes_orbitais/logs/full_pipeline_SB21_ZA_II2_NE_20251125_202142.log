@@ -1,0 +1,48 @@
+[LOG] Registrando execução em: ./recortes_orbitais/logs/full_pipeline_SB21_ZA_II2_NE_20251125_202142.log
+================================================================================
+[FULL PIPELINE] Folha: SB21_ZA_II2_NE
+[FULL PIPELINE] Log em: ./recortes_orbitais/logs/full_pipeline_SB21_ZA_II2_NE_20251125_202142.log
+================================================================================
+[ASTER] Folha 'SB21_ZA_II2_NE' carregada. Área WGS84 (aprox): 0.015625 (graus²)
+[ASTER] Buscando itens em 'aster-l1t'...
+[ASTER] Total de itens retornados: 46
+
+[ASTER] Itens candidatos (ordenados):
+  id=AST_L1T_00307292004141220_20150505110335, datetime=2004-07-29T14:12:20.641000+00:00, Δt=1403 dias, cov=100.00%, cloud=0.00%
+  id=AST_L1T_00308012005141202_20150510135953, datetime=2005-08-01T14:12:02.298000+00:00, Δt=1035 dias, cov=100.00%, cloud=1.00%
+
+[ASTER] Melhor item:
+  id=AST_L1T_00307292004141220_20150505110335
+  datetime=2004-07-29T14:12:20.641000+00:00
+  Δt=1403 dias
+  cov=100.00%
+  cloud=0.00%
+[PAIR] ASTER selecionado: AST_L1T_00307292004141220_20150505110335 (Δt alvo=1403 dias)
+[S2] Folha 'SB21_ZA_II2_NE' carregada. Área WGS84 (aprox): 0.015625 (graus²)
+[S2] Buscando itens em 'sentinel-2-l2a'...
+[S2] Total de itens retornados: 388
+[S2] S2A_MSIL2A_20150819T141046_R110_T21MWP_20210411T230231 | date=2015-08-19 | meta_cloud=4.71% | scl_cloud_frac=0.0322 | scl_nodata_frac=0.0021 | Δt(ASTER)=4038 dias
+[S2] S2A_MSIL2A_20150819T141046_R110_T21MXP_20210411T230240 | date=2015-08-19 | meta_cloud=38.33% | scl_cloud_frac=0.0536 | scl_nodata_frac=0.0030 | Δt(ASTER)=4038 dias
+[S2] S2A_MSIL2A_20150908T141046_R110_T21MXP_20210412T065657 | date=2015-09-08 | meta_cloud=24.43% | scl_cloud_frac=0.2700 | scl_nodata_frac=0.0030 | Δt(ASTER)=4058 dias
+[S2] S2A_MSIL2A_20150908T141046_R110_T21MWP_20210412T065646 | date=2015-09-08 | meta_cloud=24.95% | scl_cloud_frac=0.2618 | scl_nodata_frac=0.0021 | Δt(ASTER)=4058 dias
+[S2] S2A_MSIL2A_20151117T140932_R110_T21MWP_20210413T010707 | date=2015-11-17 | meta_cloud=16.73% | scl_cloud_frac=0.2019 | scl_nodata_frac=0.0021 | Δt(ASTER)=4128 dias
+[S2] S2A_MSIL2A_20151117T140932_R110_T21MXP_20210413T010707 | date=2015-11-17 | meta_cloud=17.41% | scl_cloud_frac=0.2142 | scl_nodata_frac=0.0030 | Δt(ASTER)=4128 dias
+[S2] S2A_MSIL2A_20151127T140932_R110_T21MXP_20210413T072044 | date=2015-11-27 | meta_cloud=46.93% | scl_cloud_frac=0.8749 | scl_nodata_frac=0.0030 | Δt(ASTER)=4138 dias
+[S2] S2A_MSIL2A_20151127T140932_R110_T21MWP_20210413T072037 | date=2015-11-27 | meta_cloud=54.27% | scl_cloud_frac=0.9557 | scl_nodata_frac=0.0021 | Δt(ASTER)=4138 dias
+[S2] S2A_MSIL2A_20151227T140932_R110_T21MWP_20210526T201911 | date=2015-12-27 | meta_cloud=6.39% | scl_cloud_frac=0.1666 | scl_nodata_frac=0.0021 | Δt(ASTER)=4168 dias
+[S2] S2A_MSIL2A_20151227T140932_R110_T21MXP_20210526T201925 | date=2015-12-27 | meta_cloud=10.31% | scl_cloud_frac=0.1645 | scl_nodata_frac=0.0030 | Δt(ASTER)=4168 dias
+[S2] S2A_MSIL2A_20160212T135952_R067_T21MXP_20210528T054645 | date=2016-02-12 | meta_cloud=43.03% | scl_cloud_frac=0.0000 | scl_nodata_frac=1.0000 | Δt(ASTER)=4215 dias
+
+[S2] Melhor cena (primeira sem nuvem segundo SCL):
+  id=S2A_MSIL2A_20160212T135952_R067_T21MXP_20210528T054645
+  datetime=2016-02-12T13:59:52.029000+00:00
+  Δt(ASTER)=4215 dias
+  meta_cloud=43.03%
+  scl_cloud_frac=0.0000
+  scl_nodata_frac=1.0000
+[PAIR] S2 selecionado: S2A_MSIL2A_20160212T135952_R067_T21MXP_20210528T054645 (Δt ASTER=4215 dias)
+================================================================================
+[STEP] Fusão GS ASTER+S2
+================================================================================
+[GS PIPELINE] Folha SB21_ZA_II2_NE carregada.
+[GS PIPELINE] S2 item: S2A_MSIL2A_20160212T135952_R067_T21MXP_20210528T054645

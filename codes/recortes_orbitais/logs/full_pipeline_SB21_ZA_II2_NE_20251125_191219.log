@@ -1,0 +1,128 @@
+[LOG] Registrando execução em: ./recortes_orbitais/logs/full_pipeline_SB21_ZA_II2_NE_20251125_191219.log
+================================================================================
+[FULL PIPELINE] Folha: SB21_ZA_II2_NE
+[FULL PIPELINE] Log em: ./recortes_orbitais/logs/full_pipeline_SB21_ZA_II2_NE_20251125_191219.log
+================================================================================
+[ASTER] Folha 'SB21_ZA_II2_NE' carregada. Área WGS84 (aprox): 0.015625 (graus²)
+[ASTER] Buscando itens em 'aster-l1t'...
+[ASTER] Total de itens retornados: 46
+
+[ASTER] Itens candidatos (ordenados):
+  id=AST_L1T_00307292004141220_20150505110335, datetime=2004-07-29T14:12:20.641000+00:00, Δt=1403 dias, cov=100.00%, cloud=0.00%
+  id=AST_L1T_00308012005141202_20150510135953, datetime=2005-08-01T14:12:02.298000+00:00, Δt=1035 dias, cov=100.00%, cloud=1.00%
+
+[ASTER] Melhor item:
+  id=AST_L1T_00307292004141220_20150505110335
+  datetime=2004-07-29T14:12:20.641000+00:00
+  Δt=1403 dias
+  cov=100.00%
+  cloud=0.00%
+[PAIR] ASTER selecionado: AST_L1T_00307292004141220_20150505110335 (Δt alvo=1403 dias)
+[S2] Folha 'SB21_ZA_II2_NE' carregada. Área WGS84 (aprox): 0.015625 (graus²)
+[S2] Buscando itens em 'sentinel-2-l2a'...
+[S2] Total de itens retornados: 200
+[S2] S2B_MSIL2A_20231011T140709_R110_T21MXP_20231011T221735 | date=2023-10-11 | meta_cloud=73.94% | scl_cloud_frac=0.9965 | scl_nodata_frac=0.0030 | Δt(ASTER)=7013 dias
+[S2] S2B_MSIL2A_20231011T140709_R110_T21MXP_20241103T100507 | date=2023-10-11 | meta_cloud=73.95% | scl_cloud_frac=0.9970 | scl_nodata_frac=0.0030 | Δt(ASTER)=7013 dias
+[S2] S2A_MSIL2A_20231016T140711_R110_T21MWP_20241101T231111 | date=2023-10-16 | meta_cloud=49.21% | scl_cloud_frac=0.7102 | scl_nodata_frac=0.0021 | Δt(ASTER)=7018 dias
+[S2] S2A_MSIL2A_20231016T140711_R110_T21MWP_20231016T211942 | date=2023-10-16 | meta_cloud=49.26% | scl_cloud_frac=0.7117 | scl_nodata_frac=0.0021 | Δt(ASTER)=7018 dias
+[S2] S2A_MSIL2A_20231016T140711_R110_T21MXP_20241101T231111 | date=2023-10-16 | meta_cloud=49.58% | scl_cloud_frac=0.7207 | scl_nodata_frac=0.0030 | Δt(ASTER)=7018 dias
+[S2] S2A_MSIL2A_20231016T140711_R110_T21MXP_20231016T221901 | date=2023-10-16 | meta_cloud=49.61% | scl_cloud_frac=0.7230 | scl_nodata_frac=0.0030 | Δt(ASTER)=7018 dias
+[S2] S2B_MSIL2A_20231021T140709_R110_T21MWP_20241019T170904 | date=2023-10-21 | meta_cloud=66.19% | scl_cloud_frac=0.9979 | scl_nodata_frac=0.0021 | Δt(ASTER)=7023 dias
+[S2] S2B_MSIL2A_20231021T140709_R110_T21MWP_20231021T192207 | date=2023-10-21 | meta_cloud=66.95% | scl_cloud_frac=0.9979 | scl_nodata_frac=0.0021 | Δt(ASTER)=7023 dias
+[S2] S2A_MSIL2A_20231026T140711_R110_T21MWP_20231026T211525 | date=2023-10-26 | meta_cloud=40.86% | scl_cloud_frac=0.1085 | scl_nodata_frac=0.0021 | Δt(ASTER)=7028 dias
+[S2] S2A_MSIL2A_20231026T140711_R110_T21MXP_20231026T211650 | date=2023-10-26 | meta_cloud=53.94% | scl_cloud_frac=0.0543 | scl_nodata_frac=0.0030 | Δt(ASTER)=7028 dias
+[S2] S2B_MSIL2A_20231031T140709_R110_T21MWP_20241017T055216 | date=2023-10-31 | meta_cloud=74.06% | scl_cloud_frac=0.9979 | scl_nodata_frac=0.0021 | Δt(ASTER)=7033 dias
+[S2] S2B_MSIL2A_20231031T140709_R110_T21MXP_20241017T055216 | date=2023-10-31 | meta_cloud=76.43% | scl_cloud_frac=0.9970 | scl_nodata_frac=0.0030 | Δt(ASTER)=7033 dias
+[S2] S2B_MSIL2A_20231031T140709_R110_T21MXP_20231031T191851 | date=2023-10-31 | meta_cloud=78.19% | scl_cloud_frac=0.9970 | scl_nodata_frac=0.0030 | Δt(ASTER)=7033 dias
+[S2] S2A_MSIL2A_20231105T140711_R110_T21MWP_20241031T173328 | date=2023-11-05 | meta_cloud=16.86% | scl_cloud_frac=0.1236 | scl_nodata_frac=0.0021 | Δt(ASTER)=7038 dias
+[S2] S2A_MSIL2A_20231105T140711_R110_T21MWP_20231105T213449 | date=2023-11-05 | meta_cloud=16.89% | scl_cloud_frac=0.1235 | scl_nodata_frac=0.0021 | Δt(ASTER)=7038 dias
+[S2] S2A_MSIL2A_20231105T140711_R110_T21MXP_20231105T212034 | date=2023-11-05 | meta_cloud=28.35% | scl_cloud_frac=0.1069 | scl_nodata_frac=0.0030 | Δt(ASTER)=7038 dias
+[S2] S2B_MSIL2A_20231110T140709_R110_T21MWP_20241018T045633 | date=2023-11-10 | meta_cloud=15.06% | scl_cloud_frac=0.1214 | scl_nodata_frac=0.0021 | Δt(ASTER)=7043 dias
+[S2] S2B_MSIL2A_20231110T140709_R110_T21MWP_20231110T191426 | date=2023-11-10 | meta_cloud=27.91% | scl_cloud_frac=0.4299 | scl_nodata_frac=0.0021 | Δt(ASTER)=7043 dias
+[S2] S2B_MSIL2A_20231110T140709_R110_T21MXP_20241018T045633 | date=2023-11-10 | meta_cloud=46.38% | scl_cloud_frac=0.1082 | scl_nodata_frac=0.0030 | Δt(ASTER)=7043 dias
+[S2] S2B_MSIL2A_20231110T140709_R110_T21MXP_20231110T191418 | date=2023-11-10 | meta_cloud=53.46% | scl_cloud_frac=0.1568 | scl_nodata_frac=0.0030 | Δt(ASTER)=7043 dias
+[S2] S2A_MSIL2A_20231115T140701_R110_T21MXP_20241112T131610 | date=2023-11-15 | meta_cloud=45.89% | scl_cloud_frac=0.9970 | scl_nodata_frac=0.0030 | Δt(ASTER)=7048 dias
+[S2] S2A_MSIL2A_20231115T140701_R110_T21MXP_20231115T182803 | date=2023-11-15 | meta_cloud=45.90% | scl_cloud_frac=0.9970 | scl_nodata_frac=0.0030 | Δt(ASTER)=7048 dias
+[S2] S2A_MSIL2A_20231125T140701_R110_T21MXP_20231125T181226 | date=2023-11-25 | meta_cloud=53.92% | scl_cloud_frac=0.6054 | scl_nodata_frac=0.0030 | Δt(ASTER)=7058 dias
+[S2] S2A_MSIL2A_20231125T140701_R110_T21MXP_20241106T162707 | date=2023-11-25 | meta_cloud=53.92% | scl_cloud_frac=0.6051 | scl_nodata_frac=0.0030 | Δt(ASTER)=7058 dias
+[S2] S2A_MSIL2A_20231125T140701_R110_T21MWP_20231125T181241 | date=2023-11-25 | meta_cloud=70.54% | scl_cloud_frac=0.6388 | scl_nodata_frac=0.0021 | Δt(ASTER)=7058 dias
+[S2] S2A_MSIL2A_20231125T140701_R110_T21MWP_20241106T162707 | date=2023-11-25 | meta_cloud=70.54% | scl_cloud_frac=0.6388 | scl_nodata_frac=0.0021 | Δt(ASTER)=7058 dias
+[S2] S2B_MSIL2A_20231130T140659_R110_T21MXP_20231130T181452 | date=2023-11-30 | meta_cloud=52.33% | scl_cloud_frac=0.8409 | scl_nodata_frac=0.0030 | Δt(ASTER)=7063 dias
+[S2] S2B_MSIL2A_20231130T140659_R110_T21MWP_20231130T181502 | date=2023-11-30 | meta_cloud=58.33% | scl_cloud_frac=0.8776 | scl_nodata_frac=0.0021 | Δt(ASTER)=7063 dias
+[S2] S2B_MSIL2A_20231210T140659_R110_T21MWP_20241113T031900 | date=2023-12-10 | meta_cloud=37.98% | scl_cloud_frac=0.3899 | scl_nodata_frac=0.0021 | Δt(ASTER)=7073 dias
+[S2] S2B_MSIL2A_20231210T140659_R110_T21MWP_20231210T181449 | date=2023-12-10 | meta_cloud=38.12% | scl_cloud_frac=0.3905 | scl_nodata_frac=0.0021 | Δt(ASTER)=7073 dias
+[S2] S2B_MSIL2A_20231210T140659_R110_T21MXP_20241113T031900 | date=2023-12-10 | meta_cloud=42.23% | scl_cloud_frac=0.3064 | scl_nodata_frac=0.0030 | Δt(ASTER)=7073 dias
+[S2] S2B_MSIL2A_20231210T140659_R110_T21MXP_20231210T171547 | date=2023-12-10 | meta_cloud=42.25% | scl_cloud_frac=0.3190 | scl_nodata_frac=0.0030 | Δt(ASTER)=7073 dias
+[S2] S2B_MSIL2A_20240109T140709_R110_T21MXP_20240109T181333 | date=2024-01-09 | meta_cloud=47.40% | scl_cloud_frac=0.3695 | scl_nodata_frac=0.0030 | Δt(ASTER)=7103 dias
+[S2] S2B_MSIL2A_20240109T140709_R110_T21MWP_20240109T181341 | date=2024-01-09 | meta_cloud=74.30% | scl_cloud_frac=0.5641 | scl_nodata_frac=0.0021 | Δt(ASTER)=7103 dias
+[S2] S2A_MSIL2A_20240203T140701_R110_T21MXP_20240203T191642 | date=2024-02-03 | meta_cloud=47.71% | scl_cloud_frac=0.9632 | scl_nodata_frac=0.0030 | Δt(ASTER)=7128 dias
+[S2] S2A_MSIL2A_20240203T140701_R110_T21MWP_20240203T191652 | date=2024-02-03 | meta_cloud=78.23% | scl_cloud_frac=0.8894 | scl_nodata_frac=0.0021 | Δt(ASTER)=7128 dias
+[S2] S2B_MSIL2A_20240208T140709_R110_T21MWP_20240208T191909 | date=2024-02-08 | meta_cloud=51.92% | scl_cloud_frac=0.8524 | scl_nodata_frac=0.0021 | Δt(ASTER)=7133 dias
+[S2] S2B_MSIL2A_20240208T140709_R110_T21MXP_20240208T191850 | date=2024-02-08 | meta_cloud=63.50% | scl_cloud_frac=0.8884 | scl_nodata_frac=0.0030 | Δt(ASTER)=7133 dias
+[S2] S2A_MSIL2A_20240223T140701_R110_T21MWP_20240223T192215 | date=2024-02-23 | meta_cloud=33.51% | scl_cloud_frac=0.5683 | scl_nodata_frac=0.0021 | Δt(ASTER)=7148 dias
+[S2] S2A_MSIL2A_20240223T140701_R110_T21MXP_20240223T191926 | date=2024-02-23 | meta_cloud=59.86% | scl_cloud_frac=0.5487 | scl_nodata_frac=0.0030 | Δt(ASTER)=7148 dias
+[S2] S2B_MSIL2A_20240228T140709_R110_T21MWP_20240228T180653 | date=2024-02-28 | meta_cloud=65.55% | scl_cloud_frac=0.9979 | scl_nodata_frac=0.0021 | Δt(ASTER)=7153 dias
+[S2] S2B_MSIL2A_20240319T140709_R110_T21MXP_20240319T172944 | date=2024-03-19 | meta_cloud=78.28% | scl_cloud_frac=0.9958 | scl_nodata_frac=0.0030 | Δt(ASTER)=7173 dias
+[S2] S2A_MSIL2A_20240403T140701_R110_T21MWP_20240403T194601 | date=2024-04-03 | meta_cloud=40.71% | scl_cloud_frac=0.7322 | scl_nodata_frac=0.0021 | Δt(ASTER)=7188 dias
+[S2] S2A_MSIL2A_20240403T140701_R110_T21MXP_20240403T193210 | date=2024-04-03 | meta_cloud=46.98% | scl_cloud_frac=0.7275 | scl_nodata_frac=0.0030 | Δt(ASTER)=7188 dias
+[S2] S2B_MSIL2A_20240408T140709_R110_T21MXP_20240411T132915 | date=2024-04-08 | meta_cloud=65.35% | scl_cloud_frac=0.9871 | scl_nodata_frac=0.0030 | Δt(ASTER)=7193 dias
+[S2] S2A_MSIL2A_20240423T140711_R110_T21MXP_20240423T221149 | date=2024-04-23 | meta_cloud=67.33% | scl_cloud_frac=0.6621 | scl_nodata_frac=0.0030 | Δt(ASTER)=7208 dias
+[S2] S2A_MSIL2A_20240423T140711_R110_T21MWP_20240423T221156 | date=2024-04-23 | meta_cloud=78.70% | scl_cloud_frac=0.6084 | scl_nodata_frac=0.0021 | Δt(ASTER)=7208 dias
+[S2] S2A_MSIL2A_20240503T140711_R110_T21MXP_20240503T204036 | date=2024-05-03 | meta_cloud=45.82% | scl_cloud_frac=0.7365 | scl_nodata_frac=0.0030 | Δt(ASTER)=7218 dias
+[S2] S2A_MSIL2A_20240503T140711_R110_T21MWP_20240503T204126 | date=2024-05-03 | meta_cloud=66.69% | scl_cloud_frac=0.7314 | scl_nodata_frac=0.0021 | Δt(ASTER)=7218 dias
+[S2] S2A_MSIL2A_20240513T140711_R110_T21MXP_20240513T203754 | date=2024-05-13 | meta_cloud=40.25% | scl_cloud_frac=0.3810 | scl_nodata_frac=0.0030 | Δt(ASTER)=7228 dias
+[S2] S2A_MSIL2A_20240513T140711_R110_T21MWP_20240513T204059 | date=2024-05-13 | meta_cloud=74.92% | scl_cloud_frac=0.4713 | scl_nodata_frac=0.0021 | Δt(ASTER)=7228 dias
+[S2] S2B_MSIL2A_20240518T140709_R110_T21MXP_20240518T181609 | date=2024-05-18 | meta_cloud=22.76% | scl_cloud_frac=0.3580 | scl_nodata_frac=0.0030 | Δt(ASTER)=7233 dias
+[S2] S2B_MSIL2A_20240518T140709_R110_T21MWP_20240518T181617 | date=2024-05-18 | meta_cloud=47.53% | scl_cloud_frac=0.3682 | scl_nodata_frac=0.0021 | Δt(ASTER)=7233 dias
+[S2] S2B_MSIL2A_20240528T140709_R110_T21MXP_20240528T191717 | date=2024-05-28 | meta_cloud=78.41% | scl_cloud_frac=0.3429 | scl_nodata_frac=0.0030 | Δt(ASTER)=7243 dias
+[S2] S2A_MSIL2A_20240602T140711_R110_T21MWP_20240602T224144 | date=2024-06-02 | meta_cloud=50.08% | scl_cloud_frac=0.5640 | scl_nodata_frac=0.0021 | Δt(ASTER)=7248 dias
+[S2] S2A_MSIL2A_20240602T140711_R110_T21MXP_20240602T223759 | date=2024-06-02 | meta_cloud=69.47% | scl_cloud_frac=0.5982 | scl_nodata_frac=0.0030 | Δt(ASTER)=7248 dias
+[S2] S2B_MSIL2A_20240607T140709_R110_T21MWP_20240607T180925 | date=2024-06-07 | meta_cloud=0.00% | scl_cloud_frac=0.0000 | scl_nodata_frac=0.0021 | Δt(ASTER)=7253 dias
+
+[S2] Melhor cena (primeira sem nuvem segundo SCL):
+  id=S2B_MSIL2A_20240607T140709_R110_T21MWP_20240607T180925
+  datetime=2024-06-07T14:07:09.024000+00:00
+  Δt(ASTER)=7253 dias
+  meta_cloud=0.00%
+  scl_cloud_frac=0.0000
+  scl_nodata_frac=0.0021
+[PAIR] S2 selecionado: S2B_MSIL2A_20240607T140709_R110_T21MWP_20240607T180925 (Δt ASTER=7253 dias)
+================================================================================
+[STEP] Fusão GS ASTER+S2
+================================================================================
+[GS PIPELINE] Folha SB21_ZA_II2_NE carregada.
+[GS PIPELINE] S2 item: S2B_MSIL2A_20240607T140709_R110_T21MWP_20240607T180925
+[GS PIPELINE] Bandas S2 carregadas: ['B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B11', 'B12']
+[GS PIPELINE] Fração média nodata S2: 0.0016
+[GS PIPELINE] ASTER item: AST_L1T_00307292004141220_20150505110335
+[GS PIPELINE] Fração média nodata ASTER: 0.0013
+[GS PIPELINE] Iniciando fusão GS ASTER + S2 B08.
+[GS PIPELINE] Fusão concluída.
+[GS PIPELINE] S2 stack salvo em: ./recortes_orbitais/SB21_ZA_II2_NE_S2_S2B_MSIL2A_20240607T140709_R110_T21MWP_20240607T180925_stack.tif
+[GS PIPELINE] ASTER 10m salvo em: ./recortes_orbitais/SB21_ZA_II2_NE_ASTER_AST_L1T_00307292004141220_20150505110335_VNIR_SWIR_10m.tif
+[GS PIPELINE] ASTER GS salvo em: ./recortes_orbitais/SB21_ZA_II2_NE_ASTER_AST_L1T_00307292004141220_20150505110335_VNIR_SWIR_GS_10m.tif
+================================================================================
+[STEP] Construindo super-cubo S2+ASTER_GS
+================================================================================
+[SUPERCUBE] Super-cubo salvo em: ./recortes_orbitais/SB21_ZA_II2_NE_S2_ASTER_GS_supercube_10m.tif
+[FULL PIPELINE] Super-cubo gerado: shape=(19, 1384, 1296)
+================================================================================
+[STEP] Carregando super-cubo e raster de rótulos
+================================================================================
+[INFO] Super-cubo shape = (19, 1384, 1296)
+[INFO] Bandas = [np.int64(1), np.int64(2), np.int64(3), np.int64(4), np.int64(5), np.int64(6), np.int64(7), np.int64(8), np.int64(9), np.int64(10), np.int64(11), np.int64(12), np.int64(13), np.int64(14), np.int64(15), np.int64(16), np.int64(17), np.int64(18), np.int64(19)]
+[INFO] Unidades litológicas = 8
+[INFO] Raster labels shape = (1384, 1296)
+================================================================================
+[STEP] Dataset de pixels
+================================================================================
+[INFO] Pixels: X.shape=(25000, 19), y.shape=(25000,)
+[INFO] Pixels: n_classes=5
+[OUTPUT] Dataset de pixels salvo em: ./dataset_pixels_SB21_ZA_II2_NE.npz
+================================================================================
+[STEP] Dataset de patches
+================================================================================
+[INFO] Total bruto de patches = 6581
+[INFO] Patches: X.shape=(4965, 19, 32, 32), y.shape=(4965,)
+[INFO] Patches: n_classes=5
+[OUTPUT] Dataset de patches salvo em: ./dataset_patches_SB21_ZA_II2_NE_ps32_st16.npz

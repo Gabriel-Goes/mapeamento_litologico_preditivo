@@ -380,7 +380,7 @@ def cut(x, y, scalars, area):
     xmin, xmax, ymin, ymax = area
     if len(x) != len(y):
         raise ValueError("x and y must have the same length")
-    inside = [i for i in xrange(len(x))
+    inside = [i for i in range(len(x))
               if x[i] >= xmin and x[i] <= xmax
               and y[i] >= ymin and y[i] <= ymax]
     return [x[inside], y[inside], [s[inside] for s in scalars]]

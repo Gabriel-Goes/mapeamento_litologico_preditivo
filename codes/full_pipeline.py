@@ -1,0 +1,259 @@
+# full_pipeline.py
+from __future__ import annotations
+
+import argparse
+import os
+from typing import Optional
+
+import numpy as np
+import xarray as xr
+
+from config import ORBITAL_DIR
+from stac_utils import item_datetime
+from search_pair import (
+    search_aster_cloudfree_for_folha,
+    search_s2_cloudfree_for_folha_given_aster,
+)
+from gs_fusion import run_gs_pair_pipeline
+from supercube import build_supercube, load_supercube
+from labeling_lito import build_label_raster_for_folha
+from dataset_pixels import extract_pixel_dataset
+from dataset_patches import generate_patches
+from log_utils import log_stdout
+
+
+def resolve_pair(
+    folha: str,
+    aster_id: Optional[str],
+    s2_id: Optional[str],
+    aster_date: Optional[str],
+) -> tuple[str, str]:
+    if aster_id and s2_id:
+        print("[PAIR] Usando IDs fornecidos pelo usuário.")
+        return aster_id, s2_id
+
+    if not aster_date:
+        raise SystemExit(
+            "Se --aster-id/--s2-id não forem fornecidos, é obrigatório informar --aster-date (YYYY-MM-DD)."
+        )
+
+    best_aster, _ = search_aster_cloudfree_for_folha(
+        codigo_folha=folha,
+        aster_target_date_str=aster_date,
+    )
+    if best_aster is None:
+        raise SystemExit("Nenhum ASTER adequado encontrado para essa folha/data.")
+
+    aster_item = best_aster["item"]
+    aster_id_sel = aster_item.id
+    aster_dt = item_datetime(aster_item)
+    print(f"[PAIR] ASTER selecionado: {aster_id_sel} (Δt alvo={best_aster['delta_days']} dias)")
+
+    best_s2, _ = search_s2_cloudfree_for_folha_given_aster(
+        codigo_folha=folha,
+        aster_datetime=aster_dt,
+    )
+    if best_s2 is None:
+        raise SystemExit("Nenhum Sentinel-2 adequado encontrado para esse ASTER.")
+
+    s2_id_sel = best_s2["id"]
+    print(f"[PAIR] S2 selecionado: {s2_id_sel} (Δt ASTER={best_s2['delta_days']} dias)")
+    return aster_id_sel, s2_id_sel
+
+
+def run_gs_and_supercube(
+    folha: str,
+    aster_id: str,
+    s2_id: str,
+    orbital_dir: str,
+) -> xr.DataArray:
+    print("=" * 80)
+    print("[STEP] Fusão GS ASTER+S2")
+    print("=" * 80)
+
+    s2_band_ids = [
+        "B02", "B03", "B04",
+        "B05", "B06", "B07", "B08", "B8A",
+        "B11", "B12",
+    ]
+
+    aster_ms, aster_gs, s2_stack = run_gs_pair_pipeline(
+        folha_codigo=folha,
+        aster_collection="aster-l1t",
+        aster_id=aster_id,
+        s2_collection="sentinel-2-l2a",
+        s2_id=s2_id,
+        s2_band_ids=s2_band_ids,
+        out_dir=orbital_dir,
+    )
+
+    s2_stack_path = os.path.join(
+        orbital_dir,
+        f"{folha}_S2_{s2_id}_stack.tif",
+    )
+    aster_gs_path = os.path.join(
+        orbital_dir,
+        f"{folha}_ASTER_{aster_id}_VNIR_SWIR_GS_10m.tif",
+    )
+
+    print("=" * 80)
+    print("[STEP] Construindo super-cubo S2+ASTER_GS")
+    print("=" * 80)
+
+    super_cube = build_supercube(
+        folha_codigo=folha,
+        s2_stack_path=s2_stack_path,
+        aster_gs_path=aster_gs_path,
+        out_path=None,
+    )
+    return super_cube
+
+
+def build_datasets(
+    folha: str,
+    supercube_dir: str,
+    max_samples_per_class: Optional[int],
+    patch_size: int,
+    stride: int,
+    max_patches_per_class: Optional[int],
+    out_pixels: Optional[str],
+    out_patches: Optional[str],
+) -> None:
+    print("=" * 80)
+    print("[STEP] Carregando super-cubo e raster de rótulos")
+    print("=" * 80)
+
+    super_cube = load_supercube(folha, supercube_dir=supercube_dir)
+    print(f"[INFO] Super-cubo shape = {super_cube.values.shape}")
+    print(f"[INFO] Bandas = {list(super_cube.band.values)}")
+
+    label_raster, gdf_lito = build_label_raster_for_folha(
+        folha_codigo=folha,
+        reference_da=super_cube,
+        background_label=0,
+    )
+    print(f"[INFO] Unidades litológicas = {len(gdf_lito)}")
+    print(f"[INFO] Raster labels shape = {label_raster.shape}")
+
+    print("=" * 80)
+    print("[STEP] Dataset de pixels")
+    print("=" * 80)
+
+    X_pix, y_pix = extract_pixel_dataset(
+        super_cube=super_cube,
+        label_raster=label_raster,
+        max_samples_per_class=max_samples_per_class,
+    )
+    print(f"[INFO] Pixels: X.shape={X_pix.shape}, y.shape={y_pix.shape}")
+    print(f"[INFO] Pixels: n_classes={np.unique(y_pix).size}")
+
+    pixels_path = out_pixels or f"./dataset_pixels_{folha}.npz"
+    np.savez_compressed(
+        pixels_path,
+        X=X_pix,
+        y=y_pix,
+        bands=np.array(list(super_cube.band.values)),
+    )
+    print(f"[OUTPUT] Dataset de pixels salvo em: {pixels_path}")
+
+    print("=" * 80)
+    print("[STEP] Dataset de patches")
+    print("=" * 80)
+
+    X_patch, y_patch = generate_patches(
+        super_cube=super_cube,
+        label_raster=label_raster,
+        patch_size=patch_size,
+        stride=stride,
+        max_patches_per_class=max_patches_per_class,
+    )
+    print(f"[INFO] Patches: X.shape={X_patch.shape}, y.shape={y_patch.shape}")
+    print(f"[INFO] Patches: n_classes={np.unique(y_patch).size}")
+
+    patches_path = out_patches or f"./dataset_patches_{folha}_ps{patch_size}_st{stride}.npz"
+    np.savez_compressed(
+        patches_path,
+        X=X_patch,
+        y=y_patch,
+        bands=np.array(list(super_cube.band.values)),
+        patch_size=np.array([patch_size]),
+        stride=np.array([stride]),
+    )
+    print(f"[OUTPUT] Dataset de patches salvo em: {patches_path}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--folha", required=True, help="Código da folha (ex: SB21_ZA_II2_NE)")
+
+    parser.add_argument("--aster-id", default=None)
+    parser.add_argument("--s2-id", default=None)
+    parser.add_argument("--aster-date", default=None, help="YYYY-MM-DD (usado se IDs não forem dados)")
+
+    parser.add_argument("--orbital-dir", default=ORBITAL_DIR, help="Diretório de saída para rasters")
+    parser.add_argument("--supercube-dir", default=ORBITAL_DIR, help="Diretório onde está o super-cubo")
+
+    parser.add_argument("--max-samples-per-class", type=int, default=None)
+    parser.add_argument("--patch-size", type=int, default=32)
+    parser.add_argument("--stride", type=int, default=16)
+    parser.add_argument("--max-patches-per-class", type=int, default=None)
+
+    parser.add_argument("--out-pixels", default=None)
+    parser.add_argument("--out-patches", default=None)
+
+    parser.add_argument("--skip-gs", action="store_true", help="Pular GS+super-cubo e usar super-cubo já existente")
+    parser.add_argument("--skip-datasets", action="store_true", help="Pular geração dos datasets")
+    parser.add_argument('--debug-s2-plots', action='store_true', help='Habilita plots de SCL de cada cena S2 candidata')
+
+
+    args = parser.parse_args()
+
+    folha = args.folha
+    orbital_dir = args.orbital_dir
+    os.makedirs(orbital_dir, exist_ok=True)
+
+    log_dir = os.path.join(orbital_dir, "logs")
+    base_name = f"full_pipeline_{folha}"
+
+    with log_stdout(log_dir, base_name) as log_path:
+        print("=" * 80)
+        print(f"[FULL PIPELINE] Folha: {folha}")
+        print(f"[FULL PIPELINE] Log em: {log_path}")
+        print("=" * 80)
+
+        if not args.skip_gs:
+            aster_id, s2_id = resolve_pair(
+                folha=folha,
+                aster_id=args.aster_id,
+                s2_id=args.s2_id,
+                aster_date=args.aster_date,
+            )
+            super_cube = run_gs_and_supercube(
+                folha=folha,
+                aster_id=aster_id,
+                s2_id=s2_id,
+                orbital_dir=orbital_dir,
+            )
+            print(f"[FULL PIPELINE] Super-cubo gerado: shape={super_cube.values.shape}")
+        else:
+            print("[FULL PIPELINE] --skip-gs acionado; não será feito GS nem super-cubo.")
+            print("[FULL PIPELINE] Assumindo que o super-cubo já existe em supercube_dir.")
+
+        if args.skip_datasets:
+            print("[FULL PIPELINE] --skip-datasets acionado; não serão gerados datasets.")
+            return
+
+        build_datasets(
+            folha=folha,
+            supercube_dir=args.supercube_dir,
+            max_samples_per_class=args.max_samples_per_class,
+            patch_size=args.patch_size,
+            stride=args.stride,
+            max_patches_per_class=args.max_patches_per_class,
+            out_pixels=args.out_pixels,
+            out_patches=args.out_patches,
+        )
+
+if __name__ == "__main__":
+    main()
+

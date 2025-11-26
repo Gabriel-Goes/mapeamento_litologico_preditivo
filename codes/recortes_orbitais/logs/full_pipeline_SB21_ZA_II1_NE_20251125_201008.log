@@ -1,0 +1,9 @@
+[LOG] Registrando execução em: ./recortes_orbitais/logs/full_pipeline_SB21_ZA_II1_NE_20251125_201008.log
+================================================================================
+[FULL PIPELINE] Folha: SB21_ZA_II1_NE
+[FULL PIPELINE] Log em: ./recortes_orbitais/logs/full_pipeline_SB21_ZA_II1_NE_20251125_201008.log
+================================================================================
+[ASTER] Folha 'SB21_ZA_II1_NE' carregada. Área WGS84 (aprox): 0.015625 (graus²)
+[ASTER] Buscando itens em 'aster-l1t'...
+[ASTER] Total de itens retornados: 28
+[ASTER] Nenhum item atendeu cobertura/nuvem.

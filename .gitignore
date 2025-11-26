@@ -1,3 +1,16 @@
-# Os arquivos presentes nos diretorios a seguir serao ignorados durante os commits:
+arquivado/*
 .ipynb_checkpoints/
-__pycache__/
+__pycache__/*
+Docs/*
+*.tif
+./recortes_orbitais/*
+./aster_*/*
+./aster_AST_L1T_00305132005141212_20150509113333/*
+./aster_AST_L1T_00306012006141203_20150514154927/*
+./aster_AST_L1T_00310202005141145_20150511152438/*
+
+# Artefatos grandes gerados pelos pipelines (não versionar)
+codes/dataset_patches_*.npz
+candidatos_orbitais/dataset_patches_*.npz
+candidatos_orbitais/recortes_orbitais/*supercube_*.nc
+codes/recortes_orbitais/*supercube_*.nc

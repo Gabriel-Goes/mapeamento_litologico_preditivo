@@ -1,0 +1,71 @@
+<PAMDataset>
+  <PAMRasterBand band="1">
+    <Description>ImageData4 SWIR_Swath</Description>
+    <Histograms>
+      <HistItem>
+        <HistMin>-0.4852941176470588</HistMin>
+        <HistMax>33.48529411764706</HistMax>
+        <BucketCount>34</BucketCount>
+        <IncludeOutOfRange>0</IncludeOutOfRange>
+        <Approximate>0</Approximate>
+        <HistCounts>854|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|4|21|47|237|829|2316|6361|15677|33119|54581|55214|31367|10079|2253|401|71|12</HistCounts>
+      </HistItem>
+    </Histograms>
+    <Metadata>
+      <MDI key="STATISTICS_MINIMUM">0</MDI>
+      <MDI key="STATISTICS_MAXIMUM">33</MDI>
+      <MDI key="STATISTICS_MEAN">26.180740615806</MDI>
+      <MDI key="STATISTICS_STDDEV">2.2849612885139</MDI>
+      <MDI key="STATISTICS_VALID_PERCENT">100</MDI>
+    </Metadata>
+  </PAMRasterBand>
+  <PAMRasterBand band="2">
+    <Description>ImageData5 SWIR_Swath</Description>
+    <Histograms>
+      <HistItem>
+        <HistMin>-0.4782608695652174</HistMin>
+        <HistMax>22.47826086956522</HistMax>
+        <BucketCount>23</BucketCount>
+        <IncludeOutOfRange>0</IncludeOutOfRange>
+        <Approximate>0</Approximate>
+        <HistCounts>854|0|0|0|0|0|0|0|0|0|1|25|312|2845|16797|56250|81204|44940|9414|756|35|3|8</HistCounts>
+      </HistItem>
+    </Histograms>
+    <Metadata>
+      <MDI key="STATISTICS_MINIMUM">0</MDI>
+      <MDI key="STATISTICS_MAXIMUM">22</MDI>
+      <MDI key="STATISTICS_MEAN">15.778944360113</MDI>
+      <MDI key="STATISTICS_STDDEV">1.45716647572</MDI>
+      <MDI key="STATISTICS_VALID_PERCENT">100</MDI>
+    </Metadata>
+  </PAMRasterBand>
+  <PAMRasterBand band="3">
+    <Description>ImageData6 SWIR_Swath</Description>
+    <Histograms>
+      <HistItem>
+        <HistMin>-0.4880952380952381</HistMin>
+        <HistMax>41.48809523809524</HistMax>
+        <BucketCount>42</BucketCount>
+        <IncludeOutOfRange>0</IncludeOutOfRange>
+        <Approximate>0</Approximate>
+        <HistCounts>854|0|0|0|0|0|0|0|0|0|3|57|499|3200|14623|43703|72734|55552|18866|3006|292|32|9|7|5|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1</HistCounts>
+      </HistItem>
+    </Histograms>
+    <Metadata>
+      <MDI key="STATISTICS_MINIMUM">0</MDI>
+      <MDI key="STATISTICS_MAXIMUM">41</MDI>
+      <MDI key="STATISTICS_MEAN">16.024812128708</MDI>
+      <MDI key="STATISTICS_STDDEV">1.5672230270039</MDI>
+      <MDI key="STATISTICS_VALID_PERCENT">100</MDI>
+    </Metadata>
+  </PAMRasterBand>
+  <PAMRasterBand band="4">
+    <Description>ImageData7 SWIR_Swath</Description>
+  </PAMRasterBand>
+  <PAMRasterBand band="5">
+    <Description>ImageData8 SWIR_Swath</Description>
+  </PAMRasterBand>
+  <PAMRasterBand band="6">
+    <Description>ImageData9 SWIR_Swath</Description>
+  </PAMRasterBand>
+</PAMDataset>
