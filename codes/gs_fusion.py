@@ -138,13 +138,22 @@ def gs_fusion_aster_with_pan(
     aster_fused.rio.write_crs(aster_ms.rio.crs, inplace=True)
     aster_fused.rio.write_transform(aster_ms.rio.transform(), inplace=True)
     band_metadata = {**aster_ms.attrs.get("band_metadata", {})}
+    if "band" in pan_da.coords:
+        band_coord = pan_da.coords["band"]
+        if getattr(band_coord, "ndim", 0) == 0:
+            ref_band = str(band_coord.values.item())
+        else:
+            ref_band = str(band_coord.values[0])
+    else:
+        ref_band = "B08"
+
     for band_name in aster_fused.band.values:
         key = str(band_name)
         meta = band_metadata.get(key, {}).copy()
         meta.update(
             {
                 "process": "Gram-Schmidt fusion (ASTER VNIR/SWIR upscaled using Sentinel-2 B08 as PAN)",
-                "reference_band": str(pan_da.band.values[0] if "band" in pan_da.coords else "B08"),
+                "reference_band": ref_band,
             }
         )
         band_metadata[key] = meta
