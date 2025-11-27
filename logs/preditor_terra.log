@@ -1,150 +1,36 @@
-2025-11-17T15:41:51.843Z | INFO | PreditorTerra | MainThread | setup_logger:163 | Logger inicializado | dir=/home/ggrl/projetos/PreditorTerra/logs | file=/home/ggrl/projetos/PreditorTerra/logs/preditor_terra.log | level=INFO
-2025-11-17T15:41:52.198Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:46:38.534Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:46:38.914Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:46:39.439Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:46:39.634Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:46:40.016Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:46:40.348Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:46:40.537Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:47:48.176Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:47:50.793Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:47:58.536Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:47:59.988Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:04.827Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:06.184Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:06.467Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:07.940Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:08.277Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:10.153Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:14.005Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:14.316Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:16.500Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:16.697Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:16.894Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:17.092Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:17.289Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:20.798Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:22.722Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:23.325Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:24.828Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:26.214Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:32.599Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:36.664Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:36.742Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:48:37.724Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:49:28.297Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:49:29.887Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:49:30.085Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:49:30.613Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:49:30.795Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:49:31.170Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:49:31.709Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:49:31.761Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:49:35.956Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:49:36.829Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:50:04.726Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
-2025-11-17T15:50:04.732Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
-2025-11-17T15:50:11.858Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:51:10.738Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:51:11.186Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:51:15.354Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:51:15.553Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:51:15.754Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:51:15.955Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:51:16.157Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:51:20.352Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:51:20.556Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:51:20.758Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:51:20.960Z | INFO | PreditorTerra | MainThread | _log:472 | Erro ao ler malha: Invalid projection: EPSG:4326: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T15:57:25.349Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
-2025-11-17T16:02:11.142Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
-2025-11-17T16:02:11.160Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
-2025-11-17T16:04:04.847Z | INFO | PreditorTerra | MainThread | _log:523 | # Montando grade…
-2025-11-17T16:04:04.865Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Build_mc escala=50k ids=1…
-2025-11-17T16:04:05.137Z | INFO | PreditorTerra | MainThread | timed_step:199 | ⏱ Build_mc escala=50k ids=1 concluído (0.272s)
-2025-11-17T16:04:05.146Z | INFO | PreditorTerra | MainThread | _log:523 | # Carregando dados brutos…
-2025-11-17T16:04:05.154Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600…
-2025-11-17T16:04:40.399Z | ERROR | PreditorTerra | MainThread | timed_step:201 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600 falhou: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
-Traceback (most recent call last):
-  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 198, in timed_step
-    yield
-  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 1300, in _on_load
-    _g, _m = Upload_geof(quad, gama_xyz=self.cbGama.currentText(), mag_xyz=self.cbMag.currentText(), extend_size=int(self.sbExtend.value()))
-             ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 328, in Upload_geof
-    utm = pyproj.CRS('EPSG:'+str(folha['EPSG']))
-  File "/home/ggrl/.pyenv/versions/3.13.7/envs/geologia/lib/python3.13/site-packages/pyproj/crs/crs.py", line 350, in __init__
-    self._local.crs = _CRS(self.srs)
-                      ~~~~^^^^^^^^^^
-  File "pyproj/_crs.pyx", line 2364, in pyproj._crs._CRS.__init__
-pyproj.exceptions.CRSError: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T16:04:40.421Z | ERROR | PreditorTerra | MainThread | _log:523 | [ERRO _on_load] Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T16:04:52.063Z | WARNING | PreditorTerra | MainThread | _log:523 | Carregue dados brutos primeiro.
-2025-11-17T16:05:45.270Z | WARNING | PreditorTerra | MainThread | _log:523 | Carregue dados brutos primeiro.
-2025-11-17T16:07:26.156Z | WARNING | PreditorTerra | MainThread | _log:523 | Carregue dados brutos primeiro.
-2025-11-17T16:07:32.845Z | WARNING | PreditorTerra | MainThread | _log:523 | Carregue dados brutos primeiro.
-2025-11-17T16:07:38.061Z | WARNING | PreditorTerra | MainThread | _log:523 | Carregue dados brutos primeiro.
-2025-11-17T16:08:00.292Z | INFO | PreditorTerra | MainThread | _log:523 | # Montando grade…
-2025-11-17T16:08:00.315Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Build_mc escala=25k ids=1…
-2025-11-17T16:08:01.266Z | INFO | PreditorTerra | MainThread | timed_step:199 | ⏱ Build_mc escala=25k ids=1 concluído (0.952s)
-2025-11-17T16:08:01.277Z | INFO | PreditorTerra | MainThread | _log:523 | # Carregando dados brutos…
-2025-11-17T16:08:01.286Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600…
-2025-11-17T16:08:33.834Z | ERROR | PreditorTerra | MainThread | timed_step:201 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600 falhou: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
-Traceback (most recent call last):
-  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 198, in timed_step
-    yield
-  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 1300, in _on_load
-    ks = sorted(list(som_store.keys()))
-                     ^^^^^^^^^^^^^^^^^^
-  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 328, in Upload_geof
-    utm = pyproj.CRS('EPSG:'+str(folha['EPSG']))
-  File "/home/ggrl/.pyenv/versions/3.13.7/envs/geologia/lib/python3.13/site-packages/pyproj/crs/crs.py", line 350, in __init__
-    self._local.crs = _CRS(self.srs)
-                      ~~~~^^^^^^^^^^
-  File "pyproj/_crs.pyx", line 2364, in pyproj._crs._CRS.__init__
-pyproj.exceptions.CRSError: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T16:08:33.847Z | ERROR | PreditorTerra | MainThread | _log:523 | [ERRO _on_load] Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T16:08:35.313Z | INFO | PreditorTerra | MainThread | _log:523 | # Montando grade…
-2025-11-17T16:08:35.323Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Build_mc escala=25k ids=1…
-2025-11-17T16:08:36.442Z | INFO | PreditorTerra | MainThread | timed_step:199 | ⏱ Build_mc escala=25k ids=1 concluído (1.119s)
-2025-11-17T16:08:36.453Z | INFO | PreditorTerra | MainThread | _log:523 | # Carregando dados brutos…
-2025-11-17T16:08:36.463Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600…
-2025-11-17T16:09:08.973Z | ERROR | PreditorTerra | MainThread | timed_step:201 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600 falhou: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
-Traceback (most recent call last):
-  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 198, in timed_step
-    yield
-  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 1300, in _on_load
-    ks = sorted(list(som_store.keys()))
-                     ^^^^^^^^^^^^^^^^^^
-  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 328, in Upload_geof
-    utm = pyproj.CRS('EPSG:'+str(folha['EPSG']))
-  File "/home/ggrl/.pyenv/versions/3.13.7/envs/geologia/lib/python3.13/site-packages/pyproj/crs/crs.py", line 350, in __init__
-    self._local.crs = _CRS(self.srs)
-                      ~~~~^^^^^^^^^^
-  File "pyproj/_crs.pyx", line 2364, in pyproj._crs._CRS.__init__
-pyproj.exceptions.CRSError: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T16:09:08.986Z | ERROR | PreditorTerra | MainThread | _log:523 | [ERRO _on_load] Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T16:10:08.813Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
-2025-11-17T16:10:08.825Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
-2025-11-17T16:10:37.772Z | INFO | PreditorTerra | MainThread | _log:523 | # Montando grade…
-2025-11-17T16:10:37.798Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Build_mc escala=25k ids=1…
-2025-11-17T16:10:38.756Z | INFO | PreditorTerra | MainThread | timed_step:199 | ⏱ Build_mc escala=25k ids=1 concluído (0.959s)
-2025-11-17T16:10:38.768Z | INFO | PreditorTerra | MainThread | _log:523 | # Carregando dados brutos…
-2025-11-17T16:10:38.779Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600…
-2025-11-17T16:11:12.258Z | ERROR | PreditorTerra | MainThread | timed_step:201 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600 falhou: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
-Traceback (most recent call last):
-  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 198, in timed_step
-    yield
-  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 1324, in _on_load
-    _g, _m = Upload_geof(quad, gama_xyz=self.cbGama.currentText(), mag_xyz=self.cbMag.currentText(), extend_size=int(self.sbExtend.value()))
-             ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 328, in Upload_geof
-    utm = pyproj.CRS('EPSG:'+str(folha['EPSG']))
-  File "/home/ggrl/.pyenv/versions/3.13.7/envs/geologia/lib/python3.13/site-packages/pyproj/crs/crs.py", line 350, in __init__
-    self._local.crs = _CRS(self.srs)
-                      ~~~~^^^^^^^^^^
-  File "pyproj/_crs.pyx", line 2364, in pyproj._crs._CRS.__init__
-pyproj.exceptions.CRSError: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T16:11:12.272Z | ERROR | PreditorTerra | MainThread | _log:523 | [ERRO _on_load] Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
-2025-11-17T16:11:13.658Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T11:41:05.681Z | INFO | PreditorTerra | MainThread | setup_logger:163 | Logger inicializado | dir=/home/ggrl/projetos/PreditorTerra/logs | file=/home/ggrl/projetos/PreditorTerra/logs/preditor_terra.log | level=INFO
+2025-11-27T11:41:21.319Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: This plugin supports grabbing the mouse only for popup windows
+2025-11-27T11:41:21.336Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: This plugin supports grabbing the mouse only for popup windows
+2025-11-27T11:41:21.338Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T11:41:54.450Z | INFO | PreditorTerra | MainThread | _log:523 | 83 coleção(ões) listadas.
+2025-11-27T11:41:58.393Z | INFO | PreditorTerra | MainThread | _log:523 | 0 coleção(ões) listadas.
+2025-11-27T11:42:03.751Z | INFO | PreditorTerra | MainThread | _log:523 | 1 coleção(ões) listadas.
+2025-11-27T11:42:08.723Z | INFO | PreditorTerra | MainThread | _log:523 | Selecione folhas para definir a AOI.
+2025-11-27T11:42:16.435Z | INFO | PreditorTerra | MainThread | _log:523 | Selecione folhas para definir a AOI.
+2025-11-27T11:42:28.371Z | INFO | PreditorTerra | MainThread | _log:523 | Selecione folhas para definir a AOI.
+2025-11-27T11:42:29.043Z | INFO | PreditorTerra | MainThread | _log:523 | Selecione folhas para definir a AOI.
+2025-11-27T11:43:12.236Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:43:12.238Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:43:13.388Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:43:13.390Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:43:25.627Z | INFO | PreditorTerra | MainThread | _log:523 | Selecione coleções.
+2025-11-27T11:43:27.043Z | INFO | PreditorTerra | MainThread | _log:523 | Selecione coleções.
+2025-11-27T11:43:30.608Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:43:30.610Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:43:31.748Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:43:31.750Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:43:40.732Z | INFO | PreditorTerra | MainThread | _log:523 | 5 coleção(ões) listadas.
+2025-11-27T11:43:47.534Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:43:47.537Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:44:02.643Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:44:02.646Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:44:03.746Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:44:03.749Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:44:04.712Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:44:04.715Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:44:05.914Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T11:44:05.919Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T11:45:13.229Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T11:45:13.233Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T11:48:09.987Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T11:48:09.996Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
