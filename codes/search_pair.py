@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
+from requests import exceptions as req_exceptions
+from pystac_client.exceptions import APIError
 from shapely.geometry import shape
 from shapely.ops import transform as shp_transform
 from pyproj import Transformer
@@ -355,18 +357,32 @@ def search_aster_cloudfree_for_folha(
     for catalog, client in iter_catalog_clients("aster", catalogs_config):
         collections = catalog.get("collections") or [collection_id]
         catalog_name = catalog.get("name", catalog.get("url", "desconhecido"))
+        catalog_url = catalog.get("url")
         preferred_assets = catalog.get("preferred_assets", ["VNIR", "SWIR"])
 
         print(
             f"[ASTER] Buscando itens em {collections} ({catalog_name})..."
         )
-        search = client.search(
-            collections=collections,
-            intersects=folha_geom,
-            datetime=search_datetime,
-            max_items=max_items,
-        )
-        items = list(search.items())
+        try:
+            search = client.search(
+                collections=collections,
+                intersects=folha_geom,
+                datetime=search_datetime,
+                max_items=max_items,
+            )
+            items = list(search.items())
+        except (APIError, req_exceptions.RequestException) as exc:
+            print(
+                f"[ASTER] Aviso: erro ao buscar itens em {catalog_name} "
+                f"({catalog_url}): {exc}"
+            )
+            continue
+        except Exception as exc:
+            print(
+                f"[ASTER] Aviso: falha inesperada em {catalog_name} "
+                f"({catalog_url}): {exc}"
+            )
+            continue
         print(f"[ASTER] Total de itens retornados: {len(items)}")
 
         filtered_items: List[Any] = []
