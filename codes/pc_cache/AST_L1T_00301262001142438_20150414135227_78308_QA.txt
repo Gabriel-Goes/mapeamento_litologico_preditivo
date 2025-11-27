@@ -1,0 +1,180 @@
+Quality Assurance of Geometric Corrections for the AST_L1T Product
+
+This file contains two sections:
+   * A section listing the GLS 2000 Ground Control Points (GCPs)
+     that were used in correcting the geometric location of the pixels
+     in order to create this AST_L1T product
+   * A section that does an independent geometric verification of the corrected
+     pixels by comparing the AST_L1T data to a GLS 2000 Standard Scene.
+
+Section One:
+
+'Precision' correction was not achieved.
+
+Section Two:
+
+==============================================================================
+==============================================================================
+Tue. Apr. 14 2015                  TERRA_ASTER                       Time: 18:53
+                                 ASTER L1T PGE
+                            GEOMETRIC VERIFY Report
+==============================================================================
+WRS-2: Path/Row 228/64
+Reference Image: GLS 2000 (p228r064_7dt20001006_z21_50.tif)
+
+Pixel dimensions: 30 x 30 meters
+Pointing angle:  -2.870 degrees
+
+Color mapping per rank
+----------------------
+Rank  1 is Green: total residual <= 0.5
+Rank  2 is Cyan: 0.5 < total residual <=  1
+Rank  3 is Blue:  1 < total residual <=  2
+Rank  4 is Yellow:  2 < total residual <=  3
+Rank  5 is Red:  3 < total residual
+
+Percentage of residuals by rank
+-------------------------------
+Rank   1 --  0.0%
+Rank   2 --  0.0%
+Rank   3 --  0.0%
+Rank   4 --  0.0%
+Rank   5 -- 100.0%
+
+       GCP    Latitude    Longitude  Sample   Line     Total    Rank
+        ID                           Residual Residual Residual
+              (Degree)    (Degree)   (Pixel)  (Pixel)  (Pixel)
+----------------------------------------------------------------------
+2280641926   -5.83246    -56.12192   -14.91     12.08    19.19     5 
+2280641990   -5.84130    -56.22921    18.20     -2.91    18.43     5 
+2280642080   -5.84976    -56.08287   -16.80      8.36    18.77     5 
+2280642377   -5.88455    -56.11208    17.43     -0.83    17.45     5 
+2280642494   -5.90233    -56.43401     4.31    -13.08    13.77     5 
+2280642605   -5.91055    -56.08277    -7.78    -18.22    19.81     5 
+2280642652   -5.91962    -56.35594     4.64      6.84     8.27     5 
+2280642739   -5.92815    -56.23884    10.14    -12.21    15.87     5 
+2280642740   -5.92814    -56.22909    10.57    -11.81    15.85     5 
+2280642746   -5.92805    -56.17055    15.76     -2.70    15.99     5 
+2280642815   -5.93682    -56.22908    10.57    -11.70    15.77     5 
+2280642879   -5.94564    -56.33639    -5.75     -9.96    11.51     5 
+2280642885   -5.94557    -56.27785   -11.34     -0.31    11.34     5 
+2280643061   -5.96255    -56.02414   -16.82     -5.85    17.81     5 
+2280643255   -5.98905    -56.32658     8.62     15.03    17.33     5 
+2280643256   -5.98904    -56.31682     9.02     14.78    17.31     5 
+2280643259   -5.98900    -56.28755    -3.58     -5.10     6.23     5 
+2280643260   -5.98899    -56.27779    -3.59      8.13     8.89     5 
+2280643272   -5.98882    -56.16070    16.26      2.29    16.42     5 
+2280643273   -5.98881    -56.15094    15.60      2.56    15.81     5 
+2280643330   -5.99774    -56.32657     6.29     12.61    14.09     5 
+2280643331   -5.99772    -56.31681     4.06     13.21    13.82     5 
+2280643335   -5.99767    -56.27778   -14.10     -9.54    17.03     5 
+2280643341   -5.99759    -56.21923    -8.61     -7.43    11.37     5 
+2280643363   -5.99725    -56.00457     3.95     -2.54     4.70     5 
+2280643646   -6.03226    -56.17039    -6.99     -7.22    10.05     5 
+2280643648   -6.03223    -56.15087     0.93     16.31    16.33     5 
+2280643662   -6.03200    -56.01426     7.22     -6.16     9.49     5 
+2280643804   -6.04950    -56.09230     2.00     -8.02     8.27     5 
+2280643837   -6.05871    -56.50216    -1.93     16.35    16.47     5 
+2280643838   -6.05870    -56.49240    -3.50     16.08    16.46     5 
+2280644008   -6.07585    -56.29720    -3.53    -12.40    12.89     5 
+2280644085   -6.08451    -56.27767    -4.42      6.47     7.83     5 
+2280644101   -6.08428    -56.12152    15.61     -9.58    18.32     5 
+2280644149   -6.09333    -56.38501    14.54      9.96    17.63     5 
+2280644172   -6.09302    -56.16054    17.24     -1.36    17.30     5 
+2280644323   -6.11038    -56.15075   -10.81      3.15    11.26     5 
+2280644552   -6.13636    -56.11167     5.42    -14.35    15.34     5 
+2280644634   -6.14493    -56.04334    -1.25    -11.73    11.79     5 
+2280644675   -6.15410    -56.37518   -13.34     -5.88    14.58     5 
+2280644749   -6.16280    -56.38493   -14.08     -2.75    14.35     5 
+2280644750   -6.16279    -56.37517   -14.84     -4.65    15.56     5 
+2280644777   -6.16241    -56.11163   -13.67    -13.31    19.08     5 
+2280644921   -6.17988    -56.17016    -4.33      2.77     5.13     5 
+2280644930   -6.17973    -56.08232    11.27     -8.26    13.97     5 
+2280644931   -6.17971    -56.07256    11.62    -13.20    17.59     5 
+2280644996   -6.18856    -56.17015    -4.80      3.14     5.74     5 
+2280645135   -6.20608    -56.27750    16.34      4.00    16.83     5 
+2280645228   -6.21450    -56.10178     2.47     18.04    18.21     5 
+2280645295   -6.22331    -56.17986     1.45      4.12     4.37     5 
+2280645535   -6.24911    -56.03339    18.65     -3.65    19.00     5 
+----------------------------------------------------------------------
+---------------------------------------------------
+Total correlated GCPs in Upper Left Quadrant: 2
+
+GCP statistics this quadrant only (in Pixels)
+Line residual statistics:
+  Mean: 4.473
+  Median: 4.473
+  Standard Deviation: 0.166
+
+Sample residual statistics:
+  Mean: -3.117
+  Median: -3.117
+  Standard Deviation: 9.958
+
+Quadrant RMSE: 11.354
+
+---------------------------------------------------
+Total correlated GCPs in Upper Right Quadrant: 10
+
+GCP statistics this quadrant only (in Pixels)
+Line residual statistics:
+  Mean: 2.635
+  Median: 10.355
+  Standard Deviation: 14.101
+
+Sample residual statistics:
+  Mean: -4.578
+  Median: -4.376
+  Standard Deviation: 9.023
+
+Quadrant RMSE: 17.555
+
+---------------------------------------------------
+Total correlated GCPs in Lower Left Quadrant: 16
+
+GCP statistics this quadrant only (in Pixels)
+Line residual statistics:
+  Mean: -2.941
+  Median: -3.555
+  Standard Deviation: 9.000
+
+Sample residual statistics:
+  Mean: 3.472
+  Median: 3.908
+  Standard Deviation: 10.339
+
+Quadrant RMSE: 14.443
+
+---------------------------------------------------
+Total correlated GCPs in Lower Right Quadrant: 22
+
+GCP statistics this quadrant only (in Pixels)
+Line residual statistics:
+  Mean: 3.296
+  Median: 2.236
+  Standard Deviation: 9.387
+
+Sample residual statistics:
+  Mean: -1.832
+  Median: -1.952
+  Standard Deviation: 8.802
+
+Quadrant RMSE: 13.409
+
+---------------------------------------------------
+---------------------------------------------------
+Total correlated GCPs in scene: 51
+
+GCP statistics entire scene (in Pixels)
+Line residual statistics:
+  Mean: 1.557
+  Median: 1.997
+  Standard Deviation: 10.787
+
+Sample residual statistics:
+  Mean: -0.793
+  Median: -2.700
+  Standard Deviation: 9.806
+
+Scene RMSE: 14.682
+

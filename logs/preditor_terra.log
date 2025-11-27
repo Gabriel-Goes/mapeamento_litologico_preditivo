@@ -35,3 +35,13 @@
 2025-11-27T11:48:09.987Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
 2025-11-27T11:48:09.996Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
 2025-11-27T13:17:39.804Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T15:28:28.789Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T15:28:28.797Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T15:56:20.067Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T15:56:20.073Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T15:56:44.380Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T15:56:44.387Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T16:00:54.707Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T16:00:54.714Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T16:02:01.909Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: This plugin supports grabbing the mouse only for popup windows
+2025-11-27T16:02:01.925Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: This plugin supports grabbing the mouse only for popup windows
