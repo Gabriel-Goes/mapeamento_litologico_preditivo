@@ -169,3 +169,11 @@ Internamente, o pipeline deve:
   * comentários apenas quando realmente necessários,
   * evitar camadas desnecessárias de abstração.
 
+wkt_geom	fid	id_folha	EPSG
+Polygon ((-56.125 -6, -56 -6, -56 -6.125, -56.125 -6.125, -56.125 -6))	4203	SB21_ZA_II2_NE	32721
+# Transform the above WKT to SW, NE coordinates
+SW: (-56.125, -6.125)
+NE: (-56, -6)
+
+
+
