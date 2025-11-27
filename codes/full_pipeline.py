@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import argparse
 import os
-from typing import Optional
+from typing import Any, Optional
 
+import csv
+import json
 import numpy as np
 import xarray as xr
 
@@ -13,6 +15,7 @@ from stac_utils import item_datetime
 from search_pair import (
     search_aster_cloudfree_for_folha,
     search_s2_cloudfree_for_folha_given_aster,
+    estimate_aster_cloud_fraction,
 )
 from gs_fusion import run_gs_pair_pipeline
 from supercube import build_supercube, load_supercube
@@ -20,6 +23,12 @@ from labeling_lito import build_label_raster_for_folha
 from dataset_pixels import extract_pixel_dataset
 from dataset_patches import generate_patches
 from log_utils import log_stdout
+from scene_preview import (
+    build_rgb_quicklook,
+    overlay_cloud_on_rgb,
+    save_mask_preview,
+    save_rgb_preview,
+)
 from db_conn import get_folha_geom_geojson
 from raster_utils import (
     clip_raster_to_folha,
@@ -37,7 +46,22 @@ def resolve_pair(
     s2_id: Optional[str],
     aster_date: Optional[str],
     return_best: bool = False,
-) -> tuple[str, str] | tuple[str, str, Optional[dict], Optional[dict]]:
+    return_candidates: bool = False,
+) -> tuple[
+    str, str
+] | tuple[
+    str,
+    str,
+    Optional[dict],
+    Optional[dict],
+] | tuple[
+    str,
+    str,
+    Optional[dict],
+    Optional[dict],
+    list[dict],
+    list[dict],
+]:
     if aster_id and s2_id:
         print("[PAIR] Usando IDs fornecidos pelo usuário.")
         if return_best:
@@ -49,7 +73,7 @@ def resolve_pair(
             "Se --aster-id/--s2-id não forem fornecidos, é obrigatório informar --aster-date (YYYY-MM-DD)."
         )
 
-    best_aster, _ = search_aster_cloudfree_for_folha(
+    best_aster, aster_candidates = search_aster_cloudfree_for_folha(
         codigo_folha=folha,
         aster_target_date_str=aster_date,
     )
@@ -61,7 +85,7 @@ def resolve_pair(
     aster_dt = item_datetime(aster_item)
     print(f"[PAIR] ASTER selecionado: {aster_id_sel} (Δt alvo={best_aster['delta_days']} dias)")
 
-    best_s2, _ = search_s2_cloudfree_for_folha_given_aster(
+    best_s2, s2_candidates = search_s2_cloudfree_for_folha_given_aster(
         codigo_folha=folha,
         aster_datetime=aster_dt,
     )
@@ -71,6 +95,8 @@ def resolve_pair(
     s2_id_sel = best_s2["id"]
     print(f"[PAIR] S2 selecionado: {s2_id_sel} (Δt ASTER={best_s2['delta_days']} dias)")
 
+    if return_best and return_candidates:
+        return aster_id_sel, s2_id_sel, best_aster, best_s2, aster_candidates, s2_candidates
     if return_best:
         return aster_id_sel, s2_id_sel, best_aster, best_s2
     return aster_id_sel, s2_id_sel
@@ -123,6 +149,159 @@ def summarize_imagery_quality(
                 f"[QUALITY][S2] id={s2_item.id} | scl_cloud_frac={scl_cloud_frac:.4f} | "
                 f"scl_nodata_frac={scl_nodata_frac:.4f} | meta_cloud={best_s2['meta_cloud']:.2f}%"
             )
+
+
+def _write_preview_summary(
+    folha: str,
+    preview_dir: str,
+    rows: list[dict],
+) -> dict:
+    if not rows:
+        return {}
+
+    fieldnames = sorted({key for row in rows for key in row.keys()})
+
+    csv_path = os.path.join(preview_dir, f"{folha}_search_previews.csv")
+    json_path = os.path.join(preview_dir, f"{folha}_search_previews.json")
+
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(rows, f, indent=2, ensure_ascii=False)
+
+    print(f"[PREVIEW] Sumários salvos em: {csv_path} e {json_path}")
+    return {"csv_path": csv_path, "json_path": json_path}
+
+
+def _load_s2_rgb_da(item: Any, folha_geom: dict) -> xr.DataArray:
+    assets = item.assets
+    if "visual" in assets:
+        href = assets["visual"].href
+        return clip_raster_to_folha(href, folha_geom)
+
+    rgb_band_ids = ["B04", "B03", "B02"]
+    if all(b in assets for b in rgb_band_ids):
+        ref_da = clip_raster_to_folha(assets[rgb_band_ids[0]].href, folha_geom)
+        band_list = [ref_da]
+        for b in rgb_band_ids[1:]:
+            da_b = clip_raster_to_folha(assets[b].href, folha_geom)
+            da_b = da_b.rio.reproject_match(ref_da)
+            band_list.append(da_b)
+        return xr.concat(band_list, dim="band")
+
+    first_asset = next(iter(assets.values()))
+    return clip_raster_to_folha(first_asset.href, folha_geom)
+
+
+def generate_search_previews(
+    folha: str,
+    preview_dir: str,
+    preview_top_k: int,
+    aster_candidates: Optional[list[dict]],
+    s2_candidates: Optional[list[dict]],
+    debug_cloud_masks: bool = False,
+) -> dict:
+    if preview_top_k <= 0:
+        return {}
+
+    os.makedirs(preview_dir, exist_ok=True)
+    folha_geom = get_folha_geom_geojson(folha)
+
+    rows: list[dict] = []
+
+    if aster_candidates:
+        for cand in aster_candidates[:preview_top_k]:
+            item = cand["item"]
+            asset_key = "VNIR" if "VNIR" in item.assets else next(iter(item.assets.keys()))
+            href = item.assets[asset_key].href
+            da_clip = clip_raster_to_folha(href, folha_geom)
+            rgb = build_rgb_quicklook(da_clip, bands_idx=(0, 1, 2))
+
+            rgb_path = os.path.join(preview_dir, f"{folha}_ASTER_{cand['id']}_rgb.png")
+            save_rgb_preview(rgb, rgb_path)
+
+            cloud_frac, nodata_frac, cloud_mask, nodata_mask = estimate_aster_cloud_fraction(
+                aster_item=item,
+                folha_geom_geojson=folha_geom,
+                return_masks=True,
+                da_clip=da_clip,
+            )
+            mask = cloud_mask | nodata_mask
+            mask_path = os.path.join(preview_dir, f"{folha}_ASTER_{cand['id']}_mask.png")
+            save_mask_preview(mask, mask_path)
+
+            overlay_path = None
+            if debug_cloud_masks:
+                overlay = overlay_cloud_on_rgb(rgb, mask)
+                overlay_path = os.path.join(preview_dir, f"{folha}_ASTER_{cand['id']}_overlay.png")
+                save_rgb_preview(overlay, overlay_path)
+
+            rows.append(
+                {
+                    "sensor": "ASTER",
+                    "id": cand.get("id"),
+                    "datetime": cand.get("datetime"),
+                    "delta_days": cand.get("delta_days"),
+                    "coverage_fraction": cand.get("coverage_fraction"),
+                    "cloud_cover_meta": cand.get("cloud_cover"),
+                    "local_cloud_frac": cand.get("local_cloud_frac"),
+                    "nodata_frac": nodata_frac,
+                    "rgb_preview": rgb_path,
+                    "mask_preview": mask_path,
+                    "overlay_preview": overlay_path,
+                }
+            )
+
+    if s2_candidates:
+        for cand in s2_candidates[:preview_top_k]:
+            item = cand["item"]
+            scl_href = item.assets["SCL"].href if "SCL" in item.assets else None
+            mask_path = None
+            overlay_path = None
+            scl_cloud_frac = cand.get("scl_cloud_frac")
+            scl_nodata_frac = cand.get("scl_nodata_frac")
+
+            if scl_href:
+                da_scl_clip = clip_raster_to_folha(scl_href, folha_geom)
+                scl_nodata_frac, scl_cloud_frac, scl_arr, cloud_mask = compute_scl_cloud_fraction(da_scl_clip)
+                mask = cloud_mask | (scl_arr == 0)
+                mask_path = os.path.join(preview_dir, f"{folha}_S2_{cand['id']}_mask.png")
+                save_mask_preview(mask, mask_path)
+            else:
+                mask = None
+
+            try:
+                rgb_da = _load_s2_rgb_da(item, folha_geom)
+                rgb = build_rgb_quicklook(rgb_da, bands_idx=(0, 1, 2))
+                rgb_path = os.path.join(preview_dir, f"{folha}_S2_{cand['id']}_rgb.png")
+                save_rgb_preview(rgb, rgb_path)
+                if debug_cloud_masks and mask is not None:
+                    overlay = overlay_cloud_on_rgb(rgb, mask)
+                    overlay_path = os.path.join(preview_dir, f"{folha}_S2_{cand['id']}_overlay.png")
+                    save_rgb_preview(overlay, overlay_path)
+            except Exception as e:
+                print(f"[PREVIEW][S2] Falha ao gerar RGB para {cand.get('id')}: {e}")
+                rgb_path = None
+
+            rows.append(
+                {
+                    "sensor": "S2",
+                    "id": cand.get("id"),
+                    "datetime": cand.get("datetime"),
+                    "delta_days": cand.get("delta_days"),
+                    "meta_cloud": cand.get("meta_cloud"),
+                    "scl_cloud_frac": scl_cloud_frac,
+                    "scl_nodata_frac": scl_nodata_frac,
+                    "rgb_preview": rgb_path,
+                    "mask_preview": mask_path,
+                    "overlay_preview": overlay_path,
+                }
+            )
+
+    return _write_preview_summary(folha=folha, preview_dir=preview_dir, rows=rows)
 
 
 def run_gs_and_supercube(
@@ -290,6 +469,9 @@ def main() -> None:
     parser.add_argument("--skip-gs", action="store_true", help="Pular GS+super-cubo e usar super-cubo já existente")
     parser.add_argument("--skip-datasets", action="store_true", help="Pular geração dos datasets")
     parser.add_argument('--debug-s2-plots', action='store_true', help='Habilita plots de SCL de cada cena S2 candidata')
+    parser.add_argument("--preview-top-k", type=int, default=0, help="Quantidade de cenas ASTER/S2 a pré-visualizar na busca")
+    parser.add_argument("--preview-dir", default=None, help="Diretório onde salvar RGB/máscaras das pré-visualizações")
+    parser.add_argument("--debug-cloud-masks", action="store_true", help="Gera overlays RGB+mascara para depuração")
     parser.add_argument(
         "--search-only",
         action="store_true",
@@ -305,6 +487,7 @@ def main() -> None:
     folha = args.folha
     orbital_dir = args.orbital_dir
     os.makedirs(orbital_dir, exist_ok=True)
+    preview_dir = args.preview_dir or os.path.join(orbital_dir, "previews")
 
     log_dir = os.path.join(orbital_dir, "logs")
     base_name = f"full_pipeline_{folha}"
@@ -316,18 +499,31 @@ def main() -> None:
         print("=" * 80)
 
         if args.search_only:
+            return_candidates = args.preview_top_k > 0
             print(
                 "[FULL PIPELINE] Chamando resolve_pair com: "
                 f"folha={folha}, aster_id={args.aster_id}, s2_id={args.s2_id}, "
-                f"aster_date={args.aster_date}, return_best=True"
+                f"aster_date={args.aster_date}, return_best=True, return_candidates={return_candidates}"
             )
-            aster_id, s2_id, best_aster, best_s2 = resolve_pair(
+            resolve_out = resolve_pair(
                 folha=folha,
                 aster_id=args.aster_id,
                 s2_id=args.s2_id,
                 aster_date=args.aster_date,
                 return_best=True,
+                return_candidates=return_candidates,
             )
+            if return_candidates:
+                (
+                    aster_id,
+                    s2_id,
+                    best_aster,
+                    best_s2,
+                    aster_candidates,
+                    s2_candidates,
+                ) = resolve_out
+            else:
+                aster_id, s2_id, best_aster, best_s2 = resolve_out
             print(
                 "[FULL PIPELINE] resolve_pair retornou: "
                 f"ASTER={aster_id}, S2={s2_id}"
@@ -337,22 +533,47 @@ def main() -> None:
                 best_aster=best_aster,
                 best_s2=best_s2,
             )
+            if args.preview_top_k > 0:
+                print(
+                    f"[FULL PIPELINE] Gerando pré-visualizações top_k={args.preview_top_k} em {preview_dir}"
+                )
+                generate_search_previews(
+                    folha=folha,
+                    preview_dir=preview_dir,
+                    preview_top_k=args.preview_top_k,
+                    aster_candidates=aster_candidates if return_candidates else None,
+                    s2_candidates=s2_candidates if return_candidates else None,
+                    debug_cloud_masks=args.debug_cloud_masks,
+                )
             print("[FULL PIPELINE] --search-only acionado; parando após busca e resumo de qualidade.")
             return
 
         if not args.skip_gs:
+            return_candidates = args.preview_top_k > 0
             print(
                 "[FULL PIPELINE] Chamando resolve_pair com: "
                 f"folha={folha}, aster_id={args.aster_id}, s2_id={args.s2_id}, "
-                f"aster_date={args.aster_date}, return_best=True"
+                f"aster_date={args.aster_date}, return_best=True, return_candidates={return_candidates}"
             )
-            aster_id, s2_id, best_aster, best_s2 = resolve_pair(
+            resolve_out = resolve_pair(
                 folha=folha,
                 aster_id=args.aster_id,
                 s2_id=args.s2_id,
                 aster_date=args.aster_date,
                 return_best=True,
+                return_candidates=return_candidates,
             )
+            if return_candidates:
+                (
+                    aster_id,
+                    s2_id,
+                    best_aster,
+                    best_s2,
+                    aster_candidates,
+                    s2_candidates,
+                ) = resolve_out
+            else:
+                aster_id, s2_id, best_aster, best_s2 = resolve_out
             print(
                 "[FULL PIPELINE] resolve_pair retornou: "
                 f"ASTER={aster_id}, S2={s2_id}"
@@ -362,6 +583,18 @@ def main() -> None:
                 best_aster=best_aster,
                 best_s2=best_s2,
             )
+            if args.preview_top_k > 0:
+                print(
+                    f"[FULL PIPELINE] Gerando pré-visualizações top_k={args.preview_top_k} em {preview_dir}"
+                )
+                generate_search_previews(
+                    folha=folha,
+                    preview_dir=preview_dir,
+                    preview_top_k=args.preview_top_k,
+                    aster_candidates=aster_candidates if return_candidates else None,
+                    s2_candidates=s2_candidates if return_candidates else None,
+                    debug_cloud_masks=args.debug_cloud_masks,
+                )
             print(
                 "[FULL PIPELINE] Chamando run_gs_and_supercube com: "
                 f"folha={folha}, aster_id={aster_id}, s2_id={s2_id}, "
