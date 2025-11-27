@@ -142,6 +142,29 @@ aster:
 O pipeline tenta os catálogos em ordem de `priority` e escolhe o
 primeiro que retornar cenas com VNIR, SWIR e máscara de nuvem válidas.
 
+## Seleção rápida de ASTER via linha de comando
+
+O script `codes/aster_pipeline.py` executa a busca e o ranqueamento
+das cenas ASTER para uma folha cartográfica, priorizando cobertura,
+baixa nuvem no recorte e proximidade temporal em relação à
+`data_aerogama`.
+
+### Exemplo de uso
+
+```bash
+cd codes
+python aster_pipeline.py SB21_ZA_II2_NE 2008-06-01 \
+  --search-window "2000-01-01/2020-12-31" \
+  --min-coverage 0.98 \
+  --max-local-cloud 0.01 \
+  --output-json resultados/aster_SB21_ZA_II2_NE.json \
+  --output-csv resultados/aster_SB21_ZA_II2_NE.csv
+```
+
+A saída traz o melhor item e a lista ordenada, com campos como ID da
+cena, data de aquisição, fração de nuvem no recorte, fração de
+cobertura sobre a folha e distância em dias para a data fornecida.
+
 ## Autor
 Gabriel Góes
 
