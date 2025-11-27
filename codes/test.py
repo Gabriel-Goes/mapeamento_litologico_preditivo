@@ -8,26 +8,26 @@ STAC_ROOT = "https://planetarycomputer.microsoft.com/api/stac/v1"
 ASTER_COLLECTION = "aster-l1t"
 
 
-def find_best_aster_l1t_for_region(wkt_geom: str):
+def find_aster_l1t_candidates_for_region(
+    wkt_geom: str,
+    min_coverage: float = 0.95,
+    max_items: int = 1000,
+):
     geom_folha = wkt.loads(wkt_geom)
     area_folha = geom_folha.area
 
     client = Client.open(STAC_ROOT)
-
-    # IMPORTANTE: usar APENAS intersects (sem bbox) para evitar o erro de API
     search = client.search(
         collections=[ASTER_COLLECTION],
         intersects=geom_folha.__geo_interface__,
-        max_items=1000,
+        max_items=max_items,
     )
 
     items = list(search.items())
     if not items:
-        return None
+        return []
 
-    best_item = None
-    best_cloud = None
-    best_coverage = None
+    candidates = []
 
     for item in items:
         item_geom = shape(item.geometry)
@@ -36,56 +36,75 @@ def find_best_aster_l1t_for_region(wkt_geom: str):
             continue
 
         coverage = inter.area / area_folha
-        if coverage < 0.90:
+        if coverage < min_coverage:
             continue
 
         cloud = item.properties.get("eo:cloud_cover")
-        print(f'Item {item.id} cobertura: {coverage*100:.2f}%, nuvens: {cloud}')
         if cloud is None:
-            print(f'Aviso: item {item.id} sem propriedade eo:cloud_cover, atribuindo 1000.0')
             cloud = 1000.0
 
-        if (
-            best_item is None
-            or cloud < best_cloud
-            or (cloud == best_cloud and coverage > best_coverage)
-        ):
-            best_item = item
-            best_cloud = cloud
-            best_coverage = coverage
+        candidates.append(
+            {
+                "item": item,
+                "item_id": item.id,
+                "datetime": item.datetime.isoformat() if item.datetime else None,
+                "cloud_cover": float(cloud),
+                "coverage_folha": float(coverage),
+            }
+        )
 
-    if best_item is None:
-        return None
-
-    return {
-        "item_id": best_item.id,
-        "datetime": best_item.datetime.isoformat() if best_item.datetime else None,
-        "cloud_cover": best_cloud,
-        "coverage_folha": best_coverage,
-        "hrefs": {k: pc.sign(a).href for k, a in best_item.assets.items()},
-    }
+    # ordena: menos nuvem primeiro, depois maior cobertura
+    candidates.sort(key=lambda d: (d["cloud_cover"], -d["coverage_folha"]))
+    return candidates
 
 
 if __name__ == "__main__":
     # wkt_geom	fid	id_folha	EPSG
     # Polygon ((-56.375 -6, -56.25 -6, -56.25 -6.125, -56.375 -6.125, -56.375 -6))	4198	SB21_ZA_II1_NE	32721
     wkt_geom = "Polygon ((-56.125 -6, -56 -6, -56 -6.125, -56.125 -6.125, -56.125 -6))"
-    # wkt_geom =  "Polygon ((-56.375 -6, -56.25 -6, -56.25 -6.125, -56.375 -6.125, -56.375 -6))"
     fid = 4198
     id_folha = "SB21_ZA_II1_NE"
     epsg_local = 32721
 
-    result = find_best_aster_l1t_for_region(wkt_geom)
+    candidates = find_aster_l1t_candidates_for_region(wkt_geom, min_coverage=0.95)
 
-    if result is None:
-        print(f"Nenhuma cena ASTER L1T cobre totalmente a folha {id_folha}.")
+    if not candidates:
+        print(f"Nenhuma cena ASTER L1T cobre a folha {id_folha} com cobertura >= 95%.")
     else:
         print(f"Folha: {id_folha} (fid={fid}, EPSG_local={epsg_local})")
-        print("Melhor cena ASTER L1T encontrada:")
-        print(f"  item_id:      {result['item_id']}")
-        print(f"  datetime:     {result['datetime']}")
-        print(f"  cloud_cover:  {result['cloud_cover']}")
-        print(f"  coverage:     {result['coverage_folha'] * 100:.2f}%")
+        print("Cenas candidatas (ordenadas por nuvem ↑, cobertura ↓):\n")
+
+        for i, c in enumerate(candidates, start=1):
+            print(
+                f"[{i:02d}] id={c['item_id']}, "
+                f"datetime={c['datetime']}, "
+                f"cloud={c['cloud_cover']:.1f}%, "
+                f"coverage={c['coverage_folha']*100:.2f}%"
+            )
+
+        best = candidates[0]
+        best_item = best["item"]
+        hrefs_best = {k: pc.sign(a).href for k, a in best_item.assets.items()}
+
+        print("\nMelhor cena (primeira da lista acima):")
+        print(f"  item_id:      {best['item_id']}")
+        print(f"  datetime:     {best['datetime']}")
+        print(f"  cloud_cover:  {best['cloud_cover']}")
+        print(f"  coverage:     {best['coverage_folha'] * 100:.2f}%")
         print("  assets (hrefs assinados):")
-        for name, href in result["hrefs"].items():
+        for name, href in hrefs_best.items():
+            print(f"    {name}: {href}")
+
+
+        best = candidates[1]
+        best_item = best["item"]
+        hrefs_best = {k: pc.sign(a).href for k, a in best_item.assets.items()}
+
+        print("\nMelhor cena (primeira da lista acima):")
+        print(f"  item_id:      {best['item_id']}")
+        print(f"  datetime:     {best['datetime']}")
+        print(f"  cloud_cover:  {best['cloud_cover']}")
+        print(f"  coverage:     {best['coverage_folha'] * 100:.2f}%")
+        print("  assets (hrefs assinados):")
+        for name, href in hrefs_best.items():
             print(f"    {name}: {href}")
