@@ -45,3 +45,4 @@
 2025-11-27T16:00:54.714Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
 2025-11-27T16:02:01.909Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: This plugin supports grabbing the mouse only for popup windows
 2025-11-27T16:02:01.925Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: This plugin supports grabbing the mouse only for popup windows
+2025-11-27T18:10:51.111Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
