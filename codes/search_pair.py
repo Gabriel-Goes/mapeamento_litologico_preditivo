@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import csv
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -115,6 +117,37 @@ def estimate_aster_cloud_fraction(
     return cloud_frac, nodata_frac
 
 
+def rank_scenes(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return sorted(
+        rows,
+        key=lambda d: (
+            d["local_cloud_frac"],
+            d["cloud_cover"],
+            d["delta_days"],
+            -d["coverage_fraction"],
+        ),
+    )
+
+
+def write_metrics_csv(path: str, rows: List[Dict[str, Any]]) -> None:
+    metrics_path = Path(path)
+    metrics_path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = [
+        "id",
+        "datetime",
+        "delta_days",
+        "cloud_meta",
+        "local_cloud_frac",
+        "nodata_frac",
+        "coverage_fraction",
+    ]
+    with metrics_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    print(f"[ASTER] Métricas salvas em: {metrics_path}")
+
+
 def search_aster_cloudfree_for_folha(
     codigo_folha: str,
     aster_target_date_str: str,
@@ -124,8 +157,9 @@ def search_aster_cloudfree_for_folha(
     max_cloud: float = 90.0,
     max_local_cloud_frac: float = 0.02,
     max_items: int = 2000,
+    metrics_csv_path: Optional[str] = None,
     debug: bool = False,
-) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
+) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
     folha_geom = get_folha_geom_geojson(codigo_folha)
     folha_shape = shape(folha_geom)
     print(
@@ -147,10 +181,12 @@ def search_aster_cloudfree_for_folha(
     print(f"[ASTER] Total de itens retornados: {len(items)}")
 
     if not items:
-        return None, []
+        return None, [], []
 
     target_date = parse_target_date(aster_target_date_str).date()
     candidates: List[Dict[str, Any]] = []
+    rankable_rows: List[Dict[str, Any]] = []
+    metrics_rows: List[Dict[str, Any]] = []
 
     for item in items:
         dt = item_datetime(item)
@@ -179,6 +215,30 @@ def search_aster_cloudfree_for_folha(
             print(f"[ASTER] Erro ao estimar nuvem local para {item.id}: {e}")
             continue
 
+        rankable_row = {
+            "id": item.id,
+            "datetime": dt.isoformat(),
+            "delta_days": delta_days,
+            "coverage_fraction": frac,
+            "coverage_percent": frac * 100.0,
+            "cloud_cover": cloud,
+            "local_cloud_frac": local_cloud_frac,
+            "nodata_frac": nodata_frac,
+            "item": item,
+        }
+        rankable_rows.append(rankable_row)
+        metrics_rows.append(
+            {
+                "id": item.id,
+                "datetime": dt.isoformat(),
+                "delta_days": delta_days,
+                "cloud_meta": cloud,
+                "local_cloud_frac": local_cloud_frac,
+                "nodata_frac": nodata_frac,
+                "coverage_fraction": frac,
+            }
+        )
+
         if local_cloud_frac > max_local_cloud_frac:
             print(
                 f"[ASTER] {item.id} rejeitado: nuvem local={local_cloud_frac:.4f} "
@@ -186,44 +246,34 @@ def search_aster_cloudfree_for_folha(
             )
             continue
 
-        candidates.append(
-            {
-                "id": item.id,
-                "datetime": dt.isoformat(),
-                "delta_days": delta_days,
-                "coverage_fraction": frac,
-                "coverage_percent": frac * 100.0,
-                "cloud_cover": cloud,
-                "local_cloud_frac": local_cloud_frac,
-                "nodata_frac": nodata_frac,
-                "item": item,
-            }
-        )
+        candidates.append(rankable_row)
 
-    if not candidates:
-        print("[ASTER] Nenhum item atendeu cobertura/nuvem.")
-        return None, []
-
-    candidates_sorted = sorted(
-        candidates,
-        key=lambda d: (
-            d["local_cloud_frac"],
-            d["cloud_cover"],
-            d["delta_days"],
-            -d["coverage_fraction"],
-        ),
-    )
-
-    print("\n[ASTER] Itens candidatos (ordenados):")
-    for c in candidates_sorted:
+    if not candidates and rankable_rows:
         print(
-            f"  id={c['id']}, datetime={c['datetime']}, "
-            f"Δt={c['delta_days']} dias, "
-            f"cov={c['coverage_percent']:.2f}%, "
-            f"cloud={c['cloud_cover']:.2f}%, "
-            f"local_cloud_frac={c['local_cloud_frac']:.4f}, "
-            f"nodata_frac={c['nodata_frac']:.4f}"
+            "[ASTER] Nenhum item após filtro de nuvem local; aplicando fallback "
+            "apenas com ordenação (rank_scenes)."
         )
+        candidates_sorted = rank_scenes(rankable_rows)
+    else:
+        candidates_sorted = rank_scenes(candidates)
+
+    if metrics_csv_path and metrics_rows:
+        write_metrics_csv(metrics_csv_path, metrics_rows)
+
+    if candidates_sorted:
+        print("\n[ASTER] Itens candidatos (ordenados):")
+        for c in candidates_sorted:
+            print(
+                f"  id={c['id']}, datetime={c['datetime']}, "
+                f"Δt={c['delta_days']} dias, "
+                f"cov={c['coverage_percent']:.2f}%, "
+                f"cloud={c['cloud_cover']:.2f}%, "
+                f"local_cloud_frac={c['local_cloud_frac']:.4f}, "
+                f"nodata_frac={c['nodata_frac']:.4f}"
+            )
+    else:
+        print("[ASTER] Nenhum item atendeu cobertura/nuvem.")
+        return None, [], metrics_rows
 
     best = candidates_sorted[0]
     print(
@@ -236,7 +286,7 @@ def search_aster_cloudfree_for_folha(
         f"  local_cloud_frac={best['local_cloud_frac']:.4f}\n"
         f"  nodata_frac={best['nodata_frac']:.4f}"
     )
-    return best, candidates_sorted
+    return best, candidates_sorted, metrics_rows
 
 
 def search_s2_cloudfree_for_folha_given_aster(
@@ -479,19 +529,40 @@ def main() -> None:
         action="store_true",
         help="Habilita plots de depuração para avaliação de nuvem ASTER",
     )
+    parser.add_argument(
+        "--max-local-cloud-aster",
+        type=float,
+        default=0.02,
+        help="Limite de fração de nuvem local para ASTER",
+    )
+    parser.add_argument(
+        "--max-global-cloud-aster",
+        type=float,
+        default=90.0,
+        help="Limite de nuvem global (metadado) para ASTER",
+    )
+    parser.add_argument(
+        "--aster-metrics-csv",
+        default=None,
+        help="Caminho para salvar métricas de avaliação das cenas ASTER",
+    )
     args = parser.parse_args()
 
     folha = args.folha
     aster_target = args.aster_date
     debug_mode = args.debug
+    metrics_csv = args.aster_metrics_csv or f"aster_metrics_{folha}.csv"
 
     print("=" * 80)
     print(f"[PIPELINE SEARCH] Folha: {folha}")
     print("=" * 80)
 
-    aster_best, _ = search_aster_cloudfree_for_folha(
+    aster_best, _, _ = search_aster_cloudfree_for_folha(
         codigo_folha=folha,
         aster_target_date_str=aster_target,
+        max_cloud=args.max_global_cloud_aster,
+        max_local_cloud_frac=args.max_local_cloud_aster,
+        metrics_csv_path=metrics_csv,
         debug=debug_mode,
     )
     if aster_best is None:
