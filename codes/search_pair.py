@@ -95,11 +95,11 @@ def estimate_aster_cloud_fraction(
 ) -> Tuple[float, float, int, int, int] | Tuple[float, float, np.ndarray, np.ndarray, int, int, int]:
     """Conta pixels de nuvem/nodata usando a máscara explícita do item ASTER."""
 
-    print(
-        "[ASTER] params: "
-        f"item_id={getattr(aster_item, 'id', '?')}, "
-        f"return_masks={return_masks}"
-    )
+    params = {
+        "item_id": getattr(aster_item, "id", "?"),
+        "return_masks": return_masks,
+    }
+    print("[ASTER] estimate params: " + ", ".join(f"{k}={v}" for k, v in params.items()))
 
     cloud_href = get_aster_cloudmask_href(aster_item)
     if cloud_href is None:
@@ -194,19 +194,19 @@ def search_aster_cloudfree_for_folha(
     metrics_csv_path: Optional[str] = None,
     debug: bool = False,
 ) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
-    print(
-        "[ASTER] params: "
-        f"folha={codigo_folha}, "
-        f"target_date={aster_target_date_str}, "
-        f"collection={collection_id}, "
-        f"datetime_window={search_datetime}, "
-        f"min_coverage={min_coverage}, "
-        f"max_cloud_meta={max_cloud}, "
-        f"max_local_cloud_frac={max_local_cloud_frac}, "
-        f"max_items={max_items}, "
-        f"metrics_csv_path={metrics_csv_path}, "
-        f"debug={debug}"
-    )
+    params = {
+        "folha": codigo_folha,
+        "target_date": aster_target_date_str,
+        "collection": collection_id,
+        "datetime_window": search_datetime,
+        "min_coverage": min_coverage,
+        "max_cloud_meta": max_cloud,
+        "max_local_cloud_frac": max_local_cloud_frac,
+        "max_items": max_items,
+        "metrics_csv_path": metrics_csv_path,
+        "debug": debug,
+    }
+    print("[ASTER] params: " + ", ".join(f"{k}={v}" for k, v in params.items()))
     folha_geom = get_folha_geom_geojson(codigo_folha)
     folha_shape = shape(folha_geom)
     print(
@@ -358,15 +358,15 @@ def search_s2_cloudfree_for_folha_given_aster(
     scl_cloud_max: float = 0.0,
     max_items: int = 500,
 ) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
-    print(
-        "[S2] params: "
-        f"folha={codigo_folha}, "
-        f"aster_datetime={aster_datetime.isoformat()}, "
-        f"datetime_window={search_datetime}, "
-        f"meta_max_cloud={meta_max_cloud}, "
-        f"scl_cloud_max={scl_cloud_max}, "
-        f"max_items={max_items}"
-    )
+    params = {
+        "folha": codigo_folha,
+        "aster_datetime": aster_datetime.isoformat(),
+        "datetime_window": search_datetime,
+        "meta_max_cloud": meta_max_cloud,
+        "scl_cloud_max": scl_cloud_max,
+        "max_items": max_items,
+    }
+    print("[S2] params: " + ", ".join(f"{k}={v}" for k, v in params.items()))
     folha_geom = get_folha_geom_geojson(codigo_folha)
     folha_shape = shape(folha_geom)
     print(
@@ -623,15 +623,15 @@ def main() -> None:
     debug_mode = args.debug
     metrics_csv = args.aster_metrics_csv or f"aster_metrics_{folha}.csv"
 
-    print(
-        "[PIPELINE SEARCH] params: "
-        f"folha={folha}, "
-        f"aster_date={aster_target}, "
-        f"max_local_cloud_aster={args.max_local_cloud_aster}, "
-        f"max_global_cloud_aster={args.max_global_cloud_aster}, "
-        f"metrics_csv={metrics_csv}, "
-        f"debug={debug_mode}"
-    )
+    params = {
+        "folha": folha,
+        "aster_date": aster_target,
+        "max_local_cloud_aster": args.max_local_cloud_aster,
+        "max_global_cloud_aster": args.max_global_cloud_aster,
+        "metrics_csv": metrics_csv,
+        "debug": debug_mode,
+    }
+    print("[PIPELINE SEARCH] params: " + ", ".join(f"{k}={v}" for k, v in params.items()))
     print("=" * 80)
     print(f"[PIPELINE SEARCH] Folha: {folha}")
     print("=" * 80)
