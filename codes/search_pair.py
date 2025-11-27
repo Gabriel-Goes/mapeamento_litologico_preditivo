@@ -63,13 +63,26 @@ ASTER_CLOUD_ASSET_CANDIDATES = (
 
 
 def get_aster_cloudmask_href(item: Any) -> Optional[str]:
+    def is_raster_mask(asset: Any) -> bool:
+        href = (getattr(asset, "href", "") or "").split("?")[0]
+        media_type = (getattr(asset, "media_type", "") or "").lower()
+        ext = Path(href).suffix.lower()
+
+        if media_type:
+            if "geotiff" in media_type or "image/tiff" in media_type:
+                return True
+
+        return ext in {".tif", ".tiff", ".img"}
+
     for key, asset in item.assets.items():
-        if key.upper() in ASTER_CLOUD_ASSET_CANDIDATES:
+        if key.upper() in ASTER_CLOUD_ASSET_CANDIDATES and is_raster_mask(asset):
             return asset.href
 
     for asset in item.assets.values():
         title = (getattr(asset, "title", "") or "").lower()
         roles = getattr(asset, "roles", []) or []
+        if not is_raster_mask(asset):
+            continue
         if "cloud" in title or "qa" in title or any(r.lower() == "cloud" for r in roles):
             return asset.href
     return None
