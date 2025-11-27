@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import matplotlib.pyplot as plt
+import xarray as xr
 from shapely.geometry import shape
 from shapely.ops import transform as shp_transform
 from pyproj import Transformer
@@ -59,7 +60,9 @@ def estimate_aster_cloud_fraction(
     folha_geom_geojson: Dict[str, Any],
     brightness_percentile: float = 98.0,
     debug: bool = False,
-) -> Tuple[float, float]:
+    return_masks: bool = False,
+    da_clip: Optional[xr.DataArray] = None,
+) -> Tuple[float, float] | Tuple[float, float, np.ndarray, np.ndarray]:
     """Heurística simples para estimar nuvem em ASTER sobre a folha.
 
     Como o produto ``aster-l1t`` não fornece uma máscara explícita de nuvem,
@@ -68,14 +71,15 @@ def estimate_aster_cloud_fraction(
     fração de ``nodata`` para referência.
     """
 
-    if "VNIR" in aster_item.assets:
-        asset_key = "VNIR"
-    else:
-        asset_key = next(iter(aster_item.assets.keys()))
+    if da_clip is None:
+        if "VNIR" in aster_item.assets:
+            asset_key = "VNIR"
+        else:
+            asset_key = next(iter(aster_item.assets.keys()))
 
-    href = aster_item.assets[asset_key].href
-    da_clip = clip_raster_to_folha(href, folha_geom_geojson)
-    nodata_frac, _ = compute_nodata_fraction(da_clip, return_mask=True)
+        href = aster_item.assets[asset_key].href
+        da_clip = clip_raster_to_folha(href, folha_geom_geojson)
+    nodata_frac, nodata_mask = compute_nodata_fraction(da_clip, return_mask=True)
 
     data = da_clip.values
     if data.ndim == 3:
@@ -108,6 +112,8 @@ def estimate_aster_cloud_fraction(
         plt.tight_layout()
         plt.show()
 
+    if return_masks:
+        return cloud_frac, nodata_frac, cloud_mask, nodata_mask
     return cloud_frac, nodata_frac
 
 
@@ -200,7 +206,7 @@ def search_aster_cloudfree_for_folha(
             continue
 
         try:
-            local_cloud_frac, nodata_frac = estimate_aster_cloud_fraction(
+            local_cloud_frac, nodata_frac, *_ = estimate_aster_cloud_fraction(
                 aster_item=item,
                 folha_geom_geojson=folha_geom,
                 debug=debug,
