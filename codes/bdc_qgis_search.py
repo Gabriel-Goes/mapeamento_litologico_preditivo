@@ -13,6 +13,7 @@ from datetime import datetime
 from osgeo import gdal
 
 DEFAULT_STAC = "https://data.inpe.br/bdc/stac/v1/"
+ASTER_STAC = "https://cmr.earthdata.nasa.gov/stac/LPCLOUD"
 
 # -------------------- util/log --------------------
 def log(msg):
@@ -181,11 +182,18 @@ def open_raster(href, name=None, outdir=None, just_download=False):
 class BDCDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("BDC – Listar/Filtrar/Selecionar dados (quadícula)")
+        self.setWindowTitle("BDC/ASTER – Listar/Filtrar/Selecionar dados (quadícula)")
         self.resize(1000, 680)
 
         # Linha de topo
+        self.cbProvider = QtWidgets.QComboBox()
+        self.cbProvider.addItem("BDC (INPE)", DEFAULT_STAC)
+        self.cbProvider.addItem("ASTER (LP DAAC STAC)", ASTER_STAC)
+        self.cbProvider.addItem("Personalizado", "")
+        self.cbProvider.setToolTip("Escolha o catálogo STAC: BDC ou ASTER (LP DAAC). Para outro, selecione Personalizado e edite a URL.")
+
         self.edStac = QtWidgets.QLineEdit(DEFAULT_STAC)
+        self.edStac.setToolTip("URL do catálogo STAC. Agora aceita BDC ou ASTER (LP DAAC), ou um endpoint personalizado.")
         self.btnCols = QtWidgets.QPushButton("Carregar coleções")
         self.edFilter = QtWidgets.QLineEdit()
         self.edFilter.setPlaceholderText("filtrar coleções… ex.: landsat, cbers, sentinel…")
@@ -230,7 +238,10 @@ class BDCDialog(QtWidgets.QDialog):
 
         # Layout
         top = QtWidgets.QHBoxLayout()
-        top.addWidget(QtWidgets.QLabel("STAC:")); top.addWidget(self.edStac, 1); top.addWidget(self.btnCols)
+        top.addWidget(QtWidgets.QLabel("Catálogo STAC (BDC/ASTER):"))
+        top.addWidget(self.cbProvider)
+        top.addWidget(self.edStac, 1)
+        top.addWidget(self.btnCols)
 
         filt = QtWidgets.QHBoxLayout()
         filt.addWidget(self.edFilter, 1); filt.addWidget(self.btnApplyFilter); filt.addWidget(self.btnSelectAll)
@@ -274,8 +285,31 @@ class BDCDialog(QtWidgets.QDialog):
         self.btnAdd.clicked.connect(self.view_selected)
         self.btnDl.clicked.connect(self.download_selected)
         self.btnOutdir.clicked.connect(self.pick_outdir)
+        self.cbProvider.currentIndexChanged.connect(self._on_provider_change)
+        self.edStac.textChanged.connect(self._on_stac_changed)
 
     # ---------- helpers ----------
+    def _current_stac(self):
+        return self.edStac.text().strip()
+
+    def _on_provider_change(self, idx):
+        url = self.cbProvider.itemData(idx)
+        if url:
+            self.edStac.setText(url)
+
+    def _on_stac_changed(self, text):
+        for i in range(self.cbProvider.count() - 1):  # ignorar "Personalizado"
+            if text.strip() == self.cbProvider.itemData(i):
+                if self.cbProvider.currentIndex() != i:
+                    self.cbProvider.blockSignals(True)
+                    self.cbProvider.setCurrentIndex(i)
+                    self.cbProvider.blockSignals(False)
+                return
+        if self.cbProvider.currentIndex() != self.cbProvider.count() - 1:
+            self.cbProvider.blockSignals(True)
+            self.cbProvider.setCurrentIndex(self.cbProvider.count() - 1)
+            self.cbProvider.blockSignals(False)
+
     def _build_aoi(self, for_probe=False):
         if self.rbSel.isChecked():
             log("AOI ← seleção da camada ativa")
@@ -296,7 +330,7 @@ class BDCDialog(QtWidgets.QDialog):
     # ---------- UI actions ----------
     def load_collections(self):
         try:
-            cols = fetch_collections(self.edStac.text().strip())
+            cols = fetch_collections(self._current_stac())
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Erro /collections", str(e)); return
         self._all_collections = cols
@@ -351,7 +385,7 @@ class BDCDialog(QtWidgets.QDialog):
         ok, zero = [], []
         for coll in cols:
             try:
-                js = stac_search(self.edStac.text().strip(), [coll], aoi_gj, dt,
+                js = stac_search(self._current_stac(), [coll], aoi_gj, dt,
                                  max_cloud=float(self.spCloud.value()), limit=1,
                                  sort="asc" if self.cbAsc.isChecked() else "desc")
                 (ok if js.get("features") else zero).append(coll)
@@ -368,7 +402,7 @@ class BDCDialog(QtWidgets.QDialog):
             QtWidgets.QMessageBox.warning(self, "AOI", str(e)); return
         dt = f"{self.edStart.date().toString('yyyy-MM-dd')}/{self.edEnd.date().toString('yyyy-MM-dd')}"
         try:
-            js = stac_search(self.edStac.text().strip(), cols, aoi_gj, dt,
+            js = stac_search(self._current_stac(), cols, aoi_gj, dt,
                              max_cloud=float(self.spCloud.value()), limit=int(self.spLimit.value()),
                              sort="asc" if self.cbAsc.isChecked() else "desc")
         except Exception as e:
