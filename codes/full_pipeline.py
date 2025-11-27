@@ -36,6 +36,9 @@ def resolve_pair(
     aster_id: Optional[str],
     s2_id: Optional[str],
     aster_date: Optional[str],
+    max_local_cloud_aster: float = 0.02,
+    max_global_cloud_aster: float = 90.0,
+    aster_metrics_csv: Optional[str] = None,
     return_best: bool = False,
 ) -> tuple[str, str] | tuple[str, str, Optional[dict], Optional[dict]]:
     if aster_id and s2_id:
@@ -49,9 +52,12 @@ def resolve_pair(
             "Se --aster-id/--s2-id não forem fornecidos, é obrigatório informar --aster-date (YYYY-MM-DD)."
         )
 
-    best_aster, _ = search_aster_cloudfree_for_folha(
+    best_aster, _, _ = search_aster_cloudfree_for_folha(
         codigo_folha=folha,
         aster_target_date_str=aster_date,
+        max_cloud=max_global_cloud_aster,
+        max_local_cloud_frac=max_local_cloud_aster,
+        metrics_csv_path=aster_metrics_csv,
     )
     if best_aster is None:
         raise SystemExit("Nenhum ASTER adequado encontrado para essa folha/data.")
@@ -291,6 +297,26 @@ def main() -> None:
     parser.add_argument("--skip-datasets", action="store_true", help="Pular geração dos datasets")
     parser.add_argument('--debug-s2-plots', action='store_true', help='Habilita plots de SCL de cada cena S2 candidata')
     parser.add_argument(
+        "--max-local-cloud-aster",
+        type=float,
+        default=0.02,
+        help="Limite de fração de nuvem local para ASTER",
+    )
+    parser.add_argument(
+        "--max-global-cloud-aster",
+        type=float,
+        default=90.0,
+        help="Limite de nuvem global (metadado) para ASTER",
+    )
+    parser.add_argument(
+        "--aster-metrics-csv",
+        default=None,
+        help=(
+            "Caminho para salvar métricas de avaliação das cenas ASTER; "
+            "por padrão salva no diretório de logs da folha."
+        ),
+    )
+    parser.add_argument(
         "--search-only",
         action="store_true",
         help=(
@@ -307,6 +333,10 @@ def main() -> None:
     os.makedirs(orbital_dir, exist_ok=True)
 
     log_dir = os.path.join(orbital_dir, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    aster_metrics_csv = args.aster_metrics_csv or os.path.join(
+        log_dir, f"aster_metrics_{folha}.csv"
+    )
     base_name = f"full_pipeline_{folha}"
 
     with log_stdout(log_dir, base_name) as log_path:
@@ -326,6 +356,9 @@ def main() -> None:
                 aster_id=args.aster_id,
                 s2_id=args.s2_id,
                 aster_date=args.aster_date,
+                max_local_cloud_aster=args.max_local_cloud_aster,
+                max_global_cloud_aster=args.max_global_cloud_aster,
+                aster_metrics_csv=aster_metrics_csv,
                 return_best=True,
             )
             print(
@@ -351,6 +384,9 @@ def main() -> None:
                 aster_id=args.aster_id,
                 s2_id=args.s2_id,
                 aster_date=args.aster_date,
+                max_local_cloud_aster=args.max_local_cloud_aster,
+                max_global_cloud_aster=args.max_global_cloud_aster,
+                aster_metrics_csv=aster_metrics_csv,
                 return_best=True,
             )
             print(
