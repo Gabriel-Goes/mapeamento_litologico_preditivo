@@ -113,6 +113,35 @@ chmod +x ./install.sh
 ./PreditorTerra
 ```
 
+## Catálogos STAC priorizados
+
+Os endpoints STAC usados pelo pipeline ficam em `codes/config.py` na
+estrutura `DEFAULT_STAC_CATALOGS`. Cada item define:
+
+- `name`: rótulo descritivo do catálogo.
+- `url`: endpoint STAC.
+- `collections`: lista de coleções a consultar.
+- `priority`: ordem de preferência (1 = maior prioridade).
+- Metadados auxiliares como `preferred_assets` (ex.: `VNIR`/`SWIR`) e
+  `cloudmask_assets`.
+
+Para alterar a ordem ou incluir um novo provedor, ajuste essa lista ou
+apontar a variável de ambiente `STAC_CATALOGS_FILE` para um JSON/YAML
+com o mesmo formato. Exemplo de entrada:
+
+```yaml
+aster:
+  - name: "ASTER AST_L1T (Planetary Computer)"
+    url: "https://planetarycomputer.microsoft.com/api/stac/v1"
+    collections: ["aster-l1t"]
+    priority: 1
+    preferred_assets: ["VNIR", "SWIR"]
+    cloudmask_assets: ["CLOUDMASK", "QA"]
+```
+
+O pipeline tenta os catálogos em ordem de `priority` e escolhe o
+primeiro que retornar cenas com VNIR, SWIR e máscara de nuvem válidas.
+
 ## Autor
 Gabriel Góes
 

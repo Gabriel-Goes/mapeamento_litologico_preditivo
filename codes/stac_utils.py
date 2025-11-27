@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
 from pystac_client import Client
 import planetary_computer
 
-from config import PC_STAC_URL
+from config import PC_STAC_URL, load_stac_catalog_config
 
 
 def get_pc_client() -> Client:
@@ -14,6 +14,52 @@ def get_pc_client() -> Client:
         PC_STAC_URL,
         modifier=planetary_computer.sign_inplace,
     )
+
+
+def open_stac_client(url: str) -> Client:
+    """Abre um cliente STAC com assinatura automática quando necessário."""
+
+    modifier = None
+    if "planetarycomputer" in url:
+        modifier = planetary_computer.sign_inplace
+
+    return Client.open(url, modifier=modifier)
+
+
+def iter_catalog_clients(
+    sensor_key: str, catalogs: Optional[Dict[str, List[Dict[str, Any]]]] = None
+) -> Iterator[Tuple[Dict[str, Any], Client]]:
+    """Itera sobre catálogos STAC priorizados e devolve clientes prontos.
+
+    Args:
+        sensor_key: chave do sensor (ex.: ``"aster"`` ou ``"sentinel2"``).
+        catalogs: configuração opcional; se omitida, usa ``load_stac_catalog_config``.
+
+    Yields:
+        Tuplas ``(catalog_config, client)`` seguindo a ordem de prioridade.
+    """
+
+    catalogs = catalogs or load_stac_catalog_config()
+    catalog_list = catalogs.get(sensor_key, [])
+    sorted_catalogs = sorted(catalog_list, key=lambda c: c.get("priority", 0))
+
+    for catalog in sorted_catalogs:
+        url = catalog.get("url")
+        if not url:
+            continue
+        try:
+            client = open_stac_client(url)
+        except Exception as exc:
+            print(f"[STAC] Falha ao abrir catálogo {url}: {exc}")
+            continue
+
+        yield catalog, client
+
+
+def item_has_assets(item: Any, required: Iterable[str]) -> bool:
+    assets = getattr(item, "assets", {}) or {}
+    available = {k.upper() for k in assets.keys()}
+    return all(req.upper() in available for req in required)
 
 
 def item_datetime(item: Any) -> datetime:

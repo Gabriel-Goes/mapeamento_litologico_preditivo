@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -14,7 +14,12 @@ from shapely.ops import transform as shp_transform
 from pyproj import Transformer
 
 from db_conn import get_folha_geom_geojson
-from stac_utils import get_pc_client, item_datetime, get_cloud_cover
+from stac_utils import (
+    get_cloud_cover,
+    iter_catalog_clients,
+    item_datetime,
+    item_has_assets,
+)
 from raster_utils import (
     clip_raster_to_folha,
     compute_nodata_fraction,
@@ -182,55 +187,16 @@ def write_metrics_csv(path: str, rows: List[Dict[str, Any]]) -> None:
     print(f"[ASTER] Métricas salvas em: {metrics_path}")
 
 
-def search_aster_cloudfree_for_folha(
-    codigo_folha: str,
-    aster_target_date_str: str,
-    collection_id: str = "aster-l1t",
-    search_datetime: str = "2000-01-01/2025-12-31",
-    min_coverage: float = 0.99,
-    max_cloud: float = 90.0,
-    max_local_cloud_frac: float = 0.02,
-    max_items: int = 2000,
-    metrics_csv_path: Optional[str] = None,
-    debug: bool = False,
+def _rank_aster_items(
+    items: List[Any],
+    folha_geom: Dict[str, Any],
+    transformer: Transformer,
+    target_date: date,
+    min_coverage: float,
+    max_cloud: float,
+    max_local_cloud_frac: float,
+    metrics_csv_path: Optional[str],
 ) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
-    params = {
-        "folha": codigo_folha,
-        "target_date": aster_target_date_str,
-        "collection": collection_id,
-        "datetime_window": search_datetime,
-        "min_coverage": min_coverage,
-        "max_cloud_meta": max_cloud,
-        "max_local_cloud_frac": max_local_cloud_frac,
-        "max_items": max_items,
-        "metrics_csv_path": metrics_csv_path,
-        "debug": debug,
-    }
-    print("[ASTER] params: " + ", ".join(f"{k}={v}" for k, v in params.items()))
-    folha_geom = get_folha_geom_geojson(codigo_folha)
-    folha_shape = shape(folha_geom)
-    print(
-        f"[ASTER] Folha '{codigo_folha}' carregada. "
-        f"Área WGS84 (aprox): {folha_shape.area:.6f} (graus²)"
-    )
-
-    transformer = build_local_equal_area_transformer(folha_geom)
-    client = get_pc_client()
-
-    print(f"[ASTER] Buscando itens em '{collection_id}'...")
-    search = client.search(
-        collections=[collection_id],
-        intersects=folha_geom,
-        datetime=search_datetime,
-        max_items=max_items,
-    )
-    items = list(search.items())
-    print(f"[ASTER] Total de itens retornados: {len(items)}")
-
-    if not items:
-        return None, [], []
-
-    target_date = parse_target_date(aster_target_date_str).date()
     candidates: List[Dict[str, Any]] = []
     rankable_rows: List[Dict[str, Any]] = []
     metrics_rows: List[Dict[str, Any]] = []
@@ -318,23 +284,22 @@ def search_aster_cloudfree_for_folha(
     if metrics_csv_path and metrics_rows:
         write_metrics_csv(metrics_csv_path, metrics_rows)
 
-    if candidates_sorted:
-        print("\n[ASTER] Itens candidatos (ordenados):")
-        for c in candidates_sorted:
-            print(
-                f"  id={c['id']}, datetime={c['datetime']}, "
-                f"Δt={c['delta_days']} dias, "
-                f"cov={c['coverage_percent']:.2f}%, "
-                f"cloud={c['cloud_cover']:.2f}%, "
-                f"local_cloud_frac={c['local_cloud_frac']:.4f}, "
-                f"nodata_frac={c['nodata_frac']:.4f}, "
-                f"cloud_px={c['cloudy_pixels_aoi']}, "
-                f"nodata_px={c['nodata_pixels_aoi']}, "
-                f"total_px={c['total_pixels_aoi']}"
-            )
-    else:
-        print("[ASTER] Nenhum item atendeu cobertura/nuvem.")
+    if not candidates_sorted:
         return None, [], metrics_rows
+
+    print("\n[ASTER] Itens candidatos (ordenados):")
+    for c in candidates_sorted:
+        print(
+            f"  id={c['id']}, datetime={c['datetime']}, "
+            f"Δt={c['delta_days']} dias, "
+            f"cov={c['coverage_percent']:.2f}%, "
+            f"cloud={c['cloud_cover']:.2f}%, "
+            f"local_cloud_frac={c['local_cloud_frac']:.4f}, "
+            f"nodata_frac={c['nodata_frac']:.4f}, "
+            f"cloud_px={c['cloudy_pixels_aoi']}, "
+            f"nodata_px={c['nodata_pixels_aoi']}, "
+            f"total_px={c['total_pixels_aoi']}"
+        )
 
     best = candidates_sorted[0]
     print(
@@ -347,7 +312,105 @@ def search_aster_cloudfree_for_folha(
         f"  local_cloud_frac={best['local_cloud_frac']:.4f}\n"
         f"  nodata_frac={best['nodata_frac']:.4f}"
     )
+
     return best, candidates_sorted, metrics_rows
+
+
+def search_aster_cloudfree_for_folha(
+    codigo_folha: str,
+    aster_target_date_str: str,
+    collection_id: str = "aster-l1t",
+    search_datetime: str = "2000-01-01/2025-12-31",
+    min_coverage: float = 0.99,
+    max_cloud: float = 90.0,
+    max_local_cloud_frac: float = 0.02,
+    max_items: int = 2000,
+    metrics_csv_path: Optional[str] = None,
+    debug: bool = False,
+) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+    params = {
+        "folha": codigo_folha,
+        "target_date": aster_target_date_str,
+        "collection": collection_id,
+        "datetime_window": search_datetime,
+        "min_coverage": min_coverage,
+        "max_cloud_meta": max_cloud,
+        "max_local_cloud_frac": max_local_cloud_frac,
+        "max_items": max_items,
+        "metrics_csv_path": metrics_csv_path,
+        "debug": debug,
+    }
+    print("[ASTER] params: " + ", ".join(f"{k}={v}" for k, v in params.items()))
+    folha_geom = get_folha_geom_geojson(codigo_folha)
+    folha_shape = shape(folha_geom)
+    print(
+        f"[ASTER] Folha '{codigo_folha}' carregada. "
+        f"Área WGS84 (aprox): {folha_shape.area:.6f} (graus²)"
+    )
+
+    transformer = build_local_equal_area_transformer(folha_geom)
+    target_date = parse_target_date(aster_target_date_str).date()
+    catalogs_config = None
+
+    for catalog, client in iter_catalog_clients("aster", catalogs_config):
+        collections = catalog.get("collections") or [collection_id]
+        catalog_name = catalog.get("name", catalog.get("url", "desconhecido"))
+        preferred_assets = catalog.get("preferred_assets", ["VNIR", "SWIR"])
+
+        print(
+            f"[ASTER] Buscando itens em {collections} ({catalog_name})..."
+        )
+        search = client.search(
+            collections=collections,
+            intersects=folha_geom,
+            datetime=search_datetime,
+            max_items=max_items,
+        )
+        items = list(search.items())
+        print(f"[ASTER] Total de itens retornados: {len(items)}")
+
+        filtered_items: List[Any] = []
+        for item in items:
+            if not item_has_assets(item, preferred_assets):
+                continue
+            if get_aster_cloudmask_href(item) is None:
+                continue
+            filtered_items.append(item)
+
+        if not filtered_items:
+            print(
+                f"[ASTER] Nenhum item com assets {preferred_assets} e máscara de nuvem em {catalog_name}."
+            )
+            continue
+
+        best, candidates_sorted, metrics_rows = _rank_aster_items(
+            items=filtered_items,
+            folha_geom=folha_geom,
+            transformer=transformer,
+            target_date=target_date,
+            min_coverage=min_coverage,
+            max_cloud=max_cloud,
+            max_local_cloud_frac=max_local_cloud_frac,
+            metrics_csv_path=metrics_csv_path,
+        )
+
+        if best is None:
+            print(f"[ASTER] Nenhum candidato válido encontrado em {catalog_name}.")
+            continue
+
+        best["catalog_name"] = catalog_name
+        best["catalog_url"] = catalog.get("url")
+        for row in candidates_sorted:
+            row.setdefault("catalog_name", catalog_name)
+            row.setdefault("catalog_url", catalog.get("url"))
+        for row in metrics_rows:
+            row.setdefault("catalog_name", catalog_name)
+            row.setdefault("catalog_url", catalog.get("url"))
+
+        return best, candidates_sorted, metrics_rows
+
+    print("[ASTER] Nenhum item atendeu cobertura/nuvem em nenhum catálogo prioritário.")
+    return None, [], []
 
 
 def search_s2_cloudfree_for_folha_given_aster(
@@ -373,116 +436,130 @@ def search_s2_cloudfree_for_folha_given_aster(
         f"[S2] Folha '{codigo_folha}' carregada. "
         f"Área WGS84 (aprox): {folha_shape.area:.6f} (graus²)"
     )
+    catalogs_config = None
 
-    client = get_pc_client()
-    print("[S2] Buscando itens em 'sentinel-2-l2a'...")
-    search = client.search(
-        collections=["sentinel-2-l2a"],
-        intersects=folha_geom,
-        datetime=search_datetime,
-        max_items=max_items,
-    )
-    items = list(search.items())
-    print(f"[S2] Total de itens retornados: {len(items)}")
+    for catalog, client in iter_catalog_clients("sentinel2", catalogs_config):
+        collections = catalog.get("collections") or ["sentinel-2-l2a"]
+        catalog_name = catalog.get("name", catalog.get("url", "desconhecido"))
 
-    if not items:
-        return None, []
+        print(f"[S2] Buscando itens em {collections} ({catalog_name})...")
+        search = client.search(
+            collections=collections,
+            intersects=folha_geom,
+            datetime=search_datetime,
+            max_items=max_items,
+        )
+        items = list(search.items())
+        print(f"[S2] Total de itens retornados: {len(items)}")
 
-    meta_list: List[Dict[str, Any]] = []
-    for item in items:
-        meta_cloud = get_cloud_cover(item)
-        if meta_cloud is None or meta_cloud > meta_max_cloud:
+        if not items:
             continue
 
-        dt = item_datetime(item)
-        delta_days = abs((dt.date() - aster_datetime.date()).days)
-        meta_list.append(
-            {
-                "id": item.id,
-                "datetime": dt,
-                "delta_days": delta_days,
-                "meta_cloud": meta_cloud,
-                "item": item,
-            }
+        items = [item for item in items if "SCL" in getattr(item, "assets", {})]
+        if not items:
+            print(f"[S2] Nenhum item com asset SCL em {catalog_name}.")
+            continue
+
+        meta_list: List[Dict[str, Any]] = []
+        for item in items:
+            meta_cloud = get_cloud_cover(item)
+            if meta_cloud is None or meta_cloud > meta_max_cloud:
+                continue
+
+            dt = item_datetime(item)
+            delta_days = abs((dt.date() - aster_datetime.date()).days)
+            meta_list.append(
+                {
+                    "id": item.id,
+                    "datetime": dt,
+                    "delta_days": delta_days,
+                    "meta_cloud": meta_cloud,
+                    "item": item,
+                }
+            )
+
+        if not meta_list:
+            print(f"[S2] Nenhuma cena passou pelo filtro rápido em {catalog_name}.")
+            continue
+
+        meta_sorted = sorted(
+            meta_list,
+            key=lambda d: (d["delta_days"], d["meta_cloud"]),
         )
 
-    if not meta_list:
-        print("[S2] Nenhuma cena passou pelo filtro rápido.")
-        return None, []
+        candidates_with_metrics: List[Dict[str, Any]] = []
+        best_cloudfree: Optional[Dict[str, Any]] = None
+        best_by_scl: Optional[Dict[str, Any]] = None
 
-    meta_sorted = sorted(
-        meta_list,
-        key=lambda d: (d["delta_days"], d["meta_cloud"]),
-    )
+        for m in meta_sorted:
+            item = m["item"]
 
-    candidates_with_metrics: List[Dict[str, Any]] = []
-    best_cloudfree: Optional[Dict[str, Any]] = None
-    best_by_scl: Optional[Dict[str, Any]] = None
+            scl_href = item.assets["SCL"].href
+            try:
+                da_scl_clip = clip_raster_to_folha(scl_href, folha_geom)
+                scl_nodata_frac, scl_cloud_frac, scl_arr, cloud_mask = compute_scl_cloud_fraction(da_scl_clip)
+            except Exception as e:
+                print(f"[S2] Erro ao processar SCL {item.id}: {e}")
+                continue
 
-    for m in meta_sorted:
-        item = m["item"]
-        if "SCL" not in item.assets:
-            continue
+            row = {
+                "id": item.id,
+                "datetime": m["datetime"].isoformat(),
+                "delta_days": m["delta_days"],
+                "meta_cloud": m["meta_cloud"],
+                "scl_nodata_frac": scl_nodata_frac,
+                "scl_cloud_frac": scl_cloud_frac,
+                "item": item,
+                "catalog_name": catalog_name,
+                "catalog_url": catalog.get("url"),
+            }
+            candidates_with_metrics.append(row)
 
-        scl_href = item.assets["SCL"].href
-        try:
-            da_scl_clip = clip_raster_to_folha(scl_href, folha_geom)
-            scl_nodata_frac, scl_cloud_frac, scl_arr, cloud_mask = compute_scl_cloud_fraction(da_scl_clip)
-        except Exception as e:
-            print(f"[S2] Erro ao processar SCL {item.id}: {e}")
-            continue
+            print(
+                f"[S2] {item.id} | date={m['datetime'].date()} | "
+                f"meta_cloud={m['meta_cloud']:.2f}% | "
+                f"scl_cloud_frac={scl_cloud_frac:.4f} | "
+                f"scl_nodata_frac={scl_nodata_frac:.4f} | "
+                f"Δt(ASTER)={m['delta_days']} dias"
+            )
 
-        row = {
-            "id": item.id,
-            "datetime": m["datetime"].isoformat(),
-            "delta_days": m["delta_days"],
-            "meta_cloud": m["meta_cloud"],
-            "scl_nodata_frac": scl_nodata_frac,
-            "scl_cloud_frac": scl_cloud_frac,
-            "item": item,
-        }
-        candidates_with_metrics.append(row)
+            if best_by_scl is None:
+                best_by_scl = row
+            else:
+                if (scl_cloud_frac < best_by_scl["scl_cloud_frac"]) or (
+                    scl_cloud_frac == best_by_scl["scl_cloud_frac"]
+                    and m["delta_days"] < best_by_scl["delta_days"]
+                ):
+                    best_by_scl = row
+
+            if scl_cloud_frac <= scl_cloud_max:
+                best_cloudfree = row
+                break
+
+        if best_cloudfree is not None:
+            best = best_cloudfree
+            print("\n[S2] Melhor cena (primeira sem nuvem segundo SCL):")
+        else:
+            if best_by_scl is None:
+                print(f"[S2] Nenhuma cena com SCL válida em {catalog_name}.")
+                continue
+            best = best_by_scl
+            print("\n[S2] Nenhuma cena com SCL<=limiar; usando menor scl_cloud_frac:")
 
         print(
-            f"[S2] {item.id} | date={m['datetime'].date()} | "
-            f"meta_cloud={m['meta_cloud']:.2f}% | "
-            f"scl_cloud_frac={scl_cloud_frac:.4f} | "
-            f"scl_nodata_frac={scl_nodata_frac:.4f} | "
-            f"Δt(ASTER)={m['delta_days']} dias"
+            f"  id={best['id']}\n"
+            f"  datetime={best['datetime']}\n"
+            f"  Δt(ASTER)={best['delta_days']} dias\n"
+            f"  meta_cloud={best['meta_cloud']:.2f}%\n"
+            f"  scl_cloud_frac={best['scl_cloud_frac']:.4f}\n"
+            f"  scl_nodata_frac={best['scl_nodata_frac']:.4f}\n"
+            f"  catalog={catalog_name}"
         )
 
-        if best_by_scl is None:
-            best_by_scl = row
-        else:
-            if (scl_cloud_frac < best_by_scl["scl_cloud_frac"]) or (
-                scl_cloud_frac == best_by_scl["scl_cloud_frac"]
-                and m["delta_days"] < best_by_scl["delta_days"]
-            ):
-                best_by_scl = row
+        return best, candidates_with_metrics
 
-        if scl_cloud_frac <= scl_cloud_max:
-            best_cloudfree = row
-            break
-
-    if best_cloudfree is not None:
-        best = best_cloudfree
-        print("\n[S2] Melhor cena (primeira sem nuvem segundo SCL):")
-    else:
-        if best_by_scl is None:
-            print("[S2] Nenhuma cena com SCL válida.")
-            return None, candidates_with_metrics
-        best = best_by_scl
-        print("\n[S2] Nenhuma cena com SCL<=limiar; usando menor scl_cloud_frac:")
-
-    print(
-        f"  id={best['id']}\n"
-        f"  datetime={best['datetime']}\n"
-        f"  Δt(ASTER)={best['delta_days']} dias\n"
-        f"  meta_cloud={best['meta_cloud']:.2f}%\n"
-        f"  scl_cloud_frac={best['scl_cloud_frac']:.4f}\n"
-        f"  scl_nodata_frac={best['scl_nodata_frac']:.4f}"
-    )
-    return best, candidates_with_metrics
+    print("[S2] Nenhum item Sentinel-2 válido nos catálogos priorizados.")
+    return None, []
 
 
 def inspect_aster_clip(aster_item: Any, folha_geom_geojson: Dict[str, Any]) -> None:
