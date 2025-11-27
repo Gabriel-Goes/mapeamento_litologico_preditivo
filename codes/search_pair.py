@@ -55,75 +55,87 @@ def coverage_fraction(
     return float(inter.area / folha_proj.area)
 
 
+ASTER_CLOUD_ASSET_CANDIDATES = (
+    "CLOUDMASK",
+    "QA",
+    "CLOUD",
+)
+
+
+def get_aster_cloudmask_href(item: Any) -> Optional[str]:
+    for key, asset in item.assets.items():
+        if key.upper() in ASTER_CLOUD_ASSET_CANDIDATES:
+            return asset.href
+
+    for asset in item.assets.values():
+        title = (getattr(asset, "title", "") or "").lower()
+        roles = getattr(asset, "roles", []) or []
+        if "cloud" in title or "qa" in title or any(r.lower() == "cloud" for r in roles):
+            return asset.href
+    return None
+
+
 def estimate_aster_cloud_fraction(
     aster_item: Any,
     folha_geom_geojson: Dict[str, Any],
-    brightness_percentile: float = 98.0,
-    debug: bool = False,
     return_masks: bool = False,
-    da_clip: Optional[xr.DataArray] = None,
-) -> Tuple[float, float] | Tuple[float, float, np.ndarray, np.ndarray]:
-    """Heurística simples para estimar nuvem em ASTER sobre a folha.
+) -> Tuple[float, float, int, int, int] | Tuple[float, float, np.ndarray, np.ndarray, int, int, int]:
+    """Conta pixels de nuvem/nodata usando a máscara explícita do item ASTER."""
 
-    Como o produto ``aster-l1t`` não fornece uma máscara explícita de nuvem,
-    usamos o brilho da banda 1 do VNIR como proxy: a fração de pixels acima
-    de um percentil alto é tomada como nuvem potencial. Também retornamos a
-    fração de ``nodata`` para referência.
-    """
+    cloud_href = get_aster_cloudmask_href(aster_item)
+    if cloud_href is None:
+        raise RuntimeError(f"Item {getattr(aster_item, 'id', '?')} sem asset de nuvem/QA.")
 
-    if da_clip is None:
-        if "VNIR" in aster_item.assets:
-            asset_key = "VNIR"
-        else:
-            asset_key = next(iter(aster_item.assets.keys()))
-
-        href = aster_item.assets[asset_key].href
-        da_clip = clip_raster_to_folha(href, folha_geom_geojson)
+    da_clip = clip_raster_to_folha(cloud_href, folha_geom_geojson)
     nodata_frac, nodata_mask = compute_nodata_fraction(da_clip, return_mask=True)
 
     data = da_clip.values
     if data.ndim == 3:
         data = data[0]
 
-    valid = data[~np.isnan(data)]
-    if valid.size == 0:
-        return 1.0, nodata_frac
+    total_pixels = data.size
+    if total_pixels == 0:
+        raise RuntimeError("Recorte da máscara de nuvem retornou zero pixels.")
 
-    threshold = float(np.nanpercentile(valid, brightness_percentile))
-    cloud_mask = (~np.isnan(data)) & (data >= threshold)
-    cloud_frac = float(cloud_mask.sum() / cloud_mask.size)
-
-    if debug:
-        vmin = np.nanpercentile(valid, 2) if valid.size > 0 else 0.0
-        vmax = np.nanpercentile(valid, 98) if valid.size > 0 else 1.0
-        scale = vmax - vmin if vmax > vmin else 1.0
-        data_norm = np.clip((data - vmin) / scale, 0, 1)
-        data_norm = np.nan_to_num(data_norm, nan=0.0)
-
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
-        im1 = ax1.imshow(data_norm, origin="upper", cmap="gray", vmin=0, vmax=1)
-        ax1.set_title("ASTER VNIR recortado (normalizado)")
-        fig.colorbar(im1, ax=ax1, shrink=0.7)
-
-        im2 = ax2.imshow(cloud_mask, origin="upper", cmap="gray")
-        ax2.set_title(f"Máscara nuvem ≥ p{brightness_percentile}")
-        fig.colorbar(im2, ax=ax2, shrink=0.7)
-
-        plt.tight_layout()
-        plt.show()
+    cloud_mask = (~np.isnan(data)) & (data > 0)
+    cloud_pixels = int(cloud_mask.sum())
+    nodata_pixels = int(nodata_mask.sum())
+    cloud_frac = float(cloud_pixels / total_pixels)
 
     if return_masks:
-        return cloud_frac, nodata_frac, cloud_mask, nodata_mask
-    return cloud_frac, nodata_frac
+        return (
+            cloud_frac,
+            nodata_frac,
+            cloud_mask,
+            nodata_mask,
+            cloud_pixels,
+            nodata_pixels,
+            total_pixels,
+        )
+    return cloud_frac, nodata_frac, cloud_pixels, nodata_pixels, total_pixels
 
 
 def rank_scenes(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    has_cloud_free = any(r.get("cloudy_pixels_aoi", 1) == 0 for r in rows)
+
+    if has_cloud_free:
+        return sorted(
+            rows,
+            key=lambda d: (
+                d.get("cloudy_pixels_aoi", 1) != 0,
+                d["delta_days"],
+                d.get("cloudy_pixels_aoi", 0),
+                d["cloud_cover"],
+                -d["coverage_fraction"],
+            ),
+        )
+
     return sorted(
         rows,
         key=lambda d: (
-            d["local_cloud_frac"],
-            d["cloud_cover"],
+            d.get("cloudy_pixels_aoi", 0),
             d["delta_days"],
+            d["cloud_cover"],
             -d["coverage_fraction"],
         ),
     )
@@ -139,6 +151,9 @@ def write_metrics_csv(path: str, rows: List[Dict[str, Any]]) -> None:
         "cloud_meta",
         "local_cloud_frac",
         "nodata_frac",
+        "cloudy_pixels_aoi",
+        "nodata_pixels_aoi",
+        "total_pixels_aoi",
         "coverage_fraction",
     ]
     with metrics_path.open("w", newline="", encoding="utf-8") as f:
@@ -206,10 +221,15 @@ def search_aster_cloudfree_for_folha(
             continue
 
         try:
-            local_cloud_frac, nodata_frac, *_ = estimate_aster_cloud_fraction(
+            (
+                local_cloud_frac,
+                nodata_frac,
+                cloud_pixels,
+                nodata_pixels,
+                total_pixels,
+            ) = estimate_aster_cloud_fraction(
                 aster_item=item,
                 folha_geom_geojson=folha_geom,
-                debug=debug,
             )
         except Exception as e:
             print(f"[ASTER] Erro ao estimar nuvem local para {item.id}: {e}")
@@ -224,6 +244,9 @@ def search_aster_cloudfree_for_folha(
             "cloud_cover": cloud,
             "local_cloud_frac": local_cloud_frac,
             "nodata_frac": nodata_frac,
+            "cloudy_pixels_aoi": cloud_pixels,
+            "nodata_pixels_aoi": nodata_pixels,
+            "total_pixels_aoi": total_pixels,
             "item": item,
         }
         rankable_rows.append(rankable_row)
@@ -235,6 +258,9 @@ def search_aster_cloudfree_for_folha(
                 "cloud_meta": cloud,
                 "local_cloud_frac": local_cloud_frac,
                 "nodata_frac": nodata_frac,
+                "cloudy_pixels_aoi": cloud_pixels,
+                "nodata_pixels_aoi": nodata_pixels,
+                "total_pixels_aoi": total_pixels,
                 "coverage_fraction": frac,
             }
         )
@@ -269,7 +295,10 @@ def search_aster_cloudfree_for_folha(
                 f"cov={c['coverage_percent']:.2f}%, "
                 f"cloud={c['cloud_cover']:.2f}%, "
                 f"local_cloud_frac={c['local_cloud_frac']:.4f}, "
-                f"nodata_frac={c['nodata_frac']:.4f}"
+                f"nodata_frac={c['nodata_frac']:.4f}, "
+                f"cloud_px={c['cloudy_pixels_aoi']}, "
+                f"nodata_px={c['nodata_pixels_aoi']}, "
+                f"total_px={c['total_pixels_aoi']}"
             )
     else:
         print("[ASTER] Nenhum item atendeu cobertura/nuvem.")

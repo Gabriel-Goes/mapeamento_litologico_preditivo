@@ -233,11 +233,18 @@ def generate_search_previews(
             rgb_path = os.path.join(preview_dir, f"{folha}_ASTER_{cand['id']}_rgb.png")
             save_rgb_preview(rgb, rgb_path)
 
-            cloud_frac, nodata_frac, cloud_mask, nodata_mask = estimate_aster_cloud_fraction(
+            (
+                cloud_frac,
+                nodata_frac,
+                cloud_mask,
+                nodata_mask,
+                _,
+                _,
+                _,
+            ) = estimate_aster_cloud_fraction(
                 aster_item=item,
                 folha_geom_geojson=folha_geom,
                 return_masks=True,
-                da_clip=da_clip,
             )
             mask = cloud_mask | nodata_mask
             mask_path = os.path.join(preview_dir, f"{folha}_ASTER_{cand['id']}_mask.png")
