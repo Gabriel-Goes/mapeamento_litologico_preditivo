@@ -1,13 +1,15 @@
 #!/usr/bin/env python
+from typing import Optional
+
 import ee
 from shapely import wkt
 import os
-import ee
 
 
 # Coleções no Earth Engine
 ASTER_COL = "ASTER/AST_L1T_003"
-MODIS_COL = "MODIS/061/MOD09GA"
+# Banda QA do ASTER L1T (bits de qualidade, incluindo flag de nuvem/sombra)
+ASTER_CLOUD_MASK_BAND = "QA"
 
 EE_PROJECT = os.environ.get("EE_PROJECT", None)
 
@@ -24,7 +26,12 @@ def wkt_to_ee_geometry(wkt_geom: str) -> ee.Geometry:
     return ee.Geometry(geom.__geo_interface__)
 
 
-def add_metrics(img: ee.Image, aoi: ee.Geometry, min_coverage: float):
+def add_metrics(
+    img: ee.Image,
+    aoi: ee.Geometry,
+    min_coverage: float,
+    target_date: Optional[ee.Date],
+):
     aoi_area = aoi.area()
 
     geom = img.geometry()
@@ -34,41 +41,37 @@ def add_metrics(img: ee.Image, aoi: ee.Geometry, min_coverage: float):
 
     img = img.set("coverage_aoi", coverage)
 
-    # MODIS do mesmo dia
-    date = ee.Date(img.get("system:time_start"))
-    date_next = date.advance(1, "day")
+    qa = img.select(ASTER_CLOUD_MASK_BAND)
+    cloud_mask = qa.gt(0).rename("cloud_mask").unmask(0)
 
-    modis_ic = (
-        ee.ImageCollection(MODIS_COL)
-        .filterDate(date, date_next)
-        .filterBounds(aoi)
+    native_scale = qa.projection().nominalScale()
+    cloud_stats = cloud_mask.reduceRegion(
+        reducer=ee.Reducer.sum().combine(ee.Reducer.count(), "", True),
+        geometry=aoi,
+        scale=native_scale,
+        maxPixels=1e9,
+        tileScale=4,
     )
 
-    modis = modis_ic.first()
-
-    def compute_cloud_fraction(mimg):
-        state = mimg.select("state_1km")
-        cloud_state = state.bitwiseAnd(3)  # bits 0-1
-        cloudy = cloud_state.eq(1).Or(cloud_state.eq(2))  # cloudy ou mixed
-        cloudy = cloudy.rename("cloudy")
-
-        stats = cloudy.reduceRegion(
-            reducer=ee.Reducer.mean(),
-            geometry=aoi,
-            scale=1000,
-            maxPixels=1e9,
-        )
-        return ee.Number(stats.get("cloudy"))
-
-    cloud_fraction = ee.Number(
-        ee.Algorithms.If(
-            modis,
-            compute_cloud_fraction(modis),
-            1.0,  # se não houver MODIS, assume 100% nuvem
-        )
+    cloud_count = ee.Number(cloud_stats.get("cloud_mask_sum"))
+    pixel_count = ee.Number(cloud_stats.get("cloud_mask_count"))
+    cloud_fraction = ee.Algorithms.If(
+        pixel_count.gt(0),
+        cloud_count.divide(pixel_count),
+        None,
     )
 
-    img = img.set("cloud_fraction_aoi", cloud_fraction)
+    img = img.set(
+        {
+            "cloud_count_aoi": cloud_count,
+            "pixel_count_aoi": pixel_count,
+            "cloud_fraction_aoi": cloud_fraction,
+        }
+    )
+
+    if target_date:
+        delta_days = img.date().difference(target_date, "day").abs()
+        img = img.set("delta_days_target", delta_days)
 
     # aplica filtro de cobertura mínima
     img = ee.Image(
@@ -87,6 +90,7 @@ def find_aster_with_local_cloud(
     end_date: str = "2025-12-31",
     min_coverage: float = 0.95,
     max_results: int = 50,
+    target_date: Optional[str] = None,
 ):
     init_ee()
 
@@ -98,17 +102,26 @@ def find_aster_with_local_cloud(
         .filterDate(start_date, end_date)
     )
 
+    target_date_ee = ee.Date(target_date) if target_date else None
+
     def _map_fn(img):
-        return add_metrics(img, aoi, min_coverage)
+        return add_metrics(img, aoi, min_coverage, target_date_ee)
 
     aster_with_metrics = aster_ic.map(_map_fn).filter(
-        ee.Filter.notNull(["cloud_fraction_aoi"])
+        ee.Filter.notNull(["cloud_fraction_aoi", "cloud_count_aoi", "pixel_count_aoi"])
     )
 
-    # ordena por nuvem na folha (↑) e cobertura (↓)
-    aster_sorted = aster_with_metrics.sort("cloud_fraction_aoi").sort(
-        "coverage_aoi", False
-    )
+    # Ordena por nuvem na folha (↑), prioridade a zero nuvem, e proximidade temporal (↑)
+    if target_date_ee:
+        aster_sorted = (
+            aster_with_metrics.sort("cloud_count_aoi")
+            .sort("delta_days_target")
+            .sort("coverage_aoi", False)
+        )
+    else:
+        aster_sorted = aster_with_metrics.sort("cloud_count_aoi").sort(
+            "coverage_aoi", False
+        )
 
     lst = aster_sorted.toList(max_results)
     size = lst.size().getInfo()
@@ -121,9 +134,17 @@ def find_aster_with_local_cloud(
                 "system:index",
                 "system:time_start",
                 "cloud_fraction_aoi",
+                "cloud_count_aoi",
+                "pixel_count_aoi",
+                "delta_days_target",
                 "coverage_aoi",
             ]
         ).getInfo()
+
+        delta_days = props.get("delta_days_target")
+        cloud_count = float(props["cloud_count_aoi"])
+        pixel_count = float(props["pixel_count_aoi"])
+        cloud_fraction = float(props["cloud_fraction_aoi"])
 
         results.append(
             {
@@ -131,12 +152,25 @@ def find_aster_with_local_cloud(
                 "datetime": ee.Date(props["system:time_start"])
                 .format("YYYY-MM-dd HH:mm:ss")
                 .getInfo(),
-                "cloud_fraction_aoi": float(props["cloud_fraction_aoi"]),
+                "cloud_fraction_aoi": cloud_fraction,
+                "cloud_count_aoi": cloud_count,
+                "pixel_count_aoi": pixel_count,
+                "delta_days": float(delta_days) if delta_days is not None else None,
                 "coverage_aoi": float(props["coverage_aoi"]),
             }
         )
 
-    return results
+    def _sort_key(row):
+        delta = row.get("delta_days")
+        delta_val = delta if delta is not None else float("inf")
+        return (
+            row["cloud_count_aoi"],
+            delta_val,
+            -row["coverage_aoi"],
+        )
+
+    results_sorted = sorted(results, key=_sort_key)
+    return results_sorted
 
 
 if __name__ == "__main__":
@@ -169,5 +203,7 @@ if __name__ == "__main__":
                 f"[{i:02d}] id={r['id']}, "
                 f"datetime={r['datetime']}, "
                 f"cloud_fraction_aoi={r['cloud_fraction_aoi']:.3f}, "
+                f"cloud_count_aoi={int(r['cloud_count_aoi'])}, "
+                f"pixel_count_aoi={int(r['pixel_count_aoi'])}, "
                 f"coverage_aoi={r['coverage_aoi']*100:.2f}%"
             )
