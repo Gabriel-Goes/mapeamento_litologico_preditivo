@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -17,6 +18,36 @@ from raster_utils import (
     compute_nodata_fraction,
     compute_scl_cloud_fraction,
 )
+
+
+@dataclass
+class SceneQuality:
+    id: str
+    collection: str
+    datetime: Optional[datetime]
+    delta_days: Optional[int]
+    cloud_cover: Optional[float] = None
+    meta_cloud: Optional[float] = None
+    coverage_fraction: Optional[float] = None
+    local_cloud_frac: Optional[float] = None
+    nodata_frac: Optional[float] = None
+    scl_cloud_frac: Optional[float] = None
+    scl_nodata_frac: Optional[float] = None
+    item: Any = None
+
+    @property
+    def coverage_percent(self) -> Optional[float]:
+        if self.coverage_fraction is None:
+            return None
+        return self.coverage_fraction * 100.0
+
+
+@dataclass
+class PairSelectionResult:
+    selected_aster: Optional[SceneQuality]
+    selected_s2: Optional[SceneQuality]
+    aster_candidates: List[SceneQuality]
+    s2_candidates: List[SceneQuality]
 
 
 def parse_target_date(date_str: str) -> datetime:
@@ -109,17 +140,55 @@ def estimate_aster_cloud_fraction(
     return cloud_frac, nodata_frac
 
 
-def search_aster_cloudfree_for_folha(
+def rank_scenes(
+    candidates: List[SceneQuality], max_local_cloud: Optional[float] = None
+) -> List[SceneQuality]:
+    filtered: List[SceneQuality] = []
+    for cand in candidates:
+        if (
+            max_local_cloud is not None
+            and cand.local_cloud_frac is not None
+            and cand.local_cloud_frac > max_local_cloud
+        ):
+            continue
+        filtered.append(cand)
+
+    def _sort_key(cand: SceneQuality) -> Tuple[float, float, int, float]:
+        primary = (
+            cand.local_cloud_frac
+            if cand.local_cloud_frac is not None
+            else (
+                cand.scl_cloud_frac
+                if cand.scl_cloud_frac is not None
+                else (
+                    cand.meta_cloud
+                    if cand.meta_cloud is not None
+                    else cand.cloud_cover if cand.cloud_cover is not None else float("inf")
+                )
+            )
+        )
+        secondary = (
+            cand.meta_cloud
+            if cand.meta_cloud is not None
+            else cand.cloud_cover if cand.cloud_cover is not None else float("inf")
+        )
+        delta = cand.delta_days if cand.delta_days is not None else 0
+        coverage = -(cand.coverage_fraction or 0.0)
+        return (float(primary), float(secondary), int(delta), float(coverage))
+
+    return sorted(filtered, key=_sort_key)
+
+
+def evaluate_aster_candidates(
     codigo_folha: str,
     aster_target_date_str: str,
     collection_id: str = "aster-l1t",
     search_datetime: str = "2000-01-01/2025-12-31",
     min_coverage: float = 0.99,
     max_cloud: float = 90.0,
-    max_local_cloud_frac: float = 0.02,
     max_items: int = 2000,
     debug: bool = False,
-) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
+) -> List[SceneQuality]:
     folha_geom = get_folha_geom_geojson(codigo_folha)
     folha_shape = shape(folha_geom)
     print(
@@ -141,10 +210,10 @@ def search_aster_cloudfree_for_folha(
     print(f"[ASTER] Total de itens retornados: {len(items)}")
 
     if not items:
-        return None, []
+        return []
 
     target_date = parse_target_date(aster_target_date_str).date()
-    candidates: List[Dict[str, Any]] = []
+    candidates: List[SceneQuality] = []
 
     for item in items:
         dt = item_datetime(item)
@@ -173,74 +242,85 @@ def search_aster_cloudfree_for_folha(
             print(f"[ASTER] Erro ao estimar nuvem local para {item.id}: {e}")
             continue
 
-        if local_cloud_frac > max_local_cloud_frac:
-            print(
-                f"[ASTER] {item.id} rejeitado: nuvem local={local_cloud_frac:.4f} "
-                f"(limite={max_local_cloud_frac:.4f})."
-            )
-            continue
-
         candidates.append(
-            {
-                "id": item.id,
-                "datetime": dt.isoformat(),
-                "delta_days": delta_days,
-                "coverage_fraction": frac,
-                "coverage_percent": frac * 100.0,
-                "cloud_cover": cloud,
-                "local_cloud_frac": local_cloud_frac,
-                "nodata_frac": nodata_frac,
-                "item": item,
-            }
+            SceneQuality(
+                id=item.id,
+                collection=collection_id,
+                datetime=dt,
+                delta_days=delta_days,
+                coverage_fraction=frac,
+                cloud_cover=cloud,
+                local_cloud_frac=local_cloud_frac,
+                nodata_frac=nodata_frac,
+                item=item,
+            )
         )
+
+    return candidates
+
+
+def search_aster_cloudfree_for_folha(
+    codigo_folha: str,
+    aster_target_date_str: str,
+    collection_id: str = "aster-l1t",
+    search_datetime: str = "2000-01-01/2025-12-31",
+    min_coverage: float = 0.99,
+    max_cloud: float = 90.0,
+    max_local_cloud_frac: float = 0.02,
+    max_items: int = 2000,
+    debug: bool = False,
+) -> Tuple[Optional[SceneQuality], List[SceneQuality]]:
+    candidates = evaluate_aster_candidates(
+        codigo_folha=codigo_folha,
+        aster_target_date_str=aster_target_date_str,
+        collection_id=collection_id,
+        search_datetime=search_datetime,
+        min_coverage=min_coverage,
+        max_cloud=max_cloud,
+        max_items=max_items,
+        debug=debug,
+    )
 
     if not candidates:
         print("[ASTER] Nenhum item atendeu cobertura/nuvem.")
         return None, []
 
-    candidates_sorted = sorted(
-        candidates,
-        key=lambda d: (
-            d["local_cloud_frac"],
-            d["cloud_cover"],
-            d["delta_days"],
-            -d["coverage_fraction"],
-        ),
-    )
+    candidates_sorted = rank_scenes(candidates, max_local_cloud=max_local_cloud_frac)
 
     print("\n[ASTER] Itens candidatos (ordenados):")
     for c in candidates_sorted:
+        cov_percent = c.coverage_percent if c.coverage_percent is not None else 0.0
         print(
-            f"  id={c['id']}, datetime={c['datetime']}, "
-            f"Δt={c['delta_days']} dias, "
-            f"cov={c['coverage_percent']:.2f}%, "
-            f"cloud={c['cloud_cover']:.2f}%, "
-            f"local_cloud_frac={c['local_cloud_frac']:.4f}, "
-            f"nodata_frac={c['nodata_frac']:.4f}"
+            f"  id={c.id}, datetime={c.datetime.isoformat()}, "
+            f"Δt={c.delta_days} dias, "
+            f"cov={cov_percent:.2f}%, "
+            f"cloud={c.cloud_cover:.2f}%, "
+            f"local_cloud_frac={c.local_cloud_frac:.4f}, "
+            f"nodata_frac={(c.nodata_frac or 0.0):.4f}"
         )
 
     best = candidates_sorted[0]
     print(
         "\n[ASTER] Melhor item:\n"
-        f"  id={best['id']}\n"
-        f"  datetime={best['datetime']}\n"
-        f"  Δt={best['delta_days']} dias\n"
-        f"  cov={best['coverage_percent']:.2f}%\n"
-        f"  cloud={best['cloud_cover']:.2f}%\n"
-        f"  local_cloud_frac={best['local_cloud_frac']:.4f}\n"
-        f"  nodata_frac={best['nodata_frac']:.4f}"
+        f"  id={best.id}\n"
+        f"  datetime={best.datetime}\n"
+        f"  Δt={best.delta_days} dias\n"
+        f"  cov={(best.coverage_percent or 0.0):.2f}%\n"
+        f"  cloud={(best.cloud_cover or 0.0):.2f}%\n"
+        f"  local_cloud_frac={(best.local_cloud_frac or 0.0):.4f}\n"
+        f"  nodata_frac={(best.nodata_frac or 0.0):.4f}"
     )
     return best, candidates_sorted
 
 
-def search_s2_cloudfree_for_folha_given_aster(
+def evaluate_s2_candidates(
     codigo_folha: str,
     aster_datetime: datetime,
     search_datetime: str = "2015-01-01/2020-01-01",
     meta_max_cloud: float = 80.0,
-    scl_cloud_max: float = 0.0,
     max_items: int = 500,
-) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
+    debug_plots: bool = False,
+) -> List[SceneQuality]:
     folha_geom = get_folha_geom_geojson(codigo_folha)
     folha_shape = shape(folha_geom)
     print(
@@ -260,7 +340,7 @@ def search_s2_cloudfree_for_folha_given_aster(
     print(f"[S2] Total de itens retornados: {len(items)}")
 
     if not items:
-        return None, []
+        return []
 
     meta_list: List[Dict[str, Any]] = []
     for item in items:
@@ -282,16 +362,14 @@ def search_s2_cloudfree_for_folha_given_aster(
 
     if not meta_list:
         print("[S2] Nenhuma cena passou pelo filtro rápido.")
-        return None, []
+        return []
 
     meta_sorted = sorted(
         meta_list,
         key=lambda d: (d["delta_days"], d["meta_cloud"]),
     )
 
-    candidates_with_metrics: List[Dict[str, Any]] = []
-    best_cloudfree: Optional[Dict[str, Any]] = None
-    best_by_scl: Optional[Dict[str, Any]] = None
+    candidates_with_metrics: List[SceneQuality] = []
 
     for m in meta_sorted:
         item = m["item"]
@@ -306,16 +384,30 @@ def search_s2_cloudfree_for_folha_given_aster(
             print(f"[S2] Erro ao processar SCL {item.id}: {e}")
             continue
 
-        row = {
-            "id": item.id,
-            "datetime": m["datetime"].isoformat(),
-            "delta_days": m["delta_days"],
-            "meta_cloud": m["meta_cloud"],
-            "scl_nodata_frac": scl_nodata_frac,
-            "scl_cloud_frac": scl_cloud_frac,
-            "item": item,
-        }
-        candidates_with_metrics.append(row)
+        if debug_plots:
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+            im1 = ax1.imshow(scl_arr, origin="upper")
+            ax1.set_title(f"SCL {item.id}")
+            fig.colorbar(im1, ax=ax1, shrink=0.7)
+            im2 = ax2.imshow(cloud_mask, origin="upper")
+            ax2.set_title("Máscara nuvem/sombra/neve")
+            fig.colorbar(im2, ax=ax2, shrink=0.7)
+            plt.tight_layout()
+            plt.show()
+
+        candidates_with_metrics.append(
+            SceneQuality(
+                id=item.id,
+                collection="sentinel-2-l2a",
+                datetime=m["datetime"],
+                delta_days=m["delta_days"],
+                meta_cloud=m["meta_cloud"],
+                scl_nodata_frac=scl_nodata_frac,
+                scl_cloud_frac=scl_cloud_frac,
+                local_cloud_frac=scl_cloud_frac,
+                item=item,
+            )
+        )
 
         print(
             f"[S2] {item.id} | date={m['datetime'].date()} | "
@@ -325,38 +417,46 @@ def search_s2_cloudfree_for_folha_given_aster(
             f"Δt(ASTER)={m['delta_days']} dias"
         )
 
-        if best_by_scl is None:
-            best_by_scl = row
-        else:
-            if (scl_cloud_frac < best_by_scl["scl_cloud_frac"]) or (
-                scl_cloud_frac == best_by_scl["scl_cloud_frac"]
-                and m["delta_days"] < best_by_scl["delta_days"]
-            ):
-                best_by_scl = row
+    return candidates_with_metrics
 
-        if scl_cloud_frac <= scl_cloud_max:
-            best_cloudfree = row
-            break
 
-    if best_cloudfree is not None:
-        best = best_cloudfree
-        print("\n[S2] Melhor cena (primeira sem nuvem segundo SCL):")
-    else:
-        if best_by_scl is None:
-            print("[S2] Nenhuma cena com SCL válida.")
-            return None, candidates_with_metrics
-        best = best_by_scl
-        print("\n[S2] Nenhuma cena com SCL<=limiar; usando menor scl_cloud_frac:")
-
-    print(
-        f"  id={best['id']}\n"
-        f"  datetime={best['datetime']}\n"
-        f"  Δt(ASTER)={best['delta_days']} dias\n"
-        f"  meta_cloud={best['meta_cloud']:.2f}%\n"
-        f"  scl_cloud_frac={best['scl_cloud_frac']:.4f}\n"
-        f"  scl_nodata_frac={best['scl_nodata_frac']:.4f}"
+def search_s2_cloudfree_for_folha_given_aster(
+    codigo_folha: str,
+    aster_datetime: datetime,
+    search_datetime: str = "2015-01-01/2020-01-01",
+    meta_max_cloud: float = 80.0,
+    scl_cloud_max: float = 0.0,
+    max_items: int = 500,
+    debug_plots: bool = False,
+) -> Tuple[Optional[SceneQuality], List[SceneQuality]]:
+    candidates_with_metrics = evaluate_s2_candidates(
+        codigo_folha=codigo_folha,
+        aster_datetime=aster_datetime,
+        search_datetime=search_datetime,
+        meta_max_cloud=meta_max_cloud,
+        max_items=max_items,
+        debug_plots=debug_plots,
     )
-    return best, candidates_with_metrics
+
+    if not candidates_with_metrics:
+        return None, []
+
+    ranked = rank_scenes(candidates_with_metrics, max_local_cloud=scl_cloud_max)
+    if not ranked:
+        print("[S2] Nenhuma cena com SCL válida dentro do limite de nuvem.")
+        return None, candidates_with_metrics
+
+    best = ranked[0]
+    print("\n[S2] Melhor cena (após ranking por SCL/local_cloud):")
+    print(
+        f"  id={best.id}\n"
+        f"  datetime={best.datetime}\n"
+        f"  Δt(ASTER)={best.delta_days} dias\n"
+        f"  meta_cloud={(best.meta_cloud or 0.0):.2f}%\n"
+        f"  scl_cloud_frac={(best.scl_cloud_frac or 0.0):.4f}\n"
+        f"  scl_nodata_frac={(best.scl_nodata_frac or 0.0):.4f}"
+    )
+    return best, ranked
 
 
 def inspect_aster_clip(aster_item: Any, folha_geom_geojson: Dict[str, Any]) -> None:
@@ -492,9 +592,9 @@ def main() -> None:
         print("[PIPELINE SEARCH] Nenhuma ASTER adequada.")
         return
 
-    aster_item = aster_best["item"]
-    aster_dt = item_datetime(aster_item)
-    print(f"[PIPELINE SEARCH] ASTER selecionada: {aster_best['id']}")
+    aster_item = aster_best.item
+    aster_dt = aster_best.datetime
+    print(f"[PIPELINE SEARCH] ASTER selecionada: {aster_best.id}")
 
     s2_best, _ = search_s2_cloudfree_for_folha_given_aster(
         codigo_folha=folha,
@@ -504,19 +604,19 @@ def main() -> None:
         print("[PIPELINE SEARCH] Nenhuma S2 adequada.")
         return
 
-    s2_item = s2_best["item"]
-    print(f"[PIPELINE SEARCH] S2 selecionada: {s2_best['id']}")
+    s2_item = s2_best.item
+    print(f"[PIPELINE SEARCH] S2 selecionada: {s2_best.id}")
 
     print("\n[PAR SELECIONADO]")
     print(
-        f"  ASTER: {aster_best['id']} ({aster_best['datetime']}), "
-        f"cov={aster_best['coverage_fraction']*100.0:.2f}%, "
-        f"cloud={aster_best['cloud_cover']:.2f}%"
+        f"  ASTER: {aster_best.id} ({aster_best.datetime}), "
+        f"cov={(aster_best.coverage_percent or 0.0):.2f}%, "
+        f"cloud={(aster_best.cloud_cover or 0.0):.2f}%"
     )
     print(
-        f"  S2   : {s2_best['id']} ({s2_best['datetime']}), "
-        f"meta_cloud={s2_best['meta_cloud']:.2f}%, "
-        f"scl_cloud_frac={s2_best['scl_cloud_frac']:.4f}"
+        f"  S2   : {s2_best.id} ({s2_best.datetime}), "
+        f"meta_cloud={(s2_best.meta_cloud or 0.0):.2f}%, "
+        f"scl_cloud_frac={(s2_best.scl_cloud_frac or 0.0):.4f}"
     )
 
     folha_geom = get_folha_geom_geojson(folha)

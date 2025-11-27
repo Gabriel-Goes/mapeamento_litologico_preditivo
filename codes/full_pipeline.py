@@ -11,8 +11,11 @@ import xarray as xr
 from config import ORBITAL_DIR
 from stac_utils import item_datetime
 from search_pair import (
-    search_aster_cloudfree_for_folha,
-    search_s2_cloudfree_for_folha_given_aster,
+    PairSelectionResult,
+    SceneQuality,
+    rank_scenes,
+    evaluate_aster_candidates,
+    evaluate_s2_candidates,
 )
 from gs_fusion import run_gs_pair_pipeline
 from supercube import build_supercube, load_supercube
@@ -36,50 +39,72 @@ def resolve_pair(
     aster_id: Optional[str],
     s2_id: Optional[str],
     aster_date: Optional[str],
-    return_best: bool = False,
-) -> tuple[str, str] | tuple[str, str, Optional[dict], Optional[dict]]:
+) -> PairSelectionResult:
     if aster_id and s2_id:
         print("[PAIR] Usando IDs fornecidos pelo usuário.")
-        if return_best:
-            return aster_id, s2_id, None, None
-        return aster_id, s2_id
+        return PairSelectionResult(
+            selected_aster=SceneQuality(
+                id=aster_id,
+                collection="aster-l1t",
+                datetime=None,
+                delta_days=None,
+            ),
+            selected_s2=SceneQuality(
+                id=s2_id,
+                collection="sentinel-2-l2a",
+                datetime=None,
+                delta_days=None,
+            ),
+            aster_candidates=[],
+            s2_candidates=[],
+        )
 
     if not aster_date:
         raise SystemExit(
             "Se --aster-id/--s2-id não forem fornecidos, é obrigatório informar --aster-date (YYYY-MM-DD)."
         )
 
-    best_aster, _ = search_aster_cloudfree_for_folha(
+    aster_candidates = evaluate_aster_candidates(
         codigo_folha=folha,
         aster_target_date_str=aster_date,
     )
-    if best_aster is None:
+    ranked_aster = rank_scenes(aster_candidates, max_local_cloud=0.02)
+    if not ranked_aster:
         raise SystemExit("Nenhum ASTER adequado encontrado para essa folha/data.")
 
-    aster_item = best_aster["item"]
-    aster_id_sel = aster_item.id
+    best_aster = ranked_aster[0]
+    aster_item = best_aster.item
+    if aster_item is None:
+        raise SystemExit("Item ASTER selecionado está ausente.")
     aster_dt = item_datetime(aster_item)
-    print(f"[PAIR] ASTER selecionado: {aster_id_sel} (Δt alvo={best_aster['delta_days']} dias)")
+    print(
+        f"[PAIR] ASTER selecionado: {best_aster.id} (Δt alvo={best_aster.delta_days} dias)"
+    )
 
-    best_s2, _ = search_s2_cloudfree_for_folha_given_aster(
+    s2_candidates = evaluate_s2_candidates(
         codigo_folha=folha,
         aster_datetime=aster_dt,
     )
-    if best_s2 is None:
+    ranked_s2 = rank_scenes(s2_candidates, max_local_cloud=0.0)
+    if not ranked_s2:
         raise SystemExit("Nenhum Sentinel-2 adequado encontrado para esse ASTER.")
 
-    s2_id_sel = best_s2["id"]
-    print(f"[PAIR] S2 selecionado: {s2_id_sel} (Δt ASTER={best_s2['delta_days']} dias)")
+    best_s2 = ranked_s2[0]
+    print(
+        f"[PAIR] S2 selecionado: {best_s2.id} (Δt ASTER={best_s2.delta_days} dias)"
+    )
 
-    if return_best:
-        return aster_id_sel, s2_id_sel, best_aster, best_s2
-    return aster_id_sel, s2_id_sel
+    return PairSelectionResult(
+        selected_aster=best_aster,
+        selected_s2=best_s2,
+        aster_candidates=ranked_aster,
+        s2_candidates=ranked_s2,
+    )
 
 
 def summarize_imagery_quality(
     folha: str,
-    best_aster: Optional[dict],
-    best_s2: Optional[dict],
+    selection: PairSelectionResult,
 ) -> None:
     """Reporta frações de nodata/nuvem para aster e S2 recortados na folha.
 
@@ -91,10 +116,13 @@ def summarize_imagery_quality(
     folha_geom = get_folha_geom_geojson(folha)
     print("\n[QUALITY] Avaliando qualidade das cenas selecionadas...")
 
+    best_aster = selection.selected_aster
+    best_s2 = selection.selected_s2
+
     if best_aster is None:
         print("[QUALITY][ASTER] Nenhum item ASTER disponível para avaliação.")
     else:
-        aster_item = best_aster["item"]
+        aster_item = best_aster.item
         if "VNIR" in aster_item.assets:
             asset_key = "VNIR"
         else:
@@ -112,7 +140,7 @@ def summarize_imagery_quality(
     if best_s2 is None:
         print("[QUALITY][S2] Nenhum item Sentinel-2 disponível para avaliação.")
     else:
-        s2_item = best_s2["item"]
+        s2_item = best_s2.item
         if "SCL" not in s2_item.assets:
             print(f"[QUALITY][S2] Asset SCL ausente em {s2_item.id}; impossível medir nuvem.")
         else:
@@ -121,7 +149,7 @@ def summarize_imagery_quality(
             scl_nodata_frac, scl_cloud_frac, *_ = compute_scl_cloud_fraction(da_scl_clip)
             print(
                 f"[QUALITY][S2] id={s2_item.id} | scl_cloud_frac={scl_cloud_frac:.4f} | "
-                f"scl_nodata_frac={scl_nodata_frac:.4f} | meta_cloud={best_s2['meta_cloud']:.2f}%"
+                f"scl_nodata_frac={scl_nodata_frac:.4f} | meta_cloud={(best_s2.meta_cloud or 0.0):.2f}%"
             )
 
 
@@ -319,23 +347,22 @@ def main() -> None:
             print(
                 "[FULL PIPELINE] Chamando resolve_pair com: "
                 f"folha={folha}, aster_id={args.aster_id}, s2_id={args.s2_id}, "
-                f"aster_date={args.aster_date}, return_best=True"
+                f"aster_date={args.aster_date}"
             )
-            aster_id, s2_id, best_aster, best_s2 = resolve_pair(
+            selection = resolve_pair(
                 folha=folha,
                 aster_id=args.aster_id,
                 s2_id=args.s2_id,
                 aster_date=args.aster_date,
-                return_best=True,
             )
             print(
                 "[FULL PIPELINE] resolve_pair retornou: "
-                f"ASTER={aster_id}, S2={s2_id}"
+                f"ASTER={selection.selected_aster.id if selection.selected_aster else None}, "
+                f"S2={selection.selected_s2.id if selection.selected_s2 else None}"
             )
             summarize_imagery_quality(
                 folha=folha,
-                best_aster=best_aster,
-                best_s2=best_s2,
+                selection=selection,
             )
             print("[FULL PIPELINE] --search-only acionado; parando após busca e resumo de qualidade.")
             return
@@ -344,23 +371,23 @@ def main() -> None:
             print(
                 "[FULL PIPELINE] Chamando resolve_pair com: "
                 f"folha={folha}, aster_id={args.aster_id}, s2_id={args.s2_id}, "
-                f"aster_date={args.aster_date}, return_best=True"
+                f"aster_date={args.aster_date}"
             )
-            aster_id, s2_id, best_aster, best_s2 = resolve_pair(
+            selection = resolve_pair(
                 folha=folha,
                 aster_id=args.aster_id,
                 s2_id=args.s2_id,
                 aster_date=args.aster_date,
-                return_best=True,
             )
+            aster_id = selection.selected_aster.id if selection.selected_aster else None
+            s2_id = selection.selected_s2.id if selection.selected_s2 else None
             print(
                 "[FULL PIPELINE] resolve_pair retornou: "
                 f"ASTER={aster_id}, S2={s2_id}"
             )
             summarize_imagery_quality(
                 folha=folha,
-                best_aster=best_aster,
-                best_s2=best_s2,
+                selection=selection,
             )
             print(
                 "[FULL PIPELINE] Chamando run_gs_and_supercube com: "
