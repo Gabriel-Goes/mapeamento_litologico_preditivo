@@ -349,10 +349,26 @@ class BDCDialog(QtWidgets.QDialog):
             return False
         return all(m and m.get("has_cloud_cover") for m in metas)
 
+    def _http_error_message(self, err):
+        resp = getattr(err, "response", None)
+        if not resp:
+            return str(err)
+        try:
+            body = (resp.text or "").strip()
+        except Exception:
+            body = "<sem corpo>"
+        max_len = 1000
+        if len(body) > max_len:
+            body = body[:max_len] + "…"
+        reason = resp.reason or ""
+        return f"HTTP {resp.status_code} {reason}\nURL: {resp.url}\nBody: {body or '<vazio>'}"
+
     # ---------- UI actions ----------
     def load_collections(self):
         try:
             cols = fetch_collections(self._current_stac())
+        except requests.exceptions.HTTPError as e:
+            QtWidgets.QMessageBox.critical(self, "Erro /collections", self._http_error_message(e)); return
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Erro /collections", str(e)); return
         self._all_collections = cols
@@ -419,6 +435,9 @@ class BDCDialog(QtWidgets.QDialog):
                                  max_cloud=float(self.spCloud.value()) if allow_cloud else None, limit=1,
                                  sort="asc" if self.cbAsc.isChecked() else "desc")
                 (ok if js.get("features") else zero).append(coll)
+            except requests.exceptions.HTTPError as e:
+                QtWidgets.QMessageBox.critical(self, "Erro /search", f"{coll}: {self._http_error_message(e)}")
+                zero.append(coll)
             except Exception:
                 zero.append(coll)
         log(f"PROBE: OK={ok} ZERO={zero}")
@@ -438,6 +457,8 @@ class BDCDialog(QtWidgets.QDialog):
             js = stac_search(self._current_stac(), cols, aoi_gj, dt,
                              max_cloud=float(self.spCloud.value()) if allow_cloud else None, limit=int(self.spLimit.value()),
                              sort="asc" if self.cbAsc.isChecked() else "desc")
+        except requests.exceptions.HTTPError as e:
+            QtWidgets.QMessageBox.critical(self, "Erro /search", self._http_error_message(e)); return
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Erro /search", str(e)); return
 
