@@ -56,6 +56,7 @@ def estimate_aster_cloud_fraction(
     aster_item: Any,
     folha_geom_geojson: Dict[str, Any],
     brightness_percentile: float = 98.0,
+    debug: bool = False,
 ) -> Tuple[float, float]:
     """Heurística simples para estimar nuvem em ASTER sobre a folha.
 
@@ -85,6 +86,26 @@ def estimate_aster_cloud_fraction(
     threshold = float(np.nanpercentile(valid, brightness_percentile))
     cloud_mask = (~np.isnan(data)) & (data >= threshold)
     cloud_frac = float(cloud_mask.sum() / cloud_mask.size)
+
+    if debug:
+        vmin = np.nanpercentile(valid, 2) if valid.size > 0 else 0.0
+        vmax = np.nanpercentile(valid, 98) if valid.size > 0 else 1.0
+        scale = vmax - vmin if vmax > vmin else 1.0
+        data_norm = np.clip((data - vmin) / scale, 0, 1)
+        data_norm = np.nan_to_num(data_norm, nan=0.0)
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+        im1 = ax1.imshow(data_norm, origin="upper", cmap="gray", vmin=0, vmax=1)
+        ax1.set_title("ASTER VNIR recortado (normalizado)")
+        fig.colorbar(im1, ax=ax1, shrink=0.7)
+
+        im2 = ax2.imshow(cloud_mask, origin="upper", cmap="gray")
+        ax2.set_title(f"Máscara nuvem ≥ p{brightness_percentile}")
+        fig.colorbar(im2, ax=ax2, shrink=0.7)
+
+        plt.tight_layout()
+        plt.show()
+
     return cloud_frac, nodata_frac
 
 
@@ -97,6 +118,7 @@ def search_aster_cloudfree_for_folha(
     max_cloud: float = 90.0,
     max_local_cloud_frac: float = 0.02,
     max_items: int = 2000,
+    debug: bool = False,
 ) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
     folha_geom = get_folha_geom_geojson(codigo_folha)
     folha_shape = shape(folha_geom)
@@ -145,6 +167,7 @@ def search_aster_cloudfree_for_folha(
             local_cloud_frac, nodata_frac = estimate_aster_cloud_fraction(
                 aster_item=item,
                 folha_geom_geojson=folha_geom,
+                debug=debug,
             )
         except Exception as e:
             print(f"[ASTER] Erro ao estimar nuvem local para {item.id}: {e}")
@@ -445,10 +468,16 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--folha", required=True, help="Código da folha (ex: SB21_ZA_II2_NE)")
     parser.add_argument("--aster-date", required=True, help="Data alvo ASTER (YYYY-MM-DD)")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Habilita plots de depuração para avaliação de nuvem ASTER",
+    )
     args = parser.parse_args()
 
     folha = args.folha
     aster_target = args.aster_date
+    debug_mode = args.debug
 
     print("=" * 80)
     print(f"[PIPELINE SEARCH] Folha: {folha}")
@@ -457,6 +486,7 @@ def main() -> None:
     aster_best, _ = search_aster_cloudfree_for_folha(
         codigo_folha=folha,
         aster_target_date_str=aster_target,
+        debug=debug_mode,
     )
     if aster_best is None:
         print("[PIPELINE SEARCH] Nenhuma ASTER adequada.")
