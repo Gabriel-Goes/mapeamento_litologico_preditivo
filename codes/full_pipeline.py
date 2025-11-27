@@ -67,8 +67,11 @@ def resolve_pair(
 ]:
     if aster_id and s2_id:
         print("[PAIR] Usando IDs fornecidos pelo usuário.")
-        if return_best:
-            return aster_id, s2_id, None, None
+        if return_best or return_candidates:
+            base = (aster_id, s2_id, None, None)
+            if return_candidates:
+                return (*base, [], [])
+            return base
         return aster_id, s2_id
 
     if not aster_date:
@@ -76,7 +79,7 @@ def resolve_pair(
             "Se --aster-id/--s2-id não forem fornecidos, é obrigatório informar --aster-date (YYYY-MM-DD)."
         )
 
-    best_aster, _, _ = search_aster_cloudfree_for_folha(
+    best_aster, aster_candidates, _ = search_aster_cloudfree_for_folha(
         codigo_folha=folha,
         aster_target_date_str=aster_date,
         max_cloud=max_global_cloud_aster,
@@ -101,10 +104,11 @@ def resolve_pair(
     s2_id_sel = best_s2["id"]
     print(f"[PAIR] S2 selecionado: {s2_id_sel} (Δt ASTER={best_s2['delta_days']} dias)")
 
-    if return_best and return_candidates:
-        return aster_id_sel, s2_id_sel, best_aster, best_s2, aster_candidates, s2_candidates
-    if return_best:
-        return aster_id_sel, s2_id_sel, best_aster, best_s2
+    if return_best or return_candidates:
+        base = (aster_id_sel, s2_id_sel, best_aster, best_s2)
+        if return_candidates:
+            return (*base, aster_candidates, s2_candidates)
+        return base
     return aster_id_sel, s2_id_sel
 
 
