@@ -1,5 +1,20 @@
 # Plano para o projeto de mapeamento litológico preditivo
 
+## 0. Introdução
+
+Recebe Folha ID (Ex.: `SB21_ZA_II2_NE`);
+Recebe Data do Aerogama (Ex.: `2008-06-15`);
+
+Busca por cenas ASTER que cubram a folha, preferindo catalogos de alto nível
+de tratamento que contenham as 6 bandas SWIR e 4 bandas VNIR buscando por mascara
+de nuvens.
+
+Depois lista as cenas que contem menos nuvens e encontra a que tem a data mais próxima
+da data do aerogama.
+
+
+Este processo deve ser feito para cenas Sentinel-2 L2A também.
+
 ## 1. Visão geral
 
 Queremos construir um **pipeline reprodutível** para mapeamento litológico preditivo, integrando:

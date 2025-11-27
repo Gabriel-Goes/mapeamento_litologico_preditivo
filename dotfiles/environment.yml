@@ -1,14 +1,14 @@
 # run: "conda env create --file  ~/PATH/environment.yml"  or "conda env create -f ~/PATH/environment.yml";
 # o ambiente conda será instalado com as seguintes bibliotecas:
 
-name: geologist_environment            # The name can be changed to anything of your like;
+name: geologia # The name can be changed to anything of your like;
 dependencies:
 
  #Data Treatment & Visualization:
 - pandas
 - numpy                           #{ Data visualization \
-- matplotlib                       
-- seaborn                         #  buth has more features than this};     
+- matplotlib
+- seaborn                         #  buth has more features than this};
 
 
 # Geospatial libraries:
@@ -34,3 +34,4 @@ dependencies:
 
 # machine learning
 - scikitlearn
+- verde
