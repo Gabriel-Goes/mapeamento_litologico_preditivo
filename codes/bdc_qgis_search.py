@@ -107,10 +107,14 @@ def fetch_collections(stac_url):
     r.raise_for_status()
     cols = r.json().get("collections", [])
     log(f"{len(cols)} coleções carregadas.")
-    # retorna campos essenciais
-    return [{"id": c.get("id",""),
-             "title": c.get("title","") or "",
-             "description": c.get("description","") or ""} for c in cols]
+    # retorna campos essenciais + info de nuvem
+    return [{
+        "id": c.get("id", ""),
+        "title": c.get("title", "") or "",
+        "description": c.get("description", "") or "",
+        "summaries": c.get("summaries", {}) or {},
+        "has_cloud_cover": "eo:cloud_cover" in (c.get("summaries", {}) or {}),
+    } for c in cols]
 
 def stac_search(stac_url, collections, aoi_geojson, datetime_str, max_cloud=None, limit=100, sort="desc"):
     url = stac_url.rstrip("/") + "/search"
@@ -190,10 +194,10 @@ class BDCDialog(QtWidgets.QDialog):
         self.cbProvider.addItem("BDC (INPE)", DEFAULT_STAC)
         self.cbProvider.addItem("ASTER (LP DAAC STAC)", ASTER_STAC)
         self.cbProvider.addItem("Personalizado", "")
-        self.cbProvider.setToolTip("Escolha o catálogo STAC: BDC ou ASTER (LP DAAC). Para outro, selecione Personalizado e edite a URL.")
+        self.cbProvider.setToolTip("Escolha o catálogo STAC: BDC ou ASTER (LP DAAC). Para outro, selecione Personalizado e edite a URL. Filtro de nuvem só é enviado quando o provedor/coleção suporta a propriedade eo:cloud_cover (BDC normalmente).")
 
         self.edStac = QtWidgets.QLineEdit(DEFAULT_STAC)
-        self.edStac.setToolTip("URL do catálogo STAC. Agora aceita BDC ou ASTER (LP DAAC), ou um endpoint personalizado.")
+        self.edStac.setToolTip("URL do catálogo STAC. Agora aceita BDC ou ASTER (LP DAAC), ou um endpoint personalizado. Em catálogos sem eo:cloud_cover (ex.: LPCLOUD/ASTER), o filtro de nuvem será ignorado.")
         self.btnCols = QtWidgets.QPushButton("Carregar coleções")
         self.edFilter = QtWidgets.QLineEdit()
         self.edFilter.setPlaceholderText("filtrar coleções… ex.: landsat, cbers, sentinel…")
@@ -216,6 +220,7 @@ class BDCDialog(QtWidgets.QDialog):
         self.edStart = QtWidgets.QDateEdit(QtCore.QDate.currentDate().addMonths(-6)); self.edStart.setDisplayFormat("yyyy-MM-dd"); self.edStart.setCalendarPopup(True)
         self.edEnd   = QtWidgets.QDateEdit(QtCore.QDate.currentDate()); self.edEnd.setDisplayFormat("yyyy-MM-dd"); self.edEnd.setCalendarPopup(True)
         self.spCloud = QtWidgets.QDoubleSpinBox(); self.spCloud.setRange(0,100); self.spCloud.setDecimals(1); self.spCloud.setValue(20.0)
+        self.spCloud.setToolTip("Filtro por nuvem (eo:cloud_cover) enviado apenas para provedores/coleções que anunciam esse campo. No ASTER/LPCLOUD o filtro é omitido.")
         self.spLimit = QtWidgets.QSpinBox(); self.spLimit.setRange(1, 10000); self.spLimit.setValue(200)
         self.cbAsc   = QtWidgets.QCheckBox("Mais antigas primeiro (asc)")
 
@@ -327,6 +332,23 @@ class BDCDialog(QtWidgets.QDialog):
                 for i in range(self.listCols.count())
                 if self.listCols.item(i).checkState()==QtCore.Qt.Checked]
 
+    def _collection_meta(self, coll_id):
+        for c in self._all_collections:
+            if c.get("id") == coll_id:
+                return c
+        return None
+
+    def _cloud_filter_allowed(self, selected_ids):
+        stac = self._current_stac().rstrip("/")
+        if stac == DEFAULT_STAC.rstrip("/"):
+            return True  # comportamento BDC mantido
+        if stac == ASTER_STAC.rstrip("/"):
+            return False  # LPCLOUD/ASTER não anuncia eo:cloud_cover
+        metas = [self._collection_meta(cid) for cid in selected_ids]
+        if not metas:
+            return False
+        return all(m and m.get("has_cloud_cover") for m in metas)
+
     # ---------- UI actions ----------
     def load_collections(self):
         try:
@@ -342,7 +364,12 @@ class BDCDialog(QtWidgets.QDialog):
             txt = f"{c['id']} — {c['title']}"
             it = QtWidgets.QListWidgetItem(txt)
             it.setData(QtCore.Qt.UserRole, c["id"])
-            it.setToolTip((c["description"] or "")[:800])
+            desc = (c["description"] or "")[:800]
+            if c.get("has_cloud_cover"):
+                desc += "\n[cloud cover disponível]"
+            else:
+                desc += "\n[sem eo:cloud_cover; filtro de nuvem será ignorado]"
+            it.setToolTip(desc)
             it.setCheckState(QtCore.Qt.Unchecked)
             self.listCols.addItem(it)
 
@@ -385,8 +412,11 @@ class BDCDialog(QtWidgets.QDialog):
         ok, zero = [], []
         for coll in cols:
             try:
+                allow_cloud = self._cloud_filter_allowed([coll])
+                if not allow_cloud:
+                    log(f"[PROBE] {coll}: filtro de nuvem omitido (sem eo:cloud_cover).")
                 js = stac_search(self._current_stac(), [coll], aoi_gj, dt,
-                                 max_cloud=float(self.spCloud.value()), limit=1,
+                                 max_cloud=float(self.spCloud.value()) if allow_cloud else None, limit=1,
                                  sort="asc" if self.cbAsc.isChecked() else "desc")
                 (ok if js.get("features") else zero).append(coll)
             except Exception:
@@ -402,8 +432,11 @@ class BDCDialog(QtWidgets.QDialog):
             QtWidgets.QMessageBox.warning(self, "AOI", str(e)); return
         dt = f"{self.edStart.date().toString('yyyy-MM-dd')}/{self.edEnd.date().toString('yyyy-MM-dd')}"
         try:
+            allow_cloud = self._cloud_filter_allowed(cols)
+            if not allow_cloud:
+                log("[SEARCH] Filtro de nuvem omitido (coleções/provedor sem eo:cloud_cover).")
             js = stac_search(self._current_stac(), cols, aoi_gj, dt,
-                             max_cloud=float(self.spCloud.value()), limit=int(self.spLimit.value()),
+                             max_cloud=float(self.spCloud.value()) if allow_cloud else None, limit=int(self.spLimit.value()),
                              sort="asc" if self.cbAsc.isChecked() else "desc")
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Erro /search", str(e)); return
