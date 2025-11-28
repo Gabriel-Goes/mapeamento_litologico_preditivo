@@ -1,3 +1,4 @@
+
 import logging
 import os
 from io import BytesIO
@@ -13,21 +14,23 @@ from rasterio.warp import transform_bounds
 import rasterio
 from rasterio.enums import Resampling
 from rasterio.errors import RasterioIOError
+from rasterio.windows import from_bounds
 import planetary_computer
 
 logging.basicConfig()
 logger = logging.getLogger("pystac_client")
 logger.setLevel(logging.INFO)
 
-ast_l1t_endpoints = {
-    "planetary_computer": (
-        "https://planetarycomputer.microsoft.com/api/stac/v1",
-        "aster-l1t",
-    ),
+# -------------------------------------------------
+# Endpoints
+# -------------------------------------------------
+
+# AST_07 L2 Surface Reflectance VNIR+SWIR V004 em LPCLOUD
+ast07_endpoints = {
     "nasa_lpdaac_lpcloud": (
         "https://cmr.earthdata.nasa.gov/stac/LPCLOUD",
-        "AST_L1T_004",
-    ),
+        "AST_07_004",
+    )
 }
 
 s2_endpoints = {
@@ -42,7 +45,6 @@ s2_endpoints = {
         "sentinel-s2-l2a-cogs",
     ),
 }
-
 
 # -------------------------------------------------
 # Helpers gerais
@@ -133,7 +135,7 @@ def pick_fullres_asset(item, prefer_keys=None):
 
         if any(t in mt for t in ("geotiff", "image/tiff", "image/geotiff")):
             return True
-        if any(t in mt for t in ("hdf", "hdf4", "hdf5")) or name == "aster_l1t":
+        if any(t in mt for t in ("hdf", "hdf4", "hdf5")):
             return True
         return False
 
@@ -206,67 +208,20 @@ def download_asset(item, asset_key, out_dir, overwrite=False):
     print("Concluído:", out_path)
     return out_path
 
-
 # -------------------------------------------------
-# ASTER
+# AST_07 (L2 reflectância)
 # -------------------------------------------------
 
-def search_ast_l1t(bbox=None, datetime=None, max_items=20):
-    resultados = {}
-
-    for name, (url, coll_id) in ast_l1t_endpoints.items():
-        print("\n==============================")
-        print(f"Endpoint: {name}")
-        print(f"URL: {url}")
-        print(f"Coleção: {coll_id}")
-        print("------------------------------")
-
-        try:
-            cat = Client.open(url)
-        except Exception as e:
-            print("Falha ao abrir catálogo:", e)
-            continue
-
-        try:
-            search = cat.search(
-                collections=[coll_id],
-                bbox=bbox,
-                datetime=datetime,
-                max_items=max_items,
-            )
-            items_raw = list(search.items())
-        except Exception as e:
-            print("Erro na busca:", e)
-            continue
-
-        items = []
-        for it in items_raw:
-            if name == "planetary_computer":
-                try:
-                    it = planetary_computer.sign(it)
-                except Exception as e:
-                    print("  falha ao assinar item ASTER:", it.id, e)
-            items.append(it)
-
-        resultados[name] = items
-        print(f"Total de itens retornados: {len(items)}")
-        for it in items[:5]:
-            dt = it.properties.get("datetime")
-            print(f"- {it.id} | datetime={dt}")
-
-    return resultados
-
-
-def search_ast_l1t_cloudfiltered(
+def search_ast07_cloudfiltered(
     bbox=None,
     datetime=None,
-    max_items=50,
+    max_items=100,
     cloud_max=10.0,
     min_coverage=0.0,
 ):
     resultados = {}
 
-    for name, (url, coll_id) in ast_l1t_endpoints.items():
+    for name, (url, coll_id) in ast07_endpoints.items():
         print("\n==============================")
         print(f"Endpoint: {name}")
         print(f"URL: {url}")
@@ -293,14 +248,7 @@ def search_ast_l1t_cloudfiltered(
             print("Erro na busca:", e)
             continue
 
-        items = []
-        for it in items_raw:
-            if name == "planetary_computer":
-                try:
-                    it = planetary_computer.sign(it)
-                except Exception as e:
-                    print("  falha ao assinar item ASTER:", it.id, e)
-            items.append(it)
+        items = list(items_raw)
 
         selecionados = []
         for it in items:
@@ -332,7 +280,7 @@ def search_ast_l1t_cloudfiltered(
             f"{len(selecionados)}"
         )
         for it, cc_val, cov in selecionados[:5]:
-            dt = it.datetime
+            dt = _get_item_datetime(it)
             cov_pct = cov * 100 if cov is not None else None
             print(
                 f"- {it.id} | datetime={dt} | cloud={cc_val} | coverage={cov_pct:.1f}%"
@@ -341,85 +289,82 @@ def search_ast_l1t_cloudfiltered(
     return resultados
 
 
-def show_item_fullres_with_bbox(item, bbox_wgs84, band_key=None, prefer_keys=None):
+def show_ast07_clipped_to_bbox(
+    item,
+    bbox_wgs84,
+    band_key=None,
+    prefer_keys=None,
+    max_size=800,
+):
     prefer_keys = prefer_keys or []
     if band_key is None:
         band_key, asset = pick_fullres_asset(item, prefer_keys=prefer_keys)
     else:
         asset = item.assets[band_key]
 
+    if asset is None:
+        print("Nenhum asset fullres encontrado para", item.id)
+        show_item_quicklook(item)
+        return
+
     href = _ensure_http_href(asset.href)
     print(f"  asset_fullres={band_key} -> {href}")
 
     try:
         with rasterio.open(href) as src:
-            data = src.read()
-            if data.ndim == 3 and data.shape[0] in (3, 4):
-                img = data[:3].transpose(1, 2, 0)
+            if src.crs is not None:
+                bbox_proj = transform_bounds("EPSG:4326", src.crs, *bbox_wgs84, densify_pts=21)
             else:
-                img = data[0]
-            crs = src.crs
-            if crs is None:
-                geo = _geom_from_item(item)
-                if geo is not None and not geo.is_empty:
-                    minx, miny, maxx, maxy = geo.bounds
-                    extent = (minx, maxx, miny, maxy)
-                    bbox_proj = bbox_wgs84
-                else:
-                    extent = None
-                    bbox_proj = None
+                bbox_proj = bbox_wgs84
+
+            window = from_bounds(*bbox_proj, transform=src.transform)
+            window = window.round_offsets().round_lengths()
+
+            w = int(window.width)
+            h = int(window.height)
+            if w <= 0 or h <= 0:
+                print("  window vazia para esta cena (fora do bbox).")
+                show_item_quicklook(item)
+                return
+
+            scale = min(max_size / w, max_size / h, 1.0)
+            out_w = max(1, int(w * scale))
+            out_h = max(1, int(h * scale))
+
+            if src.count >= 3:
+                data = src.read(
+                    [1, 2, 3],
+                    window=window,
+                    out_shape=(3, out_h, out_w),
+                    resampling=Resampling.bilinear,
+                )
+                img = data.transpose(1, 2, 0)
             else:
-                extent = (
-                    src.bounds.left,
-                    src.bounds.right,
-                    src.bounds.bottom,
-                    src.bounds.top,
+                data = src.read(
+                    1,
+                    window=window,
+                    out_shape=(out_h, out_w),
+                    resampling=Resampling.bilinear,
                 )
-                bbox_proj = transform_bounds(
-                    "EPSG:4326", crs, *bbox_wgs84, densify_pts=21
-                )
+                img = data
+
+            left, bottom, right, top = rasterio.windows.bounds(window, src.transform)
+            extent = (left, right, bottom, top)
+
     except RasterioIOError as e:
         print("  erro ao abrir asset com rasterio:", e)
         print("  fallback para quicklook simples.")
         show_item_quicklook(item)
         return
 
-    plt.figure(figsize=(7, 7))
-    if extent is not None:
-        plt.imshow(img, extent=extent, origin="upper")
-    else:
-        plt.imshow(img, origin="upper")
-
-    if bbox_proj is not None:
-        x_min, y_min, x_max, y_max = bbox_proj
-        xs = [x_min, x_max, x_max, x_min, x_min]
-        ys = [y_min, y_min, y_max, y_max, y_min]
-        plt.plot(xs, ys, linewidth=2)
-
-    plt.title(item.id)
+    plt.figure(figsize=(6, 6))
+    plt.imshow(img, extent=extent, origin="upper")
+    plt.title(item.id + " (recorte folha)")
     plt.axis("equal")
     plt.show()
 
 
-def browse_ast_l1t_fullres_with_bbox(
-    resultados, bbox_wgs84, provider="nasa_lpdaac_lpcloud", band_key=None
-):
-    items = resultados.get(provider, [])
-    if not items:
-        print("Nenhum item encontrado para provider:", provider)
-        return
-
-    n = len(items)
-    for idx, it in enumerate(items, start=1):
-        cc = get_cloud_cover(it)
-        print(f"\n[{idx}/{n}] {it.id} | datetime={it.datetime} | cloud={cc}")
-        show_item_fullres_with_bbox(it, bbox_wgs84, band_key=band_key)
-        cmd = input("Enter = próxima, 'q' = sair: ").strip().lower()
-        if cmd == "q":
-            break
-
-
-def select_best_ast_l1t_scenes(
+def select_best_ast07_scenes(
     resultados,
     bbox_wgs84,
     provider="nasa_lpdaac_lpcloud",
@@ -456,7 +401,15 @@ def select_best_ast_l1t_scenes(
             print(f"\n[{idx}/{n}] {it.id} | datetime={dt} | cloud={cc} | delta_days={delta_days}")
         else:
             print(f"\n[{idx}/{n}] {it.id} | datetime={dt} | cloud={cc}")
-        show_item_fullres_with_bbox(it, bbox_wgs84, band_key=band_key)
+
+        show_ast07_clipped_to_bbox(
+            it,
+            bbox_wgs84=bbox_wgs84,
+            band_key=band_key,
+            prefer_keys=None,
+            max_size=800,
+        )
+
         cmd = input("Selecionar esta cena? [y = sim / n = não / q = sair]: ").strip().lower()
         if cmd == "q":
             break
@@ -465,14 +418,13 @@ def select_best_ast_l1t_scenes(
             print(f"  -> Cena adicionada à lista: {it.id}")
 
     if not selected:
-        print("\nNenhuma cena ASTER selecionada.")
+        print("\nNenhuma cena AST_07 selecionada.")
     else:
-        print("\nCenas ASTER selecionadas (em ordem de escolha):")
+        print("\nCenas AST_07 selecionadas (em ordem de escolha):")
         for i, it in enumerate(selected, start=1):
             print(f"  {i:02d} - {it.id}")
 
     return selected
-
 
 # -------------------------------------------------
 # Sentinel-2
@@ -692,7 +644,7 @@ def search_s2_cloudfiltered(
             f"{len(selecionados)}"
         )
         for it, cc_val, cov in selecionados[:5]:
-            dt = it.datetime
+            dt = _get_item_datetime(it)
             cov_pct = cov * 100 if cov is not None else None
             print(
                 f"- {it.id} | datetime={dt} | cloud={cc_val} | coverage={cov_pct:.1f}%"
@@ -757,28 +709,22 @@ def select_best_s2_scenes(
 
     return selected
 
-
 # -------------------------------------------------
-# Exemplo de uso completo
+# Exemplo de uso completo (AST_07 + S2)
 # -------------------------------------------------
 
-def example_downloads(selected_aster, selected_s2):
-    if selected_aster:
-        it_ast = selected_aster[0]
-        print("\n--- ASTER: assets disponíveis na primeira cena selecionada ---")
+def example_downloads(selected_ast07, selected_s2):
+    if selected_ast07:
+        it_ast = selected_ast07[0]
+        print("\n--- AST_07: assets disponíveis na primeira cena selecionada ---")
         print_item_assets(it_ast)
 
-        possible_aster_keys = ["ASTER_L1T", "AST_L1T", "AST_L1T_004", "AST_L1T_003"]
-        ast_key = next((k for k in possible_aster_keys if k in it_ast.assets), None)
-
-        if ast_key is None:
-            ast_key, _ = pick_fullres_asset(it_ast)
-
+        ast_key, _ = pick_fullres_asset(it_ast)
         if ast_key is not None:
-            ast_path = download_asset(it_ast, ast_key, "./ASTER_raw")
-            print("ASTER bruto baixado em:", ast_path)
+            ast_path = download_asset(it_ast, ast_key, "./AST07_raw")
+            print("AST_07 bruto baixado em:", ast_path)
         else:
-            print("Não foi possível inferir um asset de dado ASTER; escolha a chave manualmente.")
+            print("Não foi possível inferir um asset de dado AST_07.")
 
     if selected_s2:
         it_s2 = selected_s2[0]
@@ -796,27 +742,27 @@ def example_downloads(selected_aster, selected_s2):
 
 
 def main():
-    # bbox_wgs84 = (-56.375, -6.125, -56.25, -6.0)
+    # bbox da folha em WGS84 (ajuste para sua folha)
     bbox_wgs84 = (-56.25, -6.125, -56.125, -6.0)
     target_date_str = "2008-06-15"
     target_dt = datetime.fromisoformat(target_date_str).replace(tzinfo=timezone.utc)
 
     print("====================================================")
-    print("PIPELINE DE SELEÇÃO DE CENAS: ASTER + Sentinel-2")
+    print("PIPELINE DE SELEÇÃO DE CENAS: AST_07 (L2) + Sentinel-2")
     print(f"Folha (bbox WGS84): {bbox_wgs84}")
     print(f"Data alvo (aerogeofísica): {target_date_str}")
     print("====================================================")
 
-    print("\n=== ASTER L1T ===")
-    resultados_aster = search_ast_l1t_cloudfiltered(
+    print("\n=== ASTER AST_07 (L2 Surface Reflectance V004) ===")
+    resultados_ast07 = search_ast07_cloudfiltered(
         bbox=bbox_wgs84,
         datetime=None,
         max_items=200,
         cloud_max=5.0,
         min_coverage=0.90,
     )
-    selected_aster = select_best_ast_l1t_scenes(
-        resultados_aster,
+    selected_ast07 = select_best_ast07_scenes(
+        resultados_ast07,
         bbox_wgs84=bbox_wgs84,
         provider="nasa_lpdaac_lpcloud",
         band_key=None,
@@ -843,8 +789,8 @@ def main():
     print("RESUMO DAS CENAS SELECIONADAS")
     print("====================================================\n")
 
-    print("ASTER (ordem de escolha):")
-    for i, it in enumerate(selected_aster, start=1):
+    print("AST_07 (ordem de escolha):")
+    for i, it in enumerate(selected_ast07, start=1):
         dt = _get_item_datetime(it)
         print(f"  {i:02d} - {it.id} | datetime={dt}")
 
@@ -856,7 +802,7 @@ def main():
     print("\n====================================================")
     print("DOWNLOAD DE EXEMPLO DOS DADOS BRUTOS")
     print("====================================================")
-    example_downloads(selected_aster, selected_s2)
+    example_downloads(selected_ast07, selected_s2)
 
 
 if __name__ == "__main__":

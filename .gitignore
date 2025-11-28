@@ -17,3 +17,4 @@ codes/recortes_orbitais/*supercube_*.nc
 codes/recortes_orbitais/logs/*
 *.tif.meta.json
 *.npz
+*pc_cache/*

@@ -1,0 +1,48 @@
+2025-11-27T11:41:05.681Z | INFO | PreditorTerra | MainThread | setup_logger:163 | Logger inicializado | dir=/home/ggrl/projetos/PreditorTerra/logs | file=/home/ggrl/projetos/PreditorTerra/logs/preditor_terra.log | level=INFO
+2025-11-27T11:41:21.319Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: This plugin supports grabbing the mouse only for popup windows
+2025-11-27T11:41:21.336Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: This plugin supports grabbing the mouse only for popup windows
+2025-11-27T11:41:21.338Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T11:41:54.450Z | INFO | PreditorTerra | MainThread | _log:523 | 83 coleção(ões) listadas.
+2025-11-27T11:41:58.393Z | INFO | PreditorTerra | MainThread | _log:523 | 0 coleção(ões) listadas.
+2025-11-27T11:42:03.751Z | INFO | PreditorTerra | MainThread | _log:523 | 1 coleção(ões) listadas.
+2025-11-27T11:42:08.723Z | INFO | PreditorTerra | MainThread | _log:523 | Selecione folhas para definir a AOI.
+2025-11-27T11:42:16.435Z | INFO | PreditorTerra | MainThread | _log:523 | Selecione folhas para definir a AOI.
+2025-11-27T11:42:28.371Z | INFO | PreditorTerra | MainThread | _log:523 | Selecione folhas para definir a AOI.
+2025-11-27T11:42:29.043Z | INFO | PreditorTerra | MainThread | _log:523 | Selecione folhas para definir a AOI.
+2025-11-27T11:43:12.236Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:43:12.238Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:43:13.388Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:43:13.390Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:43:25.627Z | INFO | PreditorTerra | MainThread | _log:523 | Selecione coleções.
+2025-11-27T11:43:27.043Z | INFO | PreditorTerra | MainThread | _log:523 | Selecione coleções.
+2025-11-27T11:43:30.608Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:43:30.610Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:43:31.748Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:43:31.750Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:43:40.732Z | INFO | PreditorTerra | MainThread | _log:523 | 5 coleção(ões) listadas.
+2025-11-27T11:43:47.534Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:43:47.537Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:44:02.643Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:44:02.646Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:44:03.746Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:44:03.749Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:44:04.712Z | INFO | PreditorTerra | MainThread | _log:523 | AOI bbox (WGS84): [-56.125, -6.375, -56.0, -6.25]
+2025-11-27T11:44:04.715Z | INFO | PreditorTerra | MainThread | _log:523 | Erro busca STAC: _bdc_search_items() got an unexpected keyword argument 'datetime'
+2025-11-27T11:44:05.914Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T11:44:05.919Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T11:45:13.229Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T11:45:13.233Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T11:48:09.987Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T11:48:09.996Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T13:17:39.804Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T15:28:28.789Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T15:28:28.797Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T15:56:20.067Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T15:56:20.073Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T15:56:44.380Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T15:56:44.387Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T16:00:54.707Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T16:00:54.714Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-27T16:02:01.909Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: This plugin supports grabbing the mouse only for popup windows
+2025-11-27T16:02:01.925Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: This plugin supports grabbing the mouse only for popup windows
+2025-11-27T18:10:51.111Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
