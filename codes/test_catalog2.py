@@ -1,4 +1,3 @@
-
 import logging
 import os
 from io import BytesIO
@@ -13,7 +12,7 @@ from shapely.geometry import shape, box
 from rasterio.warp import transform_bounds
 import rasterio
 from rasterio.enums import Resampling
-from rasterio.errors import RasterioIOError
+from rasterio.errors import RasterioIOError, WindowError
 from rasterio.windows import from_bounds
 import planetary_computer
 
@@ -127,16 +126,32 @@ def pick_fullres_asset(item, prefer_keys=None):
         name = key.lower()
         mt = (a.media_type or "").lower()
         roles = [r.lower() for r in (a.roles or [])]
+        href = (a.href or "").lower()
+        href_noq = href.split("?")[0]
+        ext = href_noq.split(".")[-1] if "." in href_noq else ""
 
+        # ignorar thumbnails / browse / preview
         if any(r in ("thumbnail", "browse", "preview", "overview", "visual") for r in roles):
             return False
-        if any(w in name for w in ("browse", "thumb", "preview")):
+        if any(w in name for w in ("browse", "thumb", "preview", "overview")):
             return False
 
-        if any(t in mt for t in ("geotiff", "image/tiff", "image/geotiff")):
+        # tipos de dado (GeoTIFF, HDF, NetCDF)
+        if any(t in mt for t in (
+            "geotiff",
+            "image/tiff",
+            "image/geotiff",
+            "application/x-hdf",
+            "application/x-hdf4",
+            "application/x-hdf5",
+            "application/netcdf",
+        )):
             return True
-        if any(t in mt for t in ("hdf", "hdf4", "hdf5")):
+
+        # fallback pela extensão
+        if ext in ("tif", "tiff", "hdf", "hdf4", "hdf5", "nc"):
             return True
+
         return False
 
     for key in prefer_keys:
@@ -312,44 +327,86 @@ def show_ast07_clipped_to_bbox(
 
     try:
         with rasterio.open(href) as src:
-            if src.crs is not None:
-                bbox_proj = transform_bounds("EPSG:4326", src.crs, *bbox_wgs84, densify_pts=21)
-            else:
-                bbox_proj = bbox_wgs84
-
-            window = from_bounds(*bbox_proj, transform=src.transform)
-            window = window.round_offsets().round_lengths()
-
-            w = int(window.width)
-            h = int(window.height)
-            if w <= 0 or h <= 0:
-                print("  window vazia para esta cena (fora do bbox).")
+            if src.crs is None or src.transform is None:
+                print("  asset AST_07 não georreferenciado (sem CRS/transform); usando quicklook.")
                 show_item_quicklook(item)
                 return
 
-            scale = min(max_size / w, max_size / h, 1.0)
-            out_w = max(1, int(w * scale))
-            out_h = max(1, int(h * scale))
+            try:
+                bbox_proj = transform_bounds("EPSG:4326", src.crs, *bbox_wgs84, densify_pts=21)
+            except Exception as e:
+                print("  erro ao reprojetar bbox:", e)
+                bbox_proj = bbox_wgs84
 
-            if src.count >= 3:
-                data = src.read(
-                    [1, 2, 3],
-                    window=window,
-                    out_shape=(3, out_h, out_w),
-                    resampling=Resampling.bilinear,
+            try:
+                window = from_bounds(*bbox_proj, transform=src.transform)
+                window = window.round_offsets().round_lengths()
+            except WindowError as e:
+                print("  erro ao criar window a partir do bbox:", e)
+                print("  usando cena inteira sem recorte.")
+                window = None
+
+            if window is not None:
+                w = int(window.width)
+                h = int(window.height)
+                if w <= 0 or h <= 0:
+                    print("  window vazia; usando cena inteira.")
+                    window = None
+
+            if window is None:
+                w = src.width
+                h = src.height
+                scale = min(max_size / w, max_size / h, 1.0)
+                out_w = max(1, int(w * scale))
+                out_h = max(1, int(h * scale))
+
+                if src.count >= 3:
+                    data = src.read(
+                        [1, 2, 3],
+                        out_shape=(3, out_h, out_w),
+                        resampling=Resampling.bilinear,
+                    )
+                    img = data.transpose(1, 2, 0)
+                else:
+                    data = src.read(
+                        1,
+                        out_shape=(out_h, out_w),
+                        resampling=Resampling.bilinear,
+                    )
+                    img = data
+
+                extent = (
+                    src.bounds.left,
+                    src.bounds.right,
+                    src.bounds.bottom,
+                    src.bounds.top,
                 )
-                img = data.transpose(1, 2, 0)
             else:
-                data = src.read(
-                    1,
-                    window=window,
-                    out_shape=(out_h, out_w),
-                    resampling=Resampling.bilinear,
-                )
-                img = data
+                w = int(window.width)
+                h = int(window.height)
+                scale = min(max_size / w, max_size / h, 1.0)
+                out_w = max(1, int(w * scale))
+                out_h = max(1, int(h * scale))
 
-            left, bottom, right, top = rasterio.windows.bounds(window, src.transform)
-            extent = (left, right, bottom, top)
+                if src.count >= 3:
+                    data = src.read(
+                        [1, 2, 3],
+                        window=window,
+                        out_shape=(3, out_h, out_w),
+                        resampling=Resampling.bilinear,
+                    )
+                    img = data.transpose(1, 2, 0)
+                else:
+                    data = src.read(
+                        1,
+                        window=window,
+                        out_shape=(out_h, out_w),
+                        resampling=Resampling.bilinear,
+                    )
+                    img = data
+
+                left, bottom, right, top = rasterio.windows.bounds(window, src.transform)
+                extent = (left, right, bottom, top)
 
     except RasterioIOError as e:
         print("  erro ao abrir asset com rasterio:", e)

@@ -32,3 +32,5 @@
 2025-11-28T15:13:29.259Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
 2025-11-28T15:13:41.635Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
 2025-11-28T15:14:57.941Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-28T16:33:30.490Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: edit: editing failed
+2025-11-28T16:34:45.850Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: edit: editing failed
