@@ -14,7 +14,7 @@ from datetime import datetime
 from osgeo import gdal
 
 import earthaccess as ea
-from shapely.geometry import shape as shp_shape
+from shapely.geometry import shape as shp_shape, Polygon
 from db_conn import get_folha_geom_geojson
 
 import time
@@ -56,14 +56,12 @@ def attach_log_widget(widget):
             pass
 
     try:
-        # evita múltiplas conexões duplicadas
         LOG_EMITTER.sig_log.disconnect()
     except Exception:
         pass
 
     LOG_EMITTER.sig_log.connect(_append)
 
-    # replay do buffer para o widget
     try:
         for line in LOG_BUFFER:
             widget.appendPlainText(line)
@@ -77,25 +75,20 @@ def log(msg):
     global LOG_EMITTER
     line = datetime.now().strftime("[%H:%M:%S] ") + str(msg)
 
-    # stdout (console do QGIS)
     print(line)
 
-    # buffer em memória
     LOG_BUFFER.append(line)
 
-    # envia para o widget via sinal (thread-safe)
     if LOG_EMITTER is not None:
         try:
             LOG_EMITTER.sig_log.emit(line)
         except Exception:
             pass
 
-    # gravação em arquivo (persistente mesmo se o QGIS travar)
     try:
         with open(LOG_FILE_PATH, "a", encoding="utf-8") as f:
             f.write(line + "\n")
     except Exception:
-        # em caso de erro (permissão, disco cheio etc.), não derruba o plugin
         pass
 
 
@@ -108,9 +101,6 @@ def safe_json(obj):
 
 
 def _safe_slug(value, fallback=""):
-    """
-    Gera um 'slug' simples para usar em nomes de arquivo: apenas [A-Za-z0-9_.-].
-    """
     val = (value or "").strip()
     if not val:
         return fallback
@@ -118,10 +108,6 @@ def _safe_slug(value, fallback=""):
 
 
 def _build_query_id(prefix, params_dict):
-    """
-    Constrói um identificador estável da query, a partir de um dicionário de parâmetros.
-    Usa JSON ordenado + SHA1 → prefix_hash (12 hex).
-    """
     try:
         payload = json.dumps(params_dict, sort_keys=True, ensure_ascii=False)
     except Exception:
@@ -328,10 +314,6 @@ def open_raster(href, name=None, outdir=None, just_download=False):
 
 # -------------------- TASKS: download para clip (ASTER) --------------------
 def _download_for_clip(task, href, local):
-    """
-    Função executada em background por QgsTask.fromFunction para baixar o raster
-    em disco antes do clip. Não usa QGIS API (apenas requests + I/O).
-    """
     gdal_tune_for_http()
     log(f"[TASK-CLIP] Iniciando download para clip: {href} -> {local}")
 
@@ -347,9 +329,8 @@ def _download_for_clip(task, href, local):
                 log("[TASK-CLIP] Content-Length não informado; progresso absoluto apenas.")
 
             downloaded = 0
-            next_report = 50 * 1024 * 1024  # ~50 MB
+            next_report = 50 * 1024 * 1024
 
-            # garante diretório
             os.makedirs(os.path.dirname(local), exist_ok=True)
 
             with open(local, "wb") as f:
@@ -393,10 +374,6 @@ def _download_for_clip(task, href, local):
 
 
 def _on_download_for_clip_finished(exception, result, href, local, name, dlg):
-    """
-    Callback chamado no thread principal após o término da tarefa.
-    Se download OK, dispara o clip síncrono + adição ao QGIS.
-    """
     if exception is not None:
         log(f"[TASK-CLIP] Exceção durante download {href}: {exception}")
         return
@@ -422,7 +399,6 @@ class BDCDialog(QtWidgets.QDialog):
         self.setWindowTitle("BDC/ASTER – Listar/Filtrar/Selecionar dados (quadícula)")
         self.resize(1000, 680)
 
-        # Linha de topo
         self.cbProvider = QtWidgets.QComboBox()
         self.cbProvider.addItem("BDC (INPE)", DEFAULT_STAC)
         self.cbProvider.addItem("ASTER (LP DAAC STAC)", ASTER_STAC)
@@ -443,23 +419,19 @@ class BDCDialog(QtWidgets.QDialog):
         self.btnApplyFilter = QtWidgets.QPushButton("Aplicar filtro")
         self.btnSelectAll = QtWidgets.QPushButton("Selecionar todas")
 
-        # Lista de coleções
         self.listCols = QtWidgets.QListWidget()
         self.listCols.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.listCols.setAlternatingRowColors(True)
 
-        # Origem da AOI
         self.rbSel = QtWidgets.QRadioButton("Usar seleção da camada ativa")
         self.rbCsv = QtWidgets.QRadioButton("Usar quadricula.csv")
         self.rbSel.setChecked(True)
         self.btnGrid = QtWidgets.QPushButton("Escolher CSV…")
         self.labGrid = QtWidgets.QLabel("(nenhum)")
 
-        # Folha (opcional, DB)
         self.edFolha = QtWidgets.QLineEdit()
         self.edFolha.setPlaceholderText("Código da folha (ex.: SB21_ZA_II1_NE)")
 
-        # Parâmetros de busca
         self.edStart = QtWidgets.QDateEdit(QtCore.QDate.currentDate().addMonths(-6))
         self.edStart.setDisplayFormat("yyyy-MM-dd")
         self.edStart.setCalendarPopup(True)
@@ -479,32 +451,31 @@ class BDCDialog(QtWidgets.QDialog):
         self.spLimit.setValue(200)
         self.cbAsc = QtWidgets.QCheckBox("Mais antigas primeiro (asc)")
 
-        # Ações de busca
         self.btnProbe = QtWidgets.QPushButton("Provar (1 item/coleção)")
         self.btnSearch = QtWidgets.QPushButton("Listar dados")
 
-        # Tabela de resultados
-        self.table = QtWidgets.QTableWidget(0, 8)
+        # agora 9 colunas: adicionamos coverage_ratio
+        self.table = QtWidgets.QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels(
-            ["collection", "item_id", "datetime", "cloud_cover", "bbox", "assets", "href_tif", "all_hrefs"]
+            [
+                "collection", "item_id", "datetime", "cloud_cover",
+                "bbox", "assets", "href_tif", "all_hrefs", "coverage_ratio"
+            ]
         )
         self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
 
-        # Log de execução
         self.txtLog = QtWidgets.QPlainTextEdit()
         self.txtLog.setReadOnly(True)
         self.txtLog.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
         self.txtLog.setPlaceholderText("Log de execução (funções, parâmetros, requisições).")
 
-        # Saída/ações finais
         self.btnAdd = QtWidgets.QPushButton("Visualizar selecionados no QGIS")
         self.btnDl = QtWidgets.QPushButton("Baixar selecionados")
         self.cbAllAssets = QtWidgets.QCheckBox("Baixar todos assets dos itens")
         self.btnOutdir = QtWidgets.QPushButton("Pasta de saída…")
         self.labOutdir = QtWidgets.QLabel(os.path.expanduser("~"))
 
-        # Layouts
         top = QtWidgets.QHBoxLayout()
         top.addWidget(QtWidgets.QLabel("Catálogo STAC (BDC/ASTER):"))
         top.addWidget(self.cbProvider)
@@ -562,13 +533,11 @@ class BDCDialog(QtWidgets.QDialog):
         lay.addWidget(self.txtLog, 1)
         lay.addLayout(bottom)
 
-        # state
         self.rows = None
         self.aoi = None
         self._all_collections = []
-        self._sel_layer_ = None  # camada atual acompanhada
+        self._sel_layer_ = None
 
-        # signals
         self.btnCols.clicked.connect(self.load_collections)
         self.btnApplyFilter.clicked.connect(self.apply_filter)
         self.btnSelectAll.clicked.connect(self.select_all_cols)
@@ -587,7 +556,6 @@ class BDCDialog(QtWidgets.QDialog):
         attach_log_widget(self.txtLog)
         log("[BDCDialog] Diálogo iniciado.")
 
-        # Sincroniza Folha (DB)/AOI com a camada e seleção atuais
         self._on_current_layer_changed(iface.activeLayer())
 
     # ---------- helpers ----------
@@ -613,7 +581,6 @@ class BDCDialog(QtWidgets.QDialog):
         log("[CALL] BDCDialog._aster_search_bbox()")
         fol = (self.edFolha.text() or "").strip()
 
-        # Se Folha(DB) estiver preenchida, tenta usar a geometria vinda do banco
         if fol:
             try:
                 gj = get_folha_geom_geojson(fol)
@@ -625,7 +592,6 @@ class BDCDialog(QtWidgets.QDialog):
             except Exception as e:
                 log(f"[ASTER] Erro ao obter geometria da folha {fol}: {e}")
 
-        # Fallback: usa AOI atual
         if self.aoi is None:
             self._build_aoi()
 
@@ -672,10 +638,6 @@ class BDCDialog(QtWidgets.QDialog):
             self.cbProvider.blockSignals(False)
 
     def _update_aoi_from_selection(self, layer):
-        """
-        Atualiza self.aoi (em EPSG:4326) e o campo Folha(DB) a partir da seleção
-        da camada 'layer'. É usado tanto em _build_aoi quanto no slot de seleção.
-        """
         if not isinstance(layer, QgsVectorLayer):
             raise RuntimeError("Camada ativa não é vetorial. Selecione feições em uma camada vetorial.")
 
@@ -929,6 +891,25 @@ class BDCDialog(QtWidgets.QDialog):
         cloud_max = float(self.spCloud.value())
         fol = (self.edFolha.text() or "").strip()
 
+        # geometria da folha (para cálculo de cobertura)
+        folha_geom = None
+        if fol:
+            try:
+                gj_f = get_folha_geom_geojson(fol)
+                folha_geom = shp_shape(gj_f)
+                log(f"[ASTER] Geometria da folha {fol} carregada para teste de cobertura.")
+            except Exception as e:
+                log(f"[ASTER] Não foi possível carregar geom da folha {fol}: {e}")
+        if folha_geom is None and self.aoi is not None:
+            try:
+                gj_aoi = geojson_from_qgsgeom(self.aoi)
+                folha_geom = shp_shape(gj_aoi)
+                log("[ASTER] Usando AOI como geometria de referência para cobertura.")
+            except Exception as e:
+                log(f"[ASTER] Não foi possível converter AOI para geometria shapely: {e}")
+        if folha_geom is not None and folha_geom.area <= 0:
+            log("[ASTER] Aviso: área da geometria de referência (folha/AOI) é zero ou inválida.")
+
         query_params = {
             "provider": "ASTER_07XT_earthaccess",
             "bbox": bbox,
@@ -943,11 +924,13 @@ class BDCDialog(QtWidgets.QDialog):
         log(f"[ASTER] Busca AST_07XT bbox={bbox}, temporal={temporal}, nuvem<={cloud_max}")
 
         try:
+            px_, py_ = folha_geom.centroid.x, folha_geom.centroid.y
             granules = list(
                 ea.search_data(
                     short_name="AST_07XT",
                     version="004",
-                    bounding_box=bbox,
+                    # bounding_box=bbox,
+                    point=(px_, py_),
                     temporal=temporal,
                     cloud_hosted=True,
                 )
@@ -991,6 +974,8 @@ class BDCDialog(QtWidgets.QDialog):
         self.table.setRowCount(0)
         out = []
 
+        EPS = 1e-3  # tolerância numérica para razão ~ 1.0
+
         for g in granules_f:
             umm = g.get("umm", {})
 
@@ -1007,6 +992,7 @@ class BDCDialog(QtWidgets.QDialog):
                 dtm = r.get("BeginningDateTime", "")
 
             bbox_g = []
+            granule_geom = None
             try:
                 sp = umm.get("SpatialExtent", {})
                 hs = sp.get("HorizontalSpatialDomain", {})
@@ -1017,8 +1003,29 @@ class BDCDialog(QtWidgets.QDialog):
                     xs = [p["Longitude"] for p in pts]
                     ys = [p["Latitude"] for p in pts]
                     bbox_g = [min(xs), min(ys), max(xs), max(ys)]
-            except Exception:
+                    coords = list(zip(xs, ys))
+                    if len(coords) >= 3:
+                        granule_geom = Polygon(coords)
+            except Exception as e:
+                log(f"[ASTER] Erro ao extrair footprint do granule {iid}: {e}")
                 bbox_g = []
+
+            coverage_ratio = None
+            if folha_geom is not None and granule_geom is not None and folha_geom.area > 0:
+                try:
+                    inter = folha_geom.intersection(granule_geom)
+                    inter_area = inter.area
+                    folha_area = folha_geom.area
+                    coverage_ratio = inter_area / folha_area if folha_area > 0 else 0.0
+                    log(
+                        f"[ASTER] {iid}: inter_area={inter_area:.6f}, folha_area={folha_area:.6f}, "
+                        f"coverage_ratio={coverage_ratio:.3f}"
+                    )
+                    if coverage_ratio < 1.0 - EPS:
+                        log(f"[ASTER] {iid}: descartado por cobertura < 100%.")
+                        continue
+                except Exception as e:
+                    log(f"[ASTER] Falha ao calcular cobertura para {iid}: {e}")
 
             hrefs = []
             try:
@@ -1038,6 +1045,7 @@ class BDCDialog(QtWidgets.QDialog):
                 "data_links",
                 best_href,
                 json.dumps(hrefs),
+                "" if coverage_ratio is None else f"{coverage_ratio:.3f}",
             ]
             for c, v in enumerate(vals):
                 self.table.setItem(r, c, QtWidgets.QTableWidgetItem(v))
@@ -1051,6 +1059,7 @@ class BDCDialog(QtWidgets.QDialog):
                 "assets": "data_links",
                 "href_tif": best_href,
                 "all_hrefs": hrefs,
+                "coverage_ratio": coverage_ratio,
             })
 
         outdir = self.labOutdir.text().strip()
@@ -1058,7 +1067,7 @@ class BDCDialog(QtWidgets.QDialog):
         suffix = _safe_slug(fol, "aoi")
         out_csv = os.path.join(outdir, f"{query_id}_{suffix}.csv")
 
-        log(f"[ASTER] Gravando CSV de granules: {out_csv}")
+        log(f"[ASTER] Gravando CSV de granules (com coverage_ratio): {out_csv}")
         with open(out_csv, "w", newline="", encoding="utf-8") as f:
             wr = csv.DictWriter(
                 f,
@@ -1066,7 +1075,7 @@ class BDCDialog(QtWidgets.QDialog):
                     "query_id", "query_provider", "query_start", "query_end",
                     "query_cloud_max", "query_folha", "query_bbox",
                     "collection", "item_id", "datetime", "cloud_cover",
-                    "bbox", "assets", "href_tif", "all_hrefs",
+                    "bbox", "assets", "href_tif", "all_hrefs", "coverage_ratio",
                 ],
             )
             wr.writeheader()
@@ -1087,22 +1096,18 @@ class BDCDialog(QtWidgets.QDialog):
                     "assets": r["assets"],
                     "href_tif": r["href_tif"],
                     "all_hrefs": json.dumps(r["all_hrefs"]),
+                    "coverage_ratio": "" if r["coverage_ratio"] is None else f"{r['coverage_ratio']:.6f}",
                 })
 
-        log(f"[ASTER] {len(out)} granule(s) AST_07XT. CSV: {out_csv}")
+        log(f"[ASTER] {len(out)} granule(s) AST_07XT após filtro de cobertura. CSV: {out_csv}")
 
     def _clip_and_add_raster_local(self, local, name):
-        """
-        Parte síncrona de clip + adição ao QGIS, assumindo que o arquivo local já existe.
-        Executa no thread principal (chamado a partir do callback da task).
-        """
         log(f"[CALL] BDCDialog._clip_and_add_raster_local(local={local!r}, name={name!r})")
         import processing
         from qgis.PyQt.QtCore import QVariant
 
         gdal_tune_for_http()
 
-        # ------------------ CONSTRUÇÃO DA AOI ------------------
         if self.aoi is None:
             try:
                 log("[CLIP] AOI ainda não construída; chamando _build_aoi()")
@@ -1127,7 +1132,6 @@ class BDCDialog(QtWidgets.QDialog):
 
         log("[CLIP] AOI_layer em memória criado com 1 feição.")
 
-        # ------------------ PARAMETROS GDAL CLIP ------------------
         params = {
             "INPUT": local,
             "MASK": aoi_layer,
@@ -1146,7 +1150,6 @@ class BDCDialog(QtWidgets.QDialog):
 
         log(f"[CLIP] Params gdal:cliprasterbymasklayer: {params!r}")
 
-        # ------------------ EXECUÇÃO DO CLIP ------------------
         try:
             log("[CLIP] Iniciando gdal:cliprasterbymasklayer...")
             t_clip0 = time.time()
@@ -1163,7 +1166,6 @@ class BDCDialog(QtWidgets.QDialog):
             log("[CLIP] Clip não retornou caminho de saída.")
             return False
 
-        # ------------------ CARREGAR RASTER NO QGIS ------------------
         log(f"[CLIP] Criando QgsRasterLayer a partir de {out_path!r}")
         rl = QgsRasterLayer(out_path, name, "gdal")
 
@@ -1179,12 +1181,6 @@ class BDCDialog(QtWidgets.QDialog):
         return False
 
     def _clip_and_add_raster(self, href, name):
-        """
-        Método público chamado por view_selected para ASTER.
-        Se o arquivo local já existir, faz clip síncrono.
-        Caso contrário, agenda uma QgsTask para baixar em background e,
-        ao terminar, chama _clip_and_add_raster_local() no thread principal.
-        """
         log(f"[CALL] BDCDialog._clip_and_add_raster(href={href!r}, name={name!r})")
 
         outdir = self.labOutdir.text().strip() or tempfile.gettempdir()
@@ -1239,7 +1235,6 @@ class BDCDialog(QtWidgets.QDialog):
                 log("[SEARCH] Filtro de nuvem omitido (coleções/provedor sem eo:cloud_cover).")
             cloud_val = float(self.spCloud.value()) if allow_cloud else None
 
-            # Parâmetros usados para construir identificador da query
             selected_ids = sorted(set(cols))
             query_params = {
                 "provider": self._current_stac().rstrip("/"),
@@ -1294,6 +1289,7 @@ class BDCDialog(QtWidgets.QDialog):
                 ",".join(assets.keys()),
                 best_href or "",
                 json.dumps(all_hrefs),
+                "",  # coverage_ratio não calculado para BDC genérico
             ]
             for c, v in enumerate(vals):
                 self.table.setItem(r, c, QtWidgets.QTableWidgetItem(v))
@@ -1306,6 +1302,7 @@ class BDCDialog(QtWidgets.QDialog):
                 "assets": ",".join(assets.keys()),
                 "href_tif": best_href or "",
                 "all_hrefs": all_hrefs,
+                "coverage_ratio": None,
             })
 
         outdir = self.labOutdir.text().strip()
@@ -1322,7 +1319,7 @@ class BDCDialog(QtWidgets.QDialog):
                     "query_id", "query_provider", "query_start", "query_end",
                     "query_cloud_max", "query_collections", "query_sort", "query_limit", "query_aoi",
                     "collection", "item_id", "datetime", "cloud_cover",
-                    "bbox", "assets", "href_tif", "all_hrefs",
+                    "bbox", "assets", "href_tif", "all_hrefs", "coverage_ratio",
                 ],
             )
             wr.writeheader()
@@ -1345,6 +1342,7 @@ class BDCDialog(QtWidgets.QDialog):
                     "assets": r["assets"],
                     "href_tif": r["href_tif"],
                     "all_hrefs": json.dumps(r["all_hrefs"]),
+                    "coverage_ratio": "",
                 })
         log(f"{len(out)} item(ns) encontrados. CSV: {out_csv}")
 
@@ -1370,11 +1368,9 @@ class BDCDialog(QtWidgets.QDialog):
                 continue
             name = f"{coll}:{os.path.basename(href)}"
             if self._is_aster_provider():
-                # ASTER: agenda task para download + clip (se preciso)
                 if self._clip_and_add_raster(href, name):
                     ok += 1
             else:
-                # BDC/OUTROS: continua usando open_raster síncrono
                 if open_raster(href, name=name, outdir=self.labOutdir.text().strip(), just_download=False):
                     ok += 1
         QtWidgets.QMessageBox.information(
@@ -1419,13 +1415,8 @@ class BDCDialog(QtWidgets.QDialog):
     # ---------- slots auxiliares ----------
     def _on_aoi_source_toggled(self, checked):
         log(f"[CALL] BDCDialog._on_aoi_source_toggled(checked={checked})")
-        # Radios no mesmo container já são exclusivos em Qt; aqui apenas logamos.
 
     def _on_layer_selection_changed(self, *args):
-        """
-        Slot conectado a selectionChanged da camada atual.
-        Atualiza AOI e Folha(DB) sempre que o usuário altera a seleção.
-        """
         log("[CALL] BDCDialog._on_layer_selection_changed()")
         if not self.rbSel.isChecked():
             return
@@ -1441,7 +1432,6 @@ class BDCDialog(QtWidgets.QDialog):
         name = getattr(layer, "name", None)
         log(f"[CALL] BDCDialog._on_current_layer_changed(layer={name!r})")
 
-        # desconecta da camada antiga, se houver
         if isinstance(self._sel_layer_, QgsVectorLayer):
             try:
                 self._sel_layer_.selectionChanged.disconnect(self._on_layer_selection_changed)
@@ -1450,7 +1440,6 @@ class BDCDialog(QtWidgets.QDialog):
 
         self._sel_layer_ = layer
 
-        # conecta na nova camada, se for vetorial
         if isinstance(layer, QgsVectorLayer):
             try:
                 layer.selectionChanged.connect(self._on_layer_selection_changed)
@@ -1461,13 +1450,11 @@ class BDCDialog(QtWidgets.QDialog):
                 self._on_layer_selection_changed()
 
 
-# --------- entrypoint (não modal) ----------
 def run():
     log("[ENTRYPOINT] run() chamado.")
     dlg = BDCDialog()
     dlg.show()
-    globals()['__BDC_DLG__'] = dlg  # mantém vivo
+    globals()['__BDC_DLG__'] = dlg
 
 
-# iniciar
 run()
