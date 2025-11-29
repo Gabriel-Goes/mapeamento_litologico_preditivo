@@ -30,7 +30,7 @@ import hashlib
 DEFAULT_STAC = "https://data.inpe.br/bdc/stac/v1/"
 ASTER_STAC = "https://cmr.earthdata.nasa.gov/stac/LPCLOUD"
 
-# Sentinel-2A via Earthdata/CMR (ajuste se necessário)
+# Sentinel-2A via Earthdata/CMR (HLS Sentinel-2 – HLSS30 / HLS.S30, concept-id)
 SENTINEL2_SHORT_NAME = "C2021957295-LPCLOUD"
 EA_SESSION = None
 
@@ -601,64 +601,6 @@ class BDCDialog(QtWidgets.QDialog):
         except Exception:
             return None
 
-    def _umm_datetime_str(self, umm: dict) -> str:
-        """
-        Extrai uma string ISO de data/hora a partir do UMM-G:
-        - TemporalExtent.SingleDateTime (string)
-        - TemporalExtent.RangeDateTimes[0].BeginningDateTime (lista)
-        - TemporalExtent.RangeDateTime.BeginningDateTime (dict único, caso HLS/HLSS30)
-        """
-        te = umm.get("TemporalExtent") or {}
-        if not isinstance(te, dict):
-            return ""
-
-        sd = te.get("SingleDateTime")
-        if isinstance(sd, str) and sd:
-            return sd
-
-        rdt_list = te.get("RangeDateTimes")
-        if isinstance(rdt_list, list) and rdt_list:
-            first = rdt_list[0] or {}
-            if isinstance(first, dict):
-                bd = first.get("BeginningDateTime") or first.get("EndingDateTime")
-                if isinstance(bd, str) and bd:
-                    return bd
-
-        rdt = te.get("RangeDateTime")
-        if isinstance(rdt, dict):
-            bd = rdt.get("BeginningDateTime") or rdt.get("EndingDateTime")
-            if isinstance(bd, str) and bd:
-                return bd
-
-        return ""
-
-    def _umm_cloud_cover(self, umm: dict):
-        """
-        Extrai cloud cover do UMM:
-        - umm['CloudCover'] (ASTER etc.)
-        - AdditionalAttributes.Name == 'CLOUD_COVERAGE' (HLSS30/HLS)
-        Retorna float ou None.
-        """
-        cc = umm.get("CloudCover", None)
-        if cc is not None:
-            return cc
-
-        for aa in umm.get("AdditionalAttributes", []):
-            try:
-                name = aa.get("Name", "").upper()
-                if name in ("CLOUD_COVERAGE", "CLOUDCOVER", "CLOUD_COVER"):
-                    vals = aa.get("Values") or []
-                    if not vals:
-                        continue
-                    v0 = vals[0]
-                    if v0 is None:
-                        continue
-                    return float(v0)
-            except Exception:
-                continue
-
-        return None
-
     def _folha_geom_qgis(self):
         """
         Retorna a geometria da folha (QgsGeometry em EPSG:4326) a partir do valor
@@ -717,9 +659,28 @@ class BDCDialog(QtWidgets.QDialog):
             log(f"[GRANULE] Erro ao construir footprint QgsGeometry: {e}")
             return None, []
 
-    def _collection_is_sentinel(self, coll_id):
-        c = (coll_id or "").lower()
-        return ("sentinel-2" in c) or c.startswith("s2_") or c.startswith("s2a_")
+    def _collection_is_sentinel(self, coll_id, item_id=None):
+        """
+        Heurística para identificar coleções Sentinel-2 ou equivalentes (HLS/S2).
+        Usa tanto o id da coleção quanto o id do item.
+        """
+        txt = ((coll_id or "") + " " + (item_id or "")).lower()
+
+        # Sentinel-2 "clássico"
+        if "sentinel-2" in txt:
+            return True
+        if "s2_" in txt or "s2a_" in txt:
+            return True
+
+        # HLS Sentinel-2 (HLSS30 / HLS.S30)
+        if "hlss30" in txt or "hls.s30" in txt:
+            return True
+
+        # Concept-id da coleção HLSS30 no LPCLOUD
+        if "c2021957295-lpcloud" in txt:
+            return True
+
+        return False
 
     def _aster_search_bbox(self):
         log("[CALL] BDCDialog._aster_search_bbox()")
@@ -826,6 +787,7 @@ class BDCDialog(QtWidgets.QDialog):
         else:
             log(f"[SEL] Vários códigos de folha na seleção: {sorted(codigos)}")
 
+        # Geometria efetiva: sempre a folha do DB (independe da camada selecionada)
         folha_geom = self._folha_geom_qgis()
         if folha_geom is not None and not folha_geom.isEmpty():
             self.aoi = folha_geom
@@ -836,6 +798,7 @@ class BDCDialog(QtWidgets.QDialog):
                 f"{bb.xMaximum():.6f},{bb.yMaximum():.6f}] centroid=({c.x():.6f},{c.y():.6f})"
             )
         else:
+            # Fallback: união das geometrias selecionadas (caso DB falhe)
             if geoms:
                 self.aoi = QgsGeometry.unaryUnion(geoms)
                 bb = self.aoi.boundingBox()
@@ -1053,6 +1016,7 @@ class BDCDialog(QtWidgets.QDialog):
         cloud_max = float(self.spCloud.value())
         fol = (self.edFolha.text() or "").strip()
 
+        # geometria da folha (QGIS) para cálculo de cobertura e ponto de busca
         folha_geom = self._folha_geom_qgis()
         if folha_geom is None:
             if self.aoi is None:
@@ -1117,21 +1081,30 @@ class BDCDialog(QtWidgets.QDialog):
 
         def _key(g):
             umm = g.get("umm", {})
-            cc = self._umm_cloud_cover(umm)
+            cc = umm.get("CloudCover")
             if cc is None:
                 cc = 9999.0
-            dtm = self._umm_datetime_str(umm) or ""
+            te = umm.get("TemporalExtent", {}) or {}
+            dtm = ""
+            if isinstance(te, dict):
+                if "SingleDateTime" in te:
+                    dtm = te["SingleDateTime"]
+                else:
+                    rdts = te.get("RangeDateTimes")
+                    if isinstance(rdts, list) and rdts:
+                        rdt = rdts[0]
+                    else:
+                        rdt = te.get("RangeDateTime") or {}
+                    if isinstance(rdt, dict):
+                        dtm = rdt.get("BeginningDateTime", "") or rdt.get("EndingDateTime", "")
             return (cc, dtm)
 
         granules_f = []
         for g in granules:
             umm = g.get("umm", {})
-            cc = self._umm_cloud_cover(umm)
-            try:
-                if cc is not None and float(cc) > cloud_max:
-                    continue
-            except Exception:
-                pass
+            cc = umm.get("CloudCover")
+            if cc is not None and cc > cloud_max:
+                continue
             granules_f.append(g)
 
         granules_f.sort(key=_key)
@@ -1145,9 +1118,21 @@ class BDCDialog(QtWidgets.QDialog):
             coll = umm.get("CollectionReference", {}).get("ShortName", "AST_07XT")
             iid = umm.get("GranuleUR", "")
 
-            cc = self._umm_cloud_cover(umm)
+            cc = umm.get("CloudCover", "")
 
-            dtm = self._umm_datetime_str(umm)
+            te = umm.get("TemporalExtent", {}) or {}
+            dtm = ""
+            if isinstance(te, dict):
+                if "SingleDateTime" in te:
+                    dtm = te["SingleDateTime"]
+                else:
+                    rdts = te.get("RangeDateTimes")
+                    if isinstance(rdts, list) and rdts:
+                        rdt = rdts[0]
+                    else:
+                        rdt = te.get("RangeDateTime") or {}
+                    if isinstance(rdt, dict):
+                        dtm = rdt.get("BeginningDateTime", "") or rdt.get("EndingDateTime", "")
 
             granule_geom, bbox_g = self._granule_geom_from_umm(umm)
 
@@ -1249,6 +1234,7 @@ class BDCDialog(QtWidgets.QDialog):
 
         log(f"[ASTER] {len(out)} granule(s) AST_07XT após filtro de nuvem. CSV: {out_csv}")
 
+        # opcional: ordenar tabela por cobertura (descendente) após preencher
         if len(out) > 0:
             self.table.sortByColumn(8, QtCore.Qt.DescendingOrder)
 
@@ -1559,10 +1545,11 @@ class BDCDialog(QtWidgets.QDialog):
                 ea.search_data(
                     concept_id=SENTINEL2_SHORT_NAME,
                     bounding_box=bbox,
-                    temporal=temporal,
-                    cloud_cover=(0, cloud_max),
                     cloud_hosted=True,
                     day_night_flag='day',
+                    # opcionalmente poderíamos restringir por cloud_cover e temporal:
+                    # cloud_cover=(0, cloud_max),
+                    # temporal=temporal,
                 )
             )
         except Exception as e:
@@ -1579,19 +1566,24 @@ class BDCDialog(QtWidgets.QDialog):
         best = None
         for g in granules:
             umm = g.get("umm", {})
+            cc = umm.get("CloudCover", None)
+            te = umm.get("TemporalExtent", {}) or {}
+            dtm = ""
+            if isinstance(te, dict):
+                if "SingleDateTime" in te:
+                    dtm = te["SingleDateTime"]
+                else:
+                    rdts = te.get("RangeDateTimes")
+                    if isinstance(rdts, list) and rdts:
+                        rdt = rdts[0]
+                    else:
+                        rdt = te.get("RangeDateTime") or {}
+                    if isinstance(rdt, dict):
+                        dtm = rdt.get("BeginningDateTime", "") or rdt.get("EndingDateTime", "")
 
-            cc = self._umm_cloud_cover(umm)
-
-            dtm = self._umm_datetime_str(umm)
             dt_s2 = self._parse_iso_datetime(dtm)
             if dt_s2 is None:
                 continue
-
-            try:
-                if cc is not None and float(cc) > cloud_max:
-                    continue
-            except Exception:
-                pass
 
             granule_geom, bbox_g = self._granule_geom_from_umm(umm)
 
@@ -1625,7 +1617,7 @@ class BDCDialog(QtWidgets.QDialog):
                 except Exception:
                     pass
                 best_href = hrefs[0] if hrefs else ""
-                coll_id = umm.get("CollectionReference", {}).get("ShortName", SENTINEL2_SHORT_NAME)
+                coll_id = umm.get("CollectionReference", {}).get("EntryTitle", SENTINEL2_SHORT_NAME)
                 iid = umm.get("GranuleUR", "")
 
                 best = {
@@ -1677,6 +1669,7 @@ class BDCDialog(QtWidgets.QDialog):
             ),
         )
 
+        # adiciona a cena Sentinel-2A como nova linha na tabela (com cobertura %)
         row_s2 = self.table.rowCount()
         self.table.insertRow(row_s2)
         vals0 = [
@@ -1699,6 +1692,7 @@ class BDCDialog(QtWidgets.QDialog):
             cov_item.setText("")
         self.table.setItem(row_s2, 8, cov_item)
 
+        # tenta abrir a cena Sentinel-2A já clipada à folha/AOI
         if best_href:
             name = f"{coll_id}:{os.path.basename(best_href)}"
             self._clip_and_add_raster(best_href, name)
@@ -1719,17 +1713,24 @@ class BDCDialog(QtWidgets.QDialog):
         for r in rows:
             href = self.table.item(r, 6).text().strip() if self.table.item(r, 6) else ""
             coll = self.table.item(r, 0).text().strip()
-            log(f"[VIEW] row={r}, coll={coll}, href={href!r}")
+            iid = self.table.item(r, 1).text().strip() if self.table.item(r, 1) else ""
+            log(f"[VIEW] row={r}, coll={coll}, id={iid}, href={href!r}")
             if not href:
                 log(f"[{r + 1}] sem href_tif — tente baixar todos assets.")
                 continue
             name = f"{coll}:{os.path.basename(href)}"
 
-            if "AST_07" in coll.upper() or self._collection_is_sentinel(coll):
+            # ASTER e Sentinel-2/HLS (HLSS30/HLS.S30/C2021957295-LPCLOUD) são sempre clipados pela folha/AOI
+            if "AST_07" in coll.upper() or self._collection_is_sentinel(coll, iid):
                 if self._clip_and_add_raster(href, name):
                     ok += 1
             else:
-                if open_raster(href, name=name, outdir=self.labOutdir.text().strip(), just_download=False):
+                if open_raster(
+                    href,
+                    name=name,
+                    outdir=self.labOutdir.text().strip(),
+                    just_download=False,
+                ):
                     ok += 1
         QtWidgets.QMessageBox.information(
             self,
@@ -1743,30 +1744,53 @@ class BDCDialog(QtWidgets.QDialog):
         if not rows:
             QtWidgets.QMessageBox.information(self, "Selecionar", "Selecione linha(s) na tabela.")
             return
+
         outdir = self.labOutdir.text().strip()
         all_assets = self.cbAllAssets.isChecked()
         ok = 0
+
         for r in rows:
+            to_get = []
+
             if all_assets:
-                try:
-                    all_hrefs = json.loads(self.table.item(r, 7).text() or "[]")
-                except Exception:
+                # lê all_hrefs da coluna 7, se existir
+                cell_all = self.table.item(r, 7)
+                if cell_all is not None:
+                    try:
+                        all_hrefs = json.loads(cell_all.text() or "[]")
+                    except Exception:
+                        all_hrefs = []
+                else:
                     all_hrefs = []
-                to_get = [h for h in all_hrefs if h.lower().endswith((".tif", ".tiff"))]
+
+                to_get = [h for h in all_hrefs if isinstance(h, str) and h.lower().endswith((".tif", ".tiff"))]
+
+                # fallback: se não encontrou nada em all_hrefs, tenta href_tif da coluna 6
                 if not to_get:
-                    href = self.table.item(r, 6).text().strip()
+                    cell_href = self.table.item(r, 6)
+                    href = cell_href.text().strip() if cell_href is not None else ""
                     if href:
                         to_get = [href]
             else:
-                href = self.table.item(r, 6).text().strip() if self.table.item(r, 6) else ""
-                to_get = [href] if href else []
+                # modo padrão: só usa href_tif
+                cell_href = self.table.item(r, 6)
+                href = cell_href.text().strip() if cell_href is not None else ""
+                if href:
+                    to_get = [href]
+
             log(f"[DL] row={r}, to_get={to_get}")
+
             for href in to_get:
+                if not href:
+                    continue
                 if open_raster(
-                    href, name=os.path.basename(href), outdir=outdir,
-                    just_download=True
+                    href,
+                    name=os.path.basename(href),
+                    outdir=outdir,
+                    just_download=True,
                 ):
                     ok += 1
+
         text_ = f"{ok} arquivo(s) baixado(s) para:\n{outdir}"
         QtWidgets.QMessageBox.information(self, "Download", text_)
 
