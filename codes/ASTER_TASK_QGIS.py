@@ -6,15 +6,14 @@ from qgis.PyQt import QtWidgets, QtCore
 from qgis.core import (
     QgsGeometry, QgsCoordinateReferenceSystem, QgsCoordinateTransform,
     QgsProject, QgsVectorLayer, QgsRasterLayer, QgsFeature, QgsField,
-    QgsTask, QgsApplication,
+    QgsTask, QgsApplication, QgsJsonUtils, QgsPointXY
 )
 from qgis.utils import iface
 import csv, json, os, re, requests, tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from osgeo import gdal
 
 import earthaccess as ea
-from shapely.geometry import shape as shp_shape, Polygon
 from db_conn import get_folha_geom_geojson
 
 import time
@@ -22,6 +21,10 @@ import hashlib
 
 DEFAULT_STAC = "https://data.inpe.br/bdc/stac/v1/"
 ASTER_STAC = "https://cmr.earthdata.nasa.gov/stac/LPCLOUD"
+
+# Sentinel-2A via Earthdata/CMR (ajuste se necessário)
+SENTINEL2_SHORT_NAME = "SENTINEL-2A_MSI_L2A"
+SENTINEL2_VERSION = "001"
 
 EA_SESSION = None
 
@@ -312,7 +315,7 @@ def open_raster(href, name=None, outdir=None, just_download=False):
         return False
 
 
-# -------------------- TASKS: download para clip (ASTER) --------------------
+# -------------------- TASKS: download para clip (ASTER/Sentinel) --------------------
 def _download_for_clip(task, href, local):
     gdal_tune_for_http()
     log(f"[TASK-CLIP] Iniciando download para clip: {href} -> {local}")
@@ -453,17 +456,20 @@ class BDCDialog(QtWidgets.QDialog):
 
         self.btnProbe = QtWidgets.QPushButton("Provar (1 item/coleção)")
         self.btnSearch = QtWidgets.QPushButton("Listar dados")
+        # novo botão: buscar Sentinel-2A via earthaccess para o ASTER selecionado
+        self.btnFindS2 = QtWidgets.QPushButton("Buscar Sentinel-2A (earthaccess)")
 
-        # agora 9 colunas: adicionamos coverage_ratio
+        # agora 9 colunas; a última é cobertura em %
         self.table = QtWidgets.QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels(
             [
                 "collection", "item_id", "datetime", "cloud_cover",
-                "bbox", "assets", "href_tif", "all_hrefs", "coverage_ratio"
+                "bbox", "assets", "href_tif", "all_hrefs", "coverage_%"
             ]
         )
         self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.table.setSortingEnabled(True)
 
         self.txtLog = QtWidgets.QPlainTextEdit()
         self.txtLog.setReadOnly(True)
@@ -511,6 +517,7 @@ class BDCDialog(QtWidgets.QDialog):
         actions = QtWidgets.QHBoxLayout()
         actions.addWidget(self.btnProbe)
         actions.addWidget(self.btnSearch)
+        actions.addWidget(self.btnFindS2)
         actions.addStretch(1)
 
         bottom = QtWidgets.QHBoxLayout()
@@ -544,6 +551,7 @@ class BDCDialog(QtWidgets.QDialog):
         self.btnGrid.clicked.connect(self.pick_grid)
         self.btnProbe.clicked.connect(self.do_probe)
         self.btnSearch.clicked.connect(self.run_search)
+        self.btnFindS2.clicked.connect(self.find_sentinel_for_selected_aster)
         self.btnAdd.clicked.connect(self.view_selected)
         self.btnDl.clicked.connect(self.download_selected)
         self.btnOutdir.clicked.connect(self.pick_outdir)
@@ -577,20 +585,79 @@ class BDCDialog(QtWidgets.QDialog):
             EA_SESSION = ea.login()
         return EA_SESSION
 
+    def _parse_iso_datetime(self, s):
+        log(f"[CALL] BDCDialog._parse_iso_datetime(s={s!r})")
+        if not s:
+            return None
+        try:
+            s2 = s.replace("Z", "+00:00")
+            return datetime.fromisoformat(s2)
+        except Exception:
+            return None
+
+    def _folha_geom_qgis(self):
+        """
+        Geometria da folha em EPSG:4326 como QgsGeometry, via GeoJSON do banco.
+        """
+        log("[CALL] BDCDialog._folha_geom_qgis()")
+        fol = (self.edFolha.text() or "").strip()
+        if not fol:
+            return None
+        try:
+            gj = get_folha_geom_geojson(fol)
+        except Exception as e:
+            log(f"[FOLHA] Erro ao obter GeoJSON da folha {fol}: {e}")
+            return None
+        try:
+            g = QgsJsonUtils.geometryFromJson(json.dumps(gj))
+        except Exception as e:
+            log(f"[FOLHA] Erro ao converter GeoJSON em QgsGeometry: {e}")
+            return None
+        if g is None or g.isEmpty():
+            log(f"[FOLHA] Geometria vazia/nula para {fol}")
+            return None
+        return g
+
+    def _granule_geom_from_umm(self, umm):
+        """
+        Constrói QgsGeometry (footprint) e bbox [minx,miny,maxx,maxy] a partir do UMM.
+        Usado tanto para ASTER quanto Sentinel.
+        """
+        log("[CALL] BDCDialog._granule_geom_from_umm()")
+        try:
+            sp = umm.get("SpatialExtent", {})
+            hs = sp.get("HorizontalSpatialDomain", {})
+            geom = hs.get("Geometry", {})
+            gpolys = geom.get("GPolygons") or []
+            if not gpolys:
+                return None, []
+            pts = gpolys[0]["Boundary"]["Points"]
+            xs = [p["Longitude"] for p in pts]
+            ys = [p["Latitude"] for p in pts]
+            bbox = [min(xs), min(ys), max(xs), max(ys)]
+            ring = [QgsPointXY(x, y) for x, y in zip(xs, ys)]
+            if ring and (ring[0].x() != ring[-1].x() or ring[0].y() != ring[-1].y()):
+                ring.append(ring[0])
+            g = QgsGeometry.fromPolygonXY([ring])
+            if g.isEmpty():
+                return None, bbox
+            return g, bbox
+        except Exception as e:
+            log(f"[GRANULE] Erro ao construir footprint QgsGeometry: {e}")
+            return None, []
+
+    def _collection_is_sentinel(self, coll_id):
+        c = (coll_id or "").lower()
+        return ("sentinel-2" in c) or c.startswith("s2_") or c.startswith("s2a_")
+
     def _aster_search_bbox(self):
         log("[CALL] BDCDialog._aster_search_bbox()")
-        fol = (self.edFolha.text() or "").strip()
-
-        if fol:
-            try:
-                gj = get_folha_geom_geojson(fol)
-                g = shp_shape(gj)
-                minx, miny, maxx, maxy = g.bounds
-                bbox = (minx, miny, maxx, maxy)
-                log(f"[ASTER] BBOX folha {fol}: {bbox}")
-                return bbox
-            except Exception as e:
-                log(f"[ASTER] Erro ao obter geometria da folha {fol}: {e}")
+        fol_geom = self._folha_geom_qgis()
+        if fol_geom is not None:
+            bb = fol_geom.boundingBox()
+            bbox = (bb.xMinimum(), bb.yMinimum(), bb.xMaximum(), bb.yMaximum())
+            log(f"[ASTER] BBOX folha: {bbox}")
+            return bbox
 
         if self.aoi is None:
             self._build_aoi()
@@ -602,13 +669,11 @@ class BDCDialog(QtWidgets.QDialog):
 
     def _aster_search_point(self):
         log("[CALL] BDCDialog._aster_search_point()")
-        fol = (self.edFolha.text() or "").strip()
-        if fol:
-            gj = get_folha_geom_geojson(fol)
-            g = shp_shape(gj)
-            c = g.centroid
-            lon, lat = c.x, c.y
-            log(f"[ASTER] Centro da folha {fol}: ({lon:.6f},{lat:.6f})")
+        fol_geom = self._folha_geom_qgis()
+        if fol_geom is not None:
+            c = fol_geom.centroid().asPoint()
+            lon, lat = c.x(), c.y()
+            log(f"[ASTER] Centro da folha: ({lon:.6f},{lat:.6f})")
             return lon, lat
         if self.aoi is None:
             self._build_aoi()
@@ -891,28 +956,35 @@ class BDCDialog(QtWidgets.QDialog):
         cloud_max = float(self.spCloud.value())
         fol = (self.edFolha.text() or "").strip()
 
-        # geometria da folha (para cálculo de cobertura)
-        folha_geom = None
-        if fol:
-            try:
-                gj_f = get_folha_geom_geojson(fol)
-                folha_geom = shp_shape(gj_f)
-                log(f"[ASTER] Geometria da folha {fol} carregada para teste de cobertura.")
-            except Exception as e:
-                log(f"[ASTER] Não foi possível carregar geom da folha {fol}: {e}")
-        if folha_geom is None and self.aoi is not None:
-            try:
-                gj_aoi = geojson_from_qgsgeom(self.aoi)
-                folha_geom = shp_shape(gj_aoi)
-                log("[ASTER] Usando AOI como geometria de referência para cobertura.")
-            except Exception as e:
-                log(f"[ASTER] Não foi possível converter AOI para geometria shapely: {e}")
-        if folha_geom is not None and folha_geom.area <= 0:
-            log("[ASTER] Aviso: área da geometria de referência (folha/AOI) é zero ou inválida.")
+        # geometria da folha (QGIS) para cálculo de cobertura e ponto de busca
+        folha_geom = self._folha_geom_qgis()
+        if folha_geom is None:
+            if self.aoi is None:
+                try:
+                    self._build_aoi()
+                except Exception as e:
+                    QtWidgets.QMessageBox.critical(
+                        self, "ASTER", f"Não foi possível construir AOI: {e}"
+                    )
+                    return
+            folha_geom = self.aoi
+            log("[ASTER] Usando AOI como geometria de referência para cobertura.")
+        if folha_geom is None or folha_geom.isEmpty():
+            QtWidgets.QMessageBox.critical(
+                self, "ASTER", "Geometria de referência (folha/AOI) vazia ou inválida."
+            )
+            return
+
+        folha_area = folha_geom.area()
+        if folha_area <= 0:
+            log("[ASTER] Aviso: área da geometria de referência é zero ou inválida.")
+
+        c = folha_geom.centroid().asPoint()
+        px_, py_ = c.x(), c.y()
 
         query_params = {
-            "provider": "ASTER_07XT_earthaccess",
-            "bbox": bbox,
+            "provider": "AST_07XT_earthaccess",
+            "point": (px_, py_),
             "start": start,
             "end": end,
             "cloud_max": cloud_max,
@@ -921,18 +993,17 @@ class BDCDialog(QtWidgets.QDialog):
         query_id = _build_query_id("aster07xt", query_params)
         log(f"[ASTER] query_id={query_id} params={safe_json(query_params)}")
 
-        log(f"[ASTER] Busca AST_07XT bbox={bbox}, temporal={temporal}, nuvem<={cloud_max}")
+        log(f"[ASTER] Busca AST_07XT point=({px_:.6f},{py_:.6f}), temporal={temporal}, nuvem<={cloud_max}")
 
         try:
-            px_, py_ = folha_geom.centroid.x, folha_geom.centroid.y
             granules = list(
                 ea.search_data(
                     short_name="AST_07XT",
                     version="004",
-                    # bounding_box=bbox,
                     point=(px_, py_),
                     temporal=temporal,
                     cloud_hosted=True,
+                    day_night_flag='day',
                 )
             )
         except Exception as e:
@@ -974,8 +1045,6 @@ class BDCDialog(QtWidgets.QDialog):
         self.table.setRowCount(0)
         out = []
 
-        EPS = 1e-3  # tolerância numérica para razão ~ 1.0
-
         for g in granules_f:
             umm = g.get("umm", {})
 
@@ -991,39 +1060,22 @@ class BDCDialog(QtWidgets.QDialog):
                 r = (te.get("RangeDateTimes") or te.get("RangeDateTime") or [{}])[0]
                 dtm = r.get("BeginningDateTime", "")
 
-            bbox_g = []
-            granule_geom = None
-            try:
-                sp = umm.get("SpatialExtent", {})
-                hs = sp.get("HorizontalSpatialDomain", {})
-                geom = hs.get("Geometry", {})
-                gpolys = geom.get("GPolygons") or []
-                if gpolys:
-                    pts = gpolys[0]["Boundary"]["Points"]
-                    xs = [p["Longitude"] for p in pts]
-                    ys = [p["Latitude"] for p in pts]
-                    bbox_g = [min(xs), min(ys), max(xs), max(ys)]
-                    coords = list(zip(xs, ys))
-                    if len(coords) >= 3:
-                        granule_geom = Polygon(coords)
-            except Exception as e:
-                log(f"[ASTER] Erro ao extrair footprint do granule {iid}: {e}")
-                bbox_g = []
+            granule_geom, bbox_g = self._granule_geom_from_umm(umm)
 
             coverage_ratio = None
-            if folha_geom is not None and granule_geom is not None and folha_geom.area > 0:
+            coverage_pct = None
+            if folha_geom is not None and not folha_geom.isEmpty() and granule_geom is not None and not granule_geom.isEmpty():
                 try:
                     inter = folha_geom.intersection(granule_geom)
-                    inter_area = inter.area
-                    folha_area = folha_geom.area
-                    coverage_ratio = inter_area / folha_area if folha_area > 0 else 0.0
+                    inter_area = inter.area()
+                    folha_area = folha_geom.area()
+                    if folha_area > 0:
+                        coverage_ratio = inter_area / folha_area
+                        coverage_pct = coverage_ratio * 100.0
                     log(
                         f"[ASTER] {iid}: inter_area={inter_area:.6f}, folha_area={folha_area:.6f}, "
-                        f"coverage_ratio={coverage_ratio:.3f}"
+                        f"coverage_ratio={coverage_ratio if coverage_ratio is not None else float('nan'):.3f}"
                     )
-                    if coverage_ratio < 1.0 - EPS:
-                        log(f"[ASTER] {iid}: descartado por cobertura < 100%.")
-                        continue
                 except Exception as e:
                     log(f"[ASTER] Falha ao calcular cobertura para {iid}: {e}")
 
@@ -1036,7 +1088,8 @@ class BDCDialog(QtWidgets.QDialog):
 
             r = self.table.rowCount()
             self.table.insertRow(r)
-            vals = [
+
+            basic_vals = [
                 coll,
                 iid,
                 dtm,
@@ -1045,10 +1098,16 @@ class BDCDialog(QtWidgets.QDialog):
                 "data_links",
                 best_href,
                 json.dumps(hrefs),
-                "" if coverage_ratio is None else f"{coverage_ratio:.3f}",
             ]
-            for c, v in enumerate(vals):
-                self.table.setItem(r, c, QtWidgets.QTableWidgetItem(v))
+            for c_idx, v in enumerate(basic_vals):
+                self.table.setItem(r, c_idx, QtWidgets.QTableWidgetItem(v))
+
+            cov_item = QtWidgets.QTableWidgetItem()
+            if coverage_pct is not None:
+                cov_item.setData(QtCore.Qt.DisplayRole, coverage_pct)
+            else:
+                cov_item.setText("")
+            self.table.setItem(r, 8, cov_item)
 
             out.append({
                 "collection": coll,
@@ -1099,7 +1158,11 @@ class BDCDialog(QtWidgets.QDialog):
                     "coverage_ratio": "" if r["coverage_ratio"] is None else f"{r['coverage_ratio']:.6f}",
                 })
 
-        log(f"[ASTER] {len(out)} granule(s) AST_07XT após filtro de cobertura. CSV: {out_csv}")
+        log(f"[ASTER] {len(out)} granule(s) AST_07XT após filtro de nuvem. CSV: {out_csv}")
+
+        # opcional: ordenar tabela por cobertura (descendente) após preencher
+        if len(out) > 0:
+            self.table.sortByColumn(8, QtCore.Qt.DescendingOrder)
 
     def _clip_and_add_raster_local(self, local, name):
         log(f"[CALL] BDCDialog._clip_and_add_raster_local(local={local!r}, name={name!r})")
@@ -1192,7 +1255,7 @@ class BDCDialog(QtWidgets.QDialog):
             log(f"[CLIP] Arquivo local já existe ({size_mb:.1f} MB): {local}")
             return self._clip_and_add_raster_local(local, name)
 
-        desc = f"Download ASTER para clip: {os.path.basename(local)}"
+        desc = f"Download raster para clip: {os.path.basename(local)}"
         log(f"[TASK-CLIP] Criando task: {desc}")
 
         task = QgsTask.fromFunction(
@@ -1289,10 +1352,10 @@ class BDCDialog(QtWidgets.QDialog):
                 ",".join(assets.keys()),
                 best_href or "",
                 json.dumps(all_hrefs),
-                "",  # coverage_ratio não calculado para BDC genérico
+                "",  # coverage_% não calculado para BDC genérico
             ]
-            for c, v in enumerate(vals):
-                self.table.setItem(r, c, QtWidgets.QTableWidgetItem(v))
+            for c_idx, v in enumerate(vals):
+                self.table.setItem(r, c_idx, QtWidgets.QTableWidgetItem(v))
             out.append({
                 "collection": coll,
                 "item_id": iid,
@@ -1346,6 +1409,214 @@ class BDCDialog(QtWidgets.QDialog):
                 })
         log(f"{len(out)} item(ns) encontrados. CSV: {out_csv}")
 
+    # ---------- nova função: buscar Sentinel-2A via earthaccess p/ granule ASTER selecionado ----------
+    def find_sentinel_for_selected_aster(self):
+        log("[CALL] BDCDialog.find_sentinel_for_selected_aster()")
+        rows = self._selected_rows()
+        if len(rows) != 1:
+            QtWidgets.QMessageBox.warning(
+                self, "Sentinel-2A",
+                "Selecione exatamente um granule ASTER na tabela."
+            )
+            return
+        r = rows[0]
+        coll = (self.table.item(r, 0).text().strip()
+                if self.table.item(r, 0) else "")
+        if "AST_07" not in coll.upper():
+            QtWidgets.QMessageBox.warning(
+                self, "Sentinel-2A",
+                "A linha selecionada não parece ser um granule ASTER (AST_07XT)."
+            )
+            return
+
+        dt_str = self.table.item(r, 2).text().strip() if self.table.item(r, 2) else ""
+        dt_aster = self._parse_iso_datetime(dt_str)
+        if dt_aster is None:
+            QtWidgets.QMessageBox.warning(
+                self, "Sentinel-2A",
+                f"Não foi possível interpretar a data/hora do granule ASTER: {dt_str!r}"
+            )
+            return
+
+        folha_geom = self._folha_geom_qgis()
+        if folha_geom is None or folha_geom.isEmpty():
+            QtWidgets.QMessageBox.warning(
+                self, "Sentinel-2A",
+                "Informe o código da folha (DB) e/ou verifique a geometria no banco."
+            )
+            return
+
+        try:
+            self._ensure_earthaccess_login()
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "earthaccess/login", str(e))
+            return
+
+        window_days = 60
+        t0 = (dt_aster.date() - timedelta(days=window_days)).isoformat()
+        t1 = (dt_aster.date() + timedelta(days=window_days)).isoformat()
+        temporal = (t0, t1)
+        cloud_max = float(self.spCloud.value())
+
+        bb = folha_geom.boundingBox()
+        bbox = (bb.xMinimum(), bb.yMinimum(), bb.xMaximum(), bb.yMaximum())
+
+        log(
+            f"[S2] Procurando Sentinel-2A (earthaccess) folha={self.edFolha.text().strip()}, "
+            f"bbox={bbox}, temporal={temporal}, cloud<={cloud_max}"
+        )
+
+        try:
+            granules = list(
+                ea.search_data(
+                    short_name=SENTINEL2_SHORT_NAME,
+                    version=SENTINEL2_VERSION,
+                    bounding_box=bbox,
+                    temporal=temporal,
+                    cloud_hosted=True,
+                    day_night_flag='day',
+                )
+            )
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Sentinel-2A search", str(e))
+            return
+
+        if not granules:
+            QtWidgets.QMessageBox.information(
+                self, "Sentinel-2A",
+                "Nenhum granule Sentinel-2A encontrado para essa folha/intervalo."
+            )
+            return
+
+        best = None
+        for g in granules:
+            umm = g.get("umm", {})
+
+            cc = umm.get("CloudCover", None)
+
+            te = umm.get("TemporalExtent", {})
+            if "SingleDateTime" in te:
+                dtm = te["SingleDateTime"]
+            else:
+                rdt = (te.get("RangeDateTimes") or te.get("RangeDateTime") or [{}])[0]
+                dtm = rdt.get("BeginningDateTime", "")
+
+            dt_s2 = self._parse_iso_datetime(dtm)
+            if dt_s2 is None:
+                continue
+
+            granule_geom, bbox_g = self._granule_geom_from_umm(umm)
+
+            coverage_ratio = None
+            coverage_pct = None
+            if granule_geom is not None and not granule_geom.isEmpty():
+                try:
+                    inter = folha_geom.intersection(granule_geom)
+                    folha_area = folha_geom.area()
+                    if folha_area > 0:
+                        inter_area = inter.area()
+                        coverage_ratio = inter_area / folha_area
+                        coverage_pct = coverage_ratio * 100.0
+                    log(
+                        f"[S2] coverage Sentinel: inter_area={inter_area:.6f}, folha_area={folha_area:.6f}, "
+                        f"ratio={coverage_ratio if coverage_ratio is not None else float('nan'):.3f}"
+                    )
+                except Exception as e:
+                    log(f"[S2] Falha ao calcular cobertura Sentinel: {e}")
+
+            delta = abs((dt_s2 - dt_aster).total_seconds())
+            cc_val = float(cc) if cc is not None else 9999.0
+            cov_sort = coverage_ratio if coverage_ratio is not None else 0.0
+
+            key = (-cov_sort, delta, cc_val)
+
+            if best is None or key < best["key"]:
+                hrefs = []
+                try:
+                    hrefs = [h for h in g.data_links() if h.lower().endswith((".tif", ".tiff"))]
+                except Exception:
+                    pass
+                best_href = hrefs[0] if hrefs else ""
+                coll_id = umm.get("CollectionReference", {}).get("ShortName", SENTINEL2_SHORT_NAME)
+                iid = umm.get("GranuleUR", "")
+
+                best = {
+                    "key": key,
+                    "collection": coll_id,
+                    "item_id": iid,
+                    "dtm": dtm,
+                    "dt": dt_s2,
+                    "cc": cc,
+                    "bbox": bbox_g,
+                    "hrefs": hrefs,
+                    "best_href": best_href,
+                    "coverage_ratio": coverage_ratio,
+                    "coverage_pct": coverage_pct,
+                }
+
+        if best is None:
+            QtWidgets.QMessageBox.information(
+                self, "Sentinel-2A",
+                "Nenhuma cena Sentinel-2A com data/cobertura interpretáveis encontrada."
+            )
+            return
+
+        coll_id = best["collection"]
+        iid = best["item_id"]
+        dt_s = best["dtm"]
+        cc = best["cc"]
+        bbox = best["bbox"]
+        best_href = best["best_href"]
+        hrefs = best["hrefs"]
+        coverage_pct = best["coverage_pct"]
+
+        log(
+            f"[S2] Melhor Sentinel-2A para ASTER {coll}/{self.table.item(r, 1).text().strip() if self.table.item(r,1) else ''}: "
+            f"coleção={coll_id}, id={iid}, datetime={dt_s}, cloud={cc}, cov%={coverage_pct}, href={best_href}"
+        )
+
+        QtWidgets.QMessageBox.information(
+            self,
+            "Sentinel-2A",
+            (
+                "Cena Sentinel-2A mais próxima encontrada (earthaccess):\n"
+                f"Coleção: {coll_id}\n"
+                f"ID: {iid}\n"
+                f"Data/hora: {dt_s}\n"
+                f"Nuvem (CloudCover): {cc}\n"
+                f"Cobertura na folha: {coverage_pct:.1f}%\n\n"
+                "A cena foi adicionada à tabela. Você pode visualizá-la/clipá-la ou baixá-la pelos botões usuais."
+            ),
+        )
+
+        # adiciona a cena Sentinel-2A como nova linha na tabela (com cobertura %)
+        row_s2 = self.table.rowCount()
+        self.table.insertRow(row_s2)
+        vals0 = [
+            coll_id,
+            iid,
+            dt_s,
+            str(cc),
+            json.dumps(bbox),
+            "data_links",
+            best_href or "",
+            json.dumps(hrefs),
+        ]
+        for c_idx, v in enumerate(vals0):
+            self.table.setItem(row_s2, c_idx, QtWidgets.QTableWidgetItem(v))
+
+        cov_item = QtWidgets.QTableWidgetItem()
+        if coverage_pct is not None:
+            cov_item.setData(QtCore.Qt.DisplayRole, coverage_pct)
+        else:
+            cov_item.setText("")
+        self.table.setItem(row_s2, 8, cov_item)
+
+        # tenta abrir a cena Sentinel-2A já clipada à folha/AOI
+        if best_href:
+            name = f"{coll_id}:{os.path.basename(best_href)}"
+            self._clip_and_add_raster(best_href, name)
+
     # ---------- ações finais ----------
     def _selected_rows(self):
         rows = sorted({i.row() for i in self.table.selectedIndexes()})
@@ -1367,7 +1638,9 @@ class BDCDialog(QtWidgets.QDialog):
                 log(f"[{r + 1}] sem href_tif — tente baixar todos assets.")
                 continue
             name = f"{coll}:{os.path.basename(href)}"
-            if self._is_aster_provider():
+
+            # ASTER e Sentinel-2A são sempre clipados pela folha/AOI antes de carregar
+            if "AST_07" in coll.upper() or self._collection_is_sentinel(coll):
                 if self._clip_and_add_raster(href, name):
                     ok += 1
             else:
@@ -1376,7 +1649,7 @@ class BDCDialog(QtWidgets.QDialog):
         QtWidgets.QMessageBox.information(
             self,
             "Visualizar",
-            f"{ok} requisição(ões) enviada(s). Para ASTER, acompanhe o progresso no Task Manager do QGIS."
+            f"{ok} requisição(ões) enviada(s). Para downloads em background, acompanhe o progresso no Task Manager do QGIS."
         )
 
     def download_selected(self):
