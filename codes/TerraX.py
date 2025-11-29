@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Descrição: Terra X
+# Descrição:
 
 from qgis.PyQt import QtWidgets, QtCore
 from qgis.core import (
@@ -31,9 +31,7 @@ DEFAULT_STAC = "https://data.inpe.br/bdc/stac/v1/"
 ASTER_STAC = "https://cmr.earthdata.nasa.gov/stac/LPCLOUD"
 
 # Sentinel-2A via Earthdata/CMR (ajuste se necessário)
-SENTINEL2_SHORT_NAME = "SENTINEL-2A_MSI_L2A"
-SENTINEL2_VERSION = "001"
-
+SENTINEL2_SHORT_NAME = "C2021957295-LPCLOUD"
 EA_SESSION = None
 
 # -------------------- infra de log + emitter (thread-safe) --------------------
@@ -403,9 +401,9 @@ def _on_download_for_clip_finished(exception, result, href, local, name, dlg):
 
 
 # -------------------- GUI --------------------
-class TerraXDialog(QtWidgets.QDialog):
+class BDCDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
-        log("[CALL] TerraXDialog.__init__()")
+        log("[CALL] BDCDialog.__init__()")
         super().__init__(parent)
         self.setWindowTitle("BDC/ASTER – Listar/Filtrar/Selecionar dados (quadícula)")
         self.resize(1000, 680)
@@ -570,31 +568,31 @@ class TerraXDialog(QtWidgets.QDialog):
         iface.currentLayerChanged.connect(self._on_current_layer_changed)
 
         attach_log_widget(self.txtLog)
-        log("[TerraXDialog] Diálogo iniciado.")
+        log("[BDCDialog] Diálogo iniciado.")
 
         self._on_current_layer_changed(iface.activeLayer())
 
     # ---------- helpers ----------
     def _current_stac(self):
         val = self.edStac.text().strip()
-        log(f"[CALL] TerraXDialog._current_stac() -> {val!r}")
+        log(f"[CALL] BDCDialog._current_stac() -> {val!r}")
         return val
 
     def _is_aster_provider(self):
         st = self._current_stac().rstrip("/")
         res = st == ASTER_STAC.rstrip("/")
-        log(f"[CALL] TerraXDialog._is_aster_provider() -> {res}")
+        log(f"[CALL] BDCDialog._is_aster_provider() -> {res}")
         return res
 
     def _ensure_earthaccess_login(self):
-        log("[CALL] TerraXDialog._ensure_earthaccess_login()")
+        log("[CALL] BDCDialog._ensure_earthaccess_login()")
         global EA_SESSION
         if EA_SESSION is None:
             EA_SESSION = ea.login()
         return EA_SESSION
 
     def _parse_iso_datetime(self, s):
-        log(f"[CALL] TerraXDialog._parse_iso_datetime(s={s!r})")
+        log(f"[CALL] BDCDialog._parse_iso_datetime(s={s!r})")
         if not s:
             return None
         try:
@@ -603,38 +601,91 @@ class TerraXDialog(QtWidgets.QDialog):
         except Exception:
             return None
 
+    def _umm_datetime_str(self, umm: dict) -> str:
+        """
+        Extrai uma string ISO de data/hora a partir do UMM-G:
+        - TemporalExtent.SingleDateTime (string)
+        - TemporalExtent.RangeDateTimes[0].BeginningDateTime (lista)
+        - TemporalExtent.RangeDateTime.BeginningDateTime (dict único, caso HLS/HLSS30)
+        """
+        te = umm.get("TemporalExtent") or {}
+        if not isinstance(te, dict):
+            return ""
+
+        sd = te.get("SingleDateTime")
+        if isinstance(sd, str) and sd:
+            return sd
+
+        rdt_list = te.get("RangeDateTimes")
+        if isinstance(rdt_list, list) and rdt_list:
+            first = rdt_list[0] or {}
+            if isinstance(first, dict):
+                bd = first.get("BeginningDateTime") or first.get("EndingDateTime")
+                if isinstance(bd, str) and bd:
+                    return bd
+
+        rdt = te.get("RangeDateTime")
+        if isinstance(rdt, dict):
+            bd = rdt.get("BeginningDateTime") or rdt.get("EndingDateTime")
+            if isinstance(bd, str) and bd:
+                return bd
+
+        return ""
+
+    def _umm_cloud_cover(self, umm: dict):
+        """
+        Extrai cloud cover do UMM:
+        - umm['CloudCover'] (ASTER etc.)
+        - AdditionalAttributes.Name == 'CLOUD_COVERAGE' (HLSS30/HLS)
+        Retorna float ou None.
+        """
+        cc = umm.get("CloudCover", None)
+        if cc is not None:
+            return cc
+
+        for aa in umm.get("AdditionalAttributes", []):
+            try:
+                name = aa.get("Name", "").upper()
+                if name in ("CLOUD_COVERAGE", "CLOUDCOVER", "CLOUD_COVER"):
+                    vals = aa.get("Values") or []
+                    if not vals:
+                        continue
+                    v0 = vals[0]
+                    if v0 is None:
+                        continue
+                    return float(v0)
+            except Exception:
+                continue
+
+        return None
+
     def _folha_geom_qgis(self):
         """
-        Retorna a geometria da folha como QgsGeometry em EPSG:4326,
-        usando o GeoJSON vindo de get_folha_geom_geojson().
-        Se algo der errado, retorna None.
+        Retorna a geometria da folha (QgsGeometry em EPSG:4326) a partir do valor
+        do campo 'Folha (DB)' (self.edFolha). A geometria é sempre consultada no
+        banco via get_folha_geom_geojson, portanto independe da camada ativa.
         """
-        if not getattr(self, "_folha_codigo", None):
-            log("[FOLHA] Código da folha não definido; retornando None.")
+        codigo = (self.edFolha.text() or "").strip()
+        if not codigo:
+            log("[FOLHA] Código da folha não definido (Folha (DB) vazio); retornando None.")
             return None
 
         try:
-            geom_geojson = get_folha_geom_geojson(self._folha_codigo)
+            geom_geojson = get_folha_geom_geojson(codigo)
             if not geom_geojson:
-                raise ValueError("get_folha_geom_geojson retornou vazio ou None.")
+                raise ValueError(f"get_folha_geom_geojson({codigo!r}) retornou vazio ou None.")
         except Exception as exc:
-            log(f"[FOLHA] Erro ao obter GeoJSON da folha no DB: {exc}")
+            log(f"[FOLHA] Erro ao obter GeoJSON da folha no DB para {codigo!r}: {exc}")
             return None
 
         try:
-            # geom_geojson é um dict GeoJSON; convertemos para string
             geom_str = json.dumps(geom_geojson)
-
-            # Converte GeoJSON -> QgsGeometry
             qgs_geom = QgsJsonUtils.geometryFromGeoJson(geom_str)
             if not qgs_geom or qgs_geom.isEmpty():
                 raise ValueError("QgsJsonUtils.geometryFromGeoJson retornou geometria vazia ou inválida.")
-
-            log("[FOLHA] Geometria da folha carregada via QgsJsonUtils.geometryFromGeoJson.")
+            log(f"[FOLHA] Geometria da folha {codigo} carregada do DB (EPSG:4326).")
             return qgs_geom
-
         except Exception as exc:
-            # Mensagem atualizada (não fala mais em fromJson)
             log(f"[FOLHA] Erro ao converter GeoJSON em QgsGeometry (geometryFromGeoJson): {exc}")
             return None
 
@@ -643,7 +694,7 @@ class TerraXDialog(QtWidgets.QDialog):
         Constrói QgsGeometry (footprint) e bbox [minx,miny,maxx,maxy] a partir do UMM.
         Usado tanto para ASTER quanto Sentinel.
         """
-        log("[CALL] TerraXDialog._granule_geom_from_umm()")
+        log("[CALL] BDCDialog._granule_geom_from_umm()")
         try:
             sp = umm.get("SpatialExtent", {})
             hs = sp.get("HorizontalSpatialDomain", {})
@@ -671,7 +722,7 @@ class TerraXDialog(QtWidgets.QDialog):
         return ("sentinel-2" in c) or c.startswith("s2_") or c.startswith("s2a_")
 
     def _aster_search_bbox(self):
-        log("[CALL] TerraXDialog._aster_search_bbox()")
+        log("[CALL] BDCDialog._aster_search_bbox()")
         fol_geom = self._folha_geom_qgis()
         if fol_geom is not None:
             bb = fol_geom.boundingBox()
@@ -688,7 +739,7 @@ class TerraXDialog(QtWidgets.QDialog):
         return bbox
 
     def _aster_search_point(self):
-        log("[CALL] TerraXDialog._aster_search_point()")
+        log("[CALL] BDCDialog._aster_search_point()")
         fol_geom = self._folha_geom_qgis()
         if fol_geom is not None:
             c = fol_geom.centroid().asPoint()
@@ -703,13 +754,13 @@ class TerraXDialog(QtWidgets.QDialog):
         return lon, lat
 
     def _on_provider_change(self, idx):
-        log(f"[CALL] TerraXDialog._on_provider_change(idx={idx})")
+        log(f"[CALL] BDCDialog._on_provider_change(idx={idx})")
         url = self.cbProvider.itemData(idx)
         if url:
             self.edStac.setText(url)
 
     def _on_stac_changed(self, text):
-        log(f"[CALL] TerraXDialog._on_stac_changed(text={text!r})")
+        log(f"[CALL] BDCDialog._on_stac_changed(text={text!r})")
         for i in range(self.cbProvider.count() - 1):
             if text.strip() == self.cbProvider.itemData(i):
                 if self.cbProvider.currentIndex() != i:
@@ -723,6 +774,13 @@ class TerraXDialog(QtWidgets.QDialog):
             self.cbProvider.blockSignals(False)
 
     def _update_aoi_from_selection(self, layer):
+        """
+        Quando o usuário clica em uma feição:
+        - lê o atributo 'codigo' da seleção e atualiza o campo Folha (DB);
+        - obtém a geometria da folha no DB via get_folha_geom_geojson;
+        - define self.aoi com essa geometria (independente da camada ativa);
+        - em caso de falha, faz fallback para a união das geometrias selecionadas.
+        """
         if not isinstance(layer, QgsVectorLayer):
             raise RuntimeError("Camada ativa não é vetorial. Selecione feições em uma camada vetorial.")
 
@@ -741,7 +799,11 @@ class TerraXDialog(QtWidgets.QDialog):
         for i, ft in enumerate(sel, 1):
             g = ft.geometry()
             g2 = QgsGeometry(g)
-            g2.transform(tr)
+            try:
+                g2.transform(tr)
+            except Exception as e:
+                log(f"[SEL] Erro ao transformar geometria da seleção para EPSG:4326: {e}")
+                continue
             bb = g2.boundingBox()
             c = g2.centroid().asPoint()
             log(
@@ -755,21 +817,36 @@ class TerraXDialog(QtWidgets.QDialog):
                 except Exception:
                     pass
 
-        self.aoi = QgsGeometry.unaryUnion(geoms)
-        bb = self.aoi.boundingBox()
-        c = self.aoi.centroid().asPoint()
-        log(
-            f"[SEL] AOI bbox=[{bb.xMinimum():.6f},{bb.yMinimum():.6f},{bb.xMaximum():.6f},{bb.yMaximum():.6f}] "
-            f"centroid=({c.x():.6f},{c.y():.6f})"
-        )
-
         if len(codigos) == 1:
-            fol = next(iter(codigos))
+            fol = next(iter(codigos)).strip()
             log(f"[SEL] Atualizando Folha(DB) com codigo={fol}")
             self.edFolha.setText(fol)
+        elif len(codigos) == 0:
+            log("[SEL] Nenhum atributo 'codigo' encontrado nas feições selecionadas.")
+        else:
+            log(f"[SEL] Vários códigos de folha na seleção: {sorted(codigos)}")
+
+        folha_geom = self._folha_geom_qgis()
+        if folha_geom is not None and not folha_geom.isEmpty():
+            self.aoi = folha_geom
+            bb = self.aoi.boundingBox()
+            c = self.aoi.centroid().asPoint()
+            log(
+                f"[SEL] AOI (folha DB) bbox=[{bb.xMinimum():.6f},{bb.yMinimum():.6f},"
+                f"{bb.xMaximum():.6f},{bb.yMaximum():.6f}] centroid=({c.x():.6f},{c.y():.6f})"
+            )
+        else:
+            if geoms:
+                self.aoi = QgsGeometry.unaryUnion(geoms)
+                bb = self.aoi.boundingBox()
+                c = self.aoi.centroid().asPoint()
+                log(
+                    f"[SEL] AOI fallback (unário seleção) bbox=[{bb.xMinimum():.6f},{bb.yMinimum():.6f},"
+                    f"{bb.xMaximum():.6f},{bb.yMaximum():.6f}] centroid=({c.x():.6f},{c.y():.6f})"
+                )
 
     def _build_aoi(self, for_probe=False):
-        log(f"[CALL] TerraXDialog._build_aoi(for_probe={for_probe})")
+        log(f"[CALL] BDCDialog._build_aoi(for_probe={for_probe})")
         if self.rbSel.isChecked():
             log("AOI ← seleção da camada ativa")
             lyr = iface.activeLayer()
@@ -792,7 +869,7 @@ class TerraXDialog(QtWidgets.QDialog):
             for i in range(self.listCols.count())
             if self.listCols.item(i).checkState() == QtCore.Qt.Checked
         ]
-        log(f"[CALL] TerraXDialog._selected_collections() -> {cols}")
+        log(f"[CALL] BDCDialog._selected_collections() -> {cols}")
         return cols
 
     def _collection_meta(self, coll_id):
@@ -802,7 +879,7 @@ class TerraXDialog(QtWidgets.QDialog):
         return None
 
     def _cloud_filter_allowed(self, selected_ids):
-        log(f"[CALL] TerraXDialog._cloud_filter_allowed(selected_ids={selected_ids})")
+        log(f"[CALL] BDCDialog._cloud_filter_allowed(selected_ids={selected_ids})")
         stac = self._current_stac().rstrip("/")
         if stac == DEFAULT_STAC.rstrip("/"):
             return True
@@ -816,7 +893,7 @@ class TerraXDialog(QtWidgets.QDialog):
         return allowed
 
     def _http_error_message(self, err):
-        log(f"[CALL] TerraXDialog._http_error_message(err={type(err).__name__})")
+        log(f"[CALL] BDCDialog._http_error_message(err={type(err).__name__})")
         resp = getattr(err, "response", None)
         if not resp:
             return str(err)
@@ -832,7 +909,7 @@ class TerraXDialog(QtWidgets.QDialog):
 
     # ---------- UI actions ----------
     def load_collections(self):
-        log("[CALL] TerraXDialog.load_collections()")
+        log("[CALL] BDCDialog.load_collections()")
         if self._is_aster_provider():
             cols = [{
                 "id": "AST_07XT",
@@ -856,7 +933,7 @@ class TerraXDialog(QtWidgets.QDialog):
         self._populate_cols(cols)
 
     def _populate_cols(self, cols):
-        log(f"[CALL] TerraXDialog._populate_cols(n={len(cols)})")
+        log(f"[CALL] BDCDialog._populate_cols(n={len(cols)})")
         self.listCols.clear()
         for c in cols:
             txt = f"{c['id']} — {c['title']}"
@@ -872,7 +949,7 @@ class TerraXDialog(QtWidgets.QDialog):
             self.listCols.addItem(it)
 
     def apply_filter(self):
-        log("[CALL] TerraXDialog.apply_filter()")
+        log("[CALL] BDCDialog.apply_filter()")
         if not self._all_collections:
             return
         q = (self.edFilter.text() or "").strip().lower()
@@ -888,12 +965,12 @@ class TerraXDialog(QtWidgets.QDialog):
         self._populate_cols([c for c in self._all_collections if ok(c)])
 
     def select_all_cols(self):
-        log("[CALL] TerraXDialog.select_all_cols()")
+        log("[CALL] BDCDialog.select_all_cols()")
         for i in range(self.listCols.count()):
             self.listCols.item(i).setCheckState(QtCore.Qt.Checked)
 
     def pick_grid(self):
-        log("[CALL] TerraXDialog.pick_grid()")
+        log("[CALL] BDCDialog.pick_grid()")
         p, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Selecionar quadricula.csv", "", "CSV (*.csv)")
         if not p:
             return
@@ -904,13 +981,13 @@ class TerraXDialog(QtWidgets.QDialog):
             QtWidgets.QMessageBox.critical(self, "CSV", str(e))
 
     def pick_outdir(self):
-        log("[CALL] TerraXDialog.pick_outdir()")
+        log("[CALL] BDCDialog.pick_outdir()")
         d = QtWidgets.QFileDialog.getExistingDirectory(self, "Pasta de saída", self.labOutdir.text())
         if d:
             self.labOutdir.setText(d)
 
     def do_probe(self):
-        log("[CALL] TerraXDialog.do_probe()")
+        log("[CALL] BDCDialog.do_probe()")
         if self._is_aster_provider():
             QtWidgets.QMessageBox.information(
                 self,
@@ -958,7 +1035,7 @@ class TerraXDialog(QtWidgets.QDialog):
         log(f"PROBE: OK={ok} ZERO={zero}")
 
     def run_aster_earthaccess(self):
-        log("[CALL] TerraXDialog.run_aster_earthaccess()")
+        log("[CALL] BDCDialog.run_aster_earthaccess()")
         try:
             self._ensure_earthaccess_login()
         except Exception as e:
@@ -976,7 +1053,6 @@ class TerraXDialog(QtWidgets.QDialog):
         cloud_max = float(self.spCloud.value())
         fol = (self.edFolha.text() or "").strip()
 
-        # geometria da folha (QGIS) para cálculo de cobertura e ponto de busca
         folha_geom = self._folha_geom_qgis()
         if folha_geom is None:
             if self.aoi is None:
@@ -1041,23 +1117,21 @@ class TerraXDialog(QtWidgets.QDialog):
 
         def _key(g):
             umm = g.get("umm", {})
-            cc = umm.get("CloudCover")
+            cc = self._umm_cloud_cover(umm)
             if cc is None:
                 cc = 9999.0
-            te = umm.get("TemporalExtent", {})
-            if "SingleDateTime" in te:
-                dtm = te["SingleDateTime"]
-            else:
-                r = (te.get("RangeDateTimes") or te.get("RangeDateTime") or [{}])[0]
-                dtm = r.get("BeginningDateTime", "")
+            dtm = self._umm_datetime_str(umm) or ""
             return (cc, dtm)
 
         granules_f = []
         for g in granules:
             umm = g.get("umm", {})
-            cc = umm.get("CloudCover")
-            if cc is not None and cc > cloud_max:
-                continue
+            cc = self._umm_cloud_cover(umm)
+            try:
+                if cc is not None and float(cc) > cloud_max:
+                    continue
+            except Exception:
+                pass
             granules_f.append(g)
 
         granules_f.sort(key=_key)
@@ -1071,14 +1145,9 @@ class TerraXDialog(QtWidgets.QDialog):
             coll = umm.get("CollectionReference", {}).get("ShortName", "AST_07XT")
             iid = umm.get("GranuleUR", "")
 
-            cc = umm.get("CloudCover", "")
+            cc = self._umm_cloud_cover(umm)
 
-            te = umm.get("TemporalExtent", {})
-            if "SingleDateTime" in te:
-                dtm = te["SingleDateTime"]
-            else:
-                r = (te.get("RangeDateTimes") or te.get("RangeDateTime") or [{}])[0]
-                dtm = r.get("BeginningDateTime", "")
+            dtm = self._umm_datetime_str(umm)
 
             granule_geom, bbox_g = self._granule_geom_from_umm(umm)
 
@@ -1180,12 +1249,11 @@ class TerraXDialog(QtWidgets.QDialog):
 
         log(f"[ASTER] {len(out)} granule(s) AST_07XT após filtro de nuvem. CSV: {out_csv}")
 
-        # opcional: ordenar tabela por cobertura (descendente) após preencher
         if len(out) > 0:
             self.table.sortByColumn(8, QtCore.Qt.DescendingOrder)
 
     def _clip_and_add_raster_local(self, local, name):
-        log(f"[CALL] TerraXDialog._clip_and_add_raster_local(local={local!r}, name={name!r})")
+        log(f"[CALL] BDCDialog._clip_and_add_raster_local(local={local!r}, name={name!r})")
         import processing
         from qgis.PyQt.QtCore import QVariant
 
@@ -1264,7 +1332,7 @@ class TerraXDialog(QtWidgets.QDialog):
         return False
 
     def _clip_and_add_raster(self, href, name):
-        log(f"[CALL] TerraXDialog._clip_and_add_raster(href={href!r}, name={name!r})")
+        log(f"[CALL] BDCDialog._clip_and_add_raster(href={href!r}, name={name!r})")
 
         outdir = self.labOutdir.text().strip() or tempfile.gettempdir()
         os.makedirs(outdir, exist_ok=True)
@@ -1293,7 +1361,7 @@ class TerraXDialog(QtWidgets.QDialog):
         return True
 
     def run_search(self):
-        log("[CALL] TerraXDialog.run_search()")
+        log("[CALL] BDCDialog.run_search()")
         if self._is_aster_provider():
             self.run_aster_earthaccess()
             return
@@ -1431,7 +1499,7 @@ class TerraXDialog(QtWidgets.QDialog):
 
     # ---------- nova função: buscar Sentinel-2A via earthaccess p/ granule ASTER selecionado ----------
     def find_sentinel_for_selected_aster(self):
-        log("[CALL] TerraXDialog.find_sentinel_for_selected_aster()")
+        log("[CALL] BDCDialog.find_sentinel_for_selected_aster()")
         rows = self._selected_rows()
         if len(rows) != 1:
             QtWidgets.QMessageBox.warning(
@@ -1489,10 +1557,10 @@ class TerraXDialog(QtWidgets.QDialog):
         try:
             granules = list(
                 ea.search_data(
-                    short_name=SENTINEL2_SHORT_NAME,
-                    version=SENTINEL2_VERSION,
+                    concept_id=SENTINEL2_SHORT_NAME,
                     bounding_box=bbox,
                     temporal=temporal,
+                    cloud_cover=(0, cloud_max),
                     cloud_hosted=True,
                     day_night_flag='day',
                 )
@@ -1512,18 +1580,18 @@ class TerraXDialog(QtWidgets.QDialog):
         for g in granules:
             umm = g.get("umm", {})
 
-            cc = umm.get("CloudCover", None)
+            cc = self._umm_cloud_cover(umm)
 
-            te = umm.get("TemporalExtent", {})
-            if "SingleDateTime" in te:
-                dtm = te["SingleDateTime"]
-            else:
-                rdt = (te.get("RangeDateTimes") or te.get("RangeDateTime") or [{}])[0]
-                dtm = rdt.get("BeginningDateTime", "")
-
+            dtm = self._umm_datetime_str(umm)
             dt_s2 = self._parse_iso_datetime(dtm)
             if dt_s2 is None:
                 continue
+
+            try:
+                if cc is not None and float(cc) > cloud_max:
+                    continue
+            except Exception:
+                pass
 
             granule_geom, bbox_g = self._granule_geom_from_umm(umm)
 
@@ -1609,7 +1677,6 @@ class TerraXDialog(QtWidgets.QDialog):
             ),
         )
 
-        # adiciona a cena Sentinel-2A como nova linha na tabela (com cobertura %)
         row_s2 = self.table.rowCount()
         self.table.insertRow(row_s2)
         vals0 = [
@@ -1632,7 +1699,6 @@ class TerraXDialog(QtWidgets.QDialog):
             cov_item.setText("")
         self.table.setItem(row_s2, 8, cov_item)
 
-        # tenta abrir a cena Sentinel-2A já clipada à folha/AOI
         if best_href:
             name = f"{coll_id}:{os.path.basename(best_href)}"
             self._clip_and_add_raster(best_href, name)
@@ -1640,11 +1706,11 @@ class TerraXDialog(QtWidgets.QDialog):
     # ---------- ações finais ----------
     def _selected_rows(self):
         rows = sorted({i.row() for i in self.table.selectedIndexes()})
-        log(f"[CALL] TerraXDialog._selected_rows() -> {rows}")
+        log(f"[CALL] BDCDialog._selected_rows() -> {rows}")
         return rows
 
     def view_selected(self):
-        log("[CALL] TerraXDialog.view_selected()")
+        log("[CALL] BDCDialog.view_selected()")
         rows = self._selected_rows()
         if not rows:
             QtWidgets.QMessageBox.information(self, "Selecionar", "Selecione linha(s) na tabela.")
@@ -1659,7 +1725,6 @@ class TerraXDialog(QtWidgets.QDialog):
                 continue
             name = f"{coll}:{os.path.basename(href)}"
 
-            # ASTER e Sentinel-2A são sempre clipados pela folha/AOI antes de carregar
             if "AST_07" in coll.upper() or self._collection_is_sentinel(coll):
                 if self._clip_and_add_raster(href, name):
                     ok += 1
@@ -1673,7 +1738,7 @@ class TerraXDialog(QtWidgets.QDialog):
         )
 
     def download_selected(self):
-        log("[CALL] TerraXDialog.download_selected()")
+        log("[CALL] BDCDialog.download_selected()")
         rows = self._selected_rows()
         if not rows:
             QtWidgets.QMessageBox.information(self, "Selecionar", "Selecione linha(s) na tabela.")
@@ -1707,10 +1772,10 @@ class TerraXDialog(QtWidgets.QDialog):
 
     # ---------- slots auxiliares ----------
     def _on_aoi_source_toggled(self, checked):
-        log(f"[CALL] TerraXDialog._on_aoi_source_toggled(checked={checked})")
+        log(f"[CALL] BDCDialog._on_aoi_source_toggled(checked={checked})")
 
     def _on_layer_selection_changed(self, *args):
-        log("[CALL] TerraXDialog._on_layer_selection_changed()")
+        log("[CALL] BDCDialog._on_layer_selection_changed()")
         if not self.rbSel.isChecked():
             return
         layer = self._sel_layer_ or iface.activeLayer()
@@ -1723,7 +1788,7 @@ class TerraXDialog(QtWidgets.QDialog):
 
     def _on_current_layer_changed(self, layer):
         name = getattr(layer, "name", None)
-        log(f"[CALL] TerraXDialog._on_current_layer_changed(layer={name!r})")
+        log(f"[CALL] BDCDialog._on_current_layer_changed(layer={name!r})")
 
         if isinstance(self._sel_layer_, QgsVectorLayer):
             try:
@@ -1745,9 +1810,9 @@ class TerraXDialog(QtWidgets.QDialog):
 
 def run():
     log("[ENTRYPOINT] run() chamado.")
-    dlg = TerraXDialog()
+    dlg = BDCDialog()
     dlg.show()
-    globals()['__TerraX_DLG__'] = dlg
+    globals()['__BDC_DLG__'] = dlg
 
 
 run()
