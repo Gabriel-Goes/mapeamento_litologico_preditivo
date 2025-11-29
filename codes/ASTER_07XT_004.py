@@ -18,6 +18,7 @@ from db_conn import get_folha_geom_geojson
 
 DEFAULT_STAC = "https://data.inpe.br/bdc/stac/v1/"
 ASTER_STAC = "https://cmr.earthdata.nasa.gov/stac/LPCLOUD"
+DEFAULT_FOLHA = "SB21_ZA_II1_NE"
 
 EA_SESSION = None
 
@@ -222,6 +223,7 @@ class BDCDialog(QtWidgets.QDialog):
         # Folha (opcional, DB)
         self.edFolha = QtWidgets.QLineEdit()
         self.edFolha.setPlaceholderText("folha_id (opcional, ex.: SB21_ZA_II1_NE)")
+        self.edFolha.setText(DEFAULT_FOLHA)
 
         # Parâmetros de busca
         self.edStart = QtWidgets.QDateEdit(QtCore.QDate.currentDate().addMonths(-6)); self.edStart.setDisplayFormat("yyyy-MM-dd"); self.edStart.setCalendarPopup(True)
@@ -305,6 +307,15 @@ class BDCDialog(QtWidgets.QDialog):
         self.btnOutdir.clicked.connect(self.pick_outdir)
         self.cbProvider.currentIndexChanged.connect(self._on_provider_change)
         self.edStac.textChanged.connect(self._on_stac_changed)
+        self.edFolha.editingFinished.connect(self._on_folha_changed)
+
+        self._selection_layer = None
+        try:
+            self._bind_layer_selection(iface.activeLayer())
+            if hasattr(iface, "layerTreeView") and iface.layerTreeView():
+                iface.layerTreeView().currentLayerChanged.connect(self._on_layer_changed)
+        except Exception as e:
+            log(f"[DEBUG] Falha ao conectar aos sinais de camada: {e}")
 
     # ---------- helpers ----------
     def _current_stac(self):
@@ -335,6 +346,81 @@ class BDCDialog(QtWidgets.QDialog):
         log(f"[ASTER] Centro da AOI: ({lon:.6f},{lat:.6f})")
         return lon, lat
 
+    def _extract_folha_id(self, feature):
+        candidates = ["codigo", "cod_folha", "id_folha", "folha", "folha_id"]
+        for key in candidates:
+            if key in feature.fields().names():
+                val = feature[key]
+                if isinstance(val, str) and val.strip():
+                    return val.strip()
+        for name in feature.fields().names():
+            val = feature[name]
+            if isinstance(val, str) and re.match(r"^[A-Z]{2}\d{2}_[A-Z]{2}_.+", val.strip()):
+                return val.strip()
+        return None
+
+    def _bind_layer_selection(self, layer):
+        if self._selection_layer:
+            try:
+                self._selection_layer.selectionChanged.disconnect(self._on_layer_selection_changed)
+            except Exception:
+                pass
+        self._selection_layer = layer if isinstance(layer, QgsVectorLayer) else None
+        if self._selection_layer:
+            try:
+                self._selection_layer.selectionChanged.connect(self._on_layer_selection_changed)
+                log(f"[DEBUG] _bind_layer_selection(layer='{self._selection_layer.name()}')")
+            except Exception as e:
+                log(f"[DEBUG] Falha ao observar seleção da camada: {e}")
+
+    def _on_layer_changed(self, layer):
+        self._bind_layer_selection(layer)
+        if isinstance(layer, QgsVectorLayer):
+            log(f"[DEBUG] _on_layer_changed(layer='{layer.name()}')")
+            self._update_folha_from_selection(layer)
+
+    def _on_layer_selection_changed(self, *args):
+        layer = self._selection_layer
+        if layer:
+            log(f"[DEBUG] _on_layer_selection_changed(layer='{layer.name()}')")
+            self._update_folha_from_selection(layer)
+
+    def _update_folha_from_selection(self, layer):
+        try:
+            sel = layer.selectedFeatures()
+        except Exception:
+            sel = []
+        if not sel:
+            return
+        fol = self._extract_folha_id(sel[0])
+        if not fol:
+            log("[DEBUG] Seleção sem campo de folha reconhecido.")
+            return
+        self.edFolha.setText(fol)
+        log(f"[DEBUG] _update_folha_from_selection(folha='{fol}')")
+        self._set_aoi_from_folha(fol)
+
+    def _set_aoi_from_folha(self, fol):
+        try:
+            gj = get_folha_geom_geojson(fol)
+            g = shp_shape(gj)
+            self.aoi = QgsGeometry.fromWkt(g.wkt)
+            bb = self.aoi.boundingBox(); c = self.aoi.centroid().asPoint()
+            log(f"[DEBUG] _set_aoi_from_folha(folha='{fol}') bbox=[{bb.xMinimum():.6f},{bb.yMinimum():.6f},{bb.xMaximum():.6f},{bb.yMaximum():.6f}] "
+                f"centroid=({c.x():.6f},{c.y():.6f})")
+            return geojson_from_qgsgeom(self.aoi)
+        except Exception as e:
+            log(f"[DEBUG] Falha ao obter folha '{fol}': {e}")
+            return None
+
+    def _on_folha_changed(self):
+        fol = (self.edFolha.text() or "").strip()
+        if not fol:
+            log("[DEBUG] _on_folha_changed sem valor de folha; mantendo AOI atual.")
+            return
+        log(f"[DEBUG] _on_folha_changed(folha='{fol}')")
+        self._set_aoi_from_folha(fol)
+
     def _on_provider_change(self, idx):
         url = self.cbProvider.itemData(idx)
         if url:
@@ -354,6 +440,12 @@ class BDCDialog(QtWidgets.QDialog):
             self.cbProvider.blockSignals(False)
 
     def _build_aoi(self, for_probe=False):
+        fol = (self.edFolha.text() or "").strip()
+        if fol:
+            gj = self._set_aoi_from_folha(fol)
+            if gj:
+                log(("AOI GeoJSON (probe)" if for_probe else "AOI GeoJSON (search)") + " = " + safe_json(gj))
+                return gj
         if self.rbSel.isChecked():
             log("AOI ← seleção da camada ativa")
             self.aoi = aoi_from_active_selection()
