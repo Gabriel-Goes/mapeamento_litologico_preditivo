@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 # QGIS 3.44 – Catálogo BDC STAC (listar → filtrar → selecionar → visualizar/baixar)
-# Requisitos: requests (vem no QGIS), osgeo.gdal. Não precisa shapely/pystac-client.
+# Requisitos: requests (vem no QGIS), osgeo.gdal.
 
 from qgis.PyQt import QtWidgets, QtCore
 from qgis.core import (
     QgsGeometry, QgsCoordinateReferenceSystem, QgsCoordinateTransform,
-    QgsProject, QgsGeometryUtils, QgsVectorLayer, QgsRasterLayer, QgsFeature, QgsField
+    QgsProject, QgsVectorLayer, QgsRasterLayer, QgsFeature, QgsField
 )
 from qgis.utils import iface
 import csv, json, os, re, requests, tempfile
@@ -108,9 +108,7 @@ def aoi_from_grid(rows):
             f"{bb.xMaximum():.6f},{bb.yMaximum():.6f}] centroid=({c.x():.6f},{c.y():.6f})"
         )
         geoms.append(g)
-    aoi = (QgsGeometryUtils.combineGeometry(geoms)
-           if hasattr(QgsGeometryUtils, "combineGeometry")
-           else QgsGeometry.unaryUnion(geoms))
+    aoi = QgsGeometry.unaryUnion(geoms)
     bb = aoi.boundingBox()
     c = aoi.centroid().asPoint()
     log(
@@ -142,9 +140,7 @@ def aoi_from_active_selection():
             f"{bb.xMaximum():.6f},{bb.yMaximum():.6f}] centroid=({c.x():.6f},{c.y():.6f})"
         )
         geoms.append(g2)
-    aoi = (QgsGeometryUtils.combineGeometry(geoms)
-           if hasattr(QgsGeometryUtils, "combineGeometry")
-           else QgsGeometry.unaryUnion(geoms))
+    aoi = QgsGeometry.unaryUnion(geoms)
     bb = aoi.boundingBox()
     c = aoi.centroid().asPoint()
     log(
@@ -680,14 +676,15 @@ class BDCDialog(QtWidgets.QDialog):
         temporal = (start, end)
         cloud_max = float(self.spCloud.value())
 
-        log(f"[ASTER] Busca AST_07XT ponto=({lon:.6f},{lat:.6f}), temporal={temporal}, nuvem<={cloud_max}")
+        bbox = (lon, lat, lon, lat)
+        log(f"[ASTER] Busca AST_07XT bbox={bbox}, temporal={temporal}, nuvem<={cloud_max}")
 
         try:
             granules = list(
                 ea.search_data(
                     short_name="AST_07XT",
                     version="004",
-                    point=(lon, lat),
+                    bounding_box=bbox,
                     temporal=temporal,
                     cloud_hosted=True,
                 )
