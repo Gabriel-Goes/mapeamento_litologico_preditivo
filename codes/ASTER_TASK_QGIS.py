@@ -5,7 +5,8 @@
 from qgis.PyQt import QtWidgets, QtCore
 from qgis.core import (
     QgsGeometry, QgsCoordinateReferenceSystem, QgsCoordinateTransform,
-    QgsProject, QgsVectorLayer, QgsRasterLayer, QgsFeature, QgsField
+    QgsProject, QgsVectorLayer, QgsRasterLayer, QgsFeature, QgsField,
+    QgsTask, QgsApplication,
 )
 from qgis.utils import iface
 import csv, json, os, re, requests, tempfile
@@ -24,15 +25,45 @@ ASTER_STAC = "https://cmr.earthdata.nasa.gov/stac/LPCLOUD"
 
 EA_SESSION = None
 
-# -------------------- infra de log --------------------
+# -------------------- infra de log + emitter (thread-safe) --------------------
 LOG_BUFFER = []
 LOG_WIDGET = None
 LOG_FILE_PATH = os.path.join(os.path.expanduser("~"), "bdc_stac_qgis.log")
+LOG_EMITTER = None
+
+
+class LogEmitter(QtCore.QObject):
+    sig_log = QtCore.pyqtSignal(str)
 
 
 def attach_log_widget(widget):
-    global LOG_WIDGET
+    """
+    Conecta o widget de log a um emissor de sinais, para permitir chamadas de log
+    a partir de tarefas (threads) sem tocar diretamente no widget.
+    """
+    global LOG_WIDGET, LOG_EMITTER
     LOG_WIDGET = widget
+
+    if LOG_EMITTER is None:
+        LOG_EMITTER = LogEmitter()
+
+    def _append(text):
+        try:
+            widget.appendPlainText(text)
+            sb = widget.verticalScrollBar()
+            sb.setValue(sb.maximum())
+        except Exception:
+            pass
+
+    try:
+        # evita múltiplas conexões duplicadas
+        LOG_EMITTER.sig_log.disconnect()
+    except Exception:
+        pass
+
+    LOG_EMITTER.sig_log.connect(_append)
+
+    # replay do buffer para o widget
     try:
         for line in LOG_BUFFER:
             widget.appendPlainText(line)
@@ -43,24 +74,24 @@ def attach_log_widget(widget):
 
 
 def log(msg):
+    global LOG_EMITTER
     line = datetime.now().strftime("[%H:%M:%S] ") + str(msg)
 
     # stdout (console do QGIS)
     print(line)
 
-    # buffer em memória (para o widget de log na GUI)
+    # buffer em memória
     LOG_BUFFER.append(line)
-    if LOG_WIDGET is not None:
+
+    # envia para o widget via sinal (thread-safe)
+    if LOG_EMITTER is not None:
         try:
-            LOG_WIDGET.appendPlainText(line)
-            sb = LOG_WIDGET.verticalScrollBar()
-            sb.setValue(sb.maximum())
+            LOG_EMITTER.sig_log.emit(line)
         except Exception:
             pass
 
     # gravação em arquivo (persistente mesmo se o QGIS travar)
     try:
-        # abre em modo append a cada chamada para garantir flush imediato
         with open(LOG_FILE_PATH, "a", encoding="utf-8") as f:
             f.write(line + "\n")
     except Exception:
@@ -293,6 +324,94 @@ def open_raster(href, name=None, outdir=None, just_download=False):
     except Exception as e:
         log(f"Erro no download: {e}")
         return False
+
+
+# -------------------- TASKS: download para clip (ASTER) --------------------
+def _download_for_clip(task, href, local):
+    """
+    Função executada em background por QgsTask.fromFunction para baixar o raster
+    em disco antes do clip. Não usa QGIS API (apenas requests + I/O).
+    """
+    gdal_tune_for_http()
+    log(f"[TASK-CLIP] Iniciando download para clip: {href} -> {local}")
+
+    try:
+        t0 = time.time()
+        with requests.get(href, stream=True, timeout=600) as r:
+            r.raise_for_status()
+
+            total = int(r.headers.get("Content-Length", "0") or 0)
+            if total > 0:
+                log(f"[TASK-CLIP] Tamanho remoto ~ {total / (1024 * 1024):.1f} MB")
+            else:
+                log("[TASK-CLIP] Content-Length não informado; progresso absoluto apenas.")
+
+            downloaded = 0
+            next_report = 50 * 1024 * 1024  # ~50 MB
+
+            # garante diretório
+            os.makedirs(os.path.dirname(local), exist_ok=True)
+
+            with open(local, "wb") as f:
+                for ch in r.iter_content(1024 * 1024):
+                    if task.isCanceled():
+                        log("[TASK-CLIP] Download cancelado pelo usuário.")
+                        return False
+                    if not ch:
+                        continue
+                    f.write(ch)
+                    downloaded += len(ch)
+
+                    if total > 0 and downloaded >= next_report:
+                        pct = downloaded / total * 100.0
+                        log(
+                            f"[TASK-CLIP] Download {downloaded / (1024 * 1024):.1f}/"
+                            f"{total / (1024 * 1024):.1f} MB ({pct:.1f}%)"
+                        )
+                        next_report += 50 * 1024 * 1024
+
+        dt = time.time() - t0
+        if total > 0:
+            log(
+                f"[TASK-CLIP] Download concluído: {downloaded / (1024 * 1024):.1f}/"
+                f"{total / (1024 * 1024):.1f} MB em {dt:.1f} s"
+            )
+        else:
+            log(f"[TASK-CLIP] Download concluído: {downloaded / (1024 * 1024):.1f} MB em {dt:.1f} s")
+
+        return True
+
+    except requests.exceptions.Timeout as e:
+        log(f"[TASK-CLIP] Timeout no download para clip: {e}")
+        return False
+    except requests.exceptions.RequestException as e:
+        log(f"[TASK-CLIP] Erro HTTP no download para clip: {e}")
+        return False
+    except Exception as e:
+        log(f"[TASK-CLIP] Erro inesperado no download para clip: {e}")
+        return False
+
+
+def _on_download_for_clip_finished(exception, result, href, local, name, dlg):
+    """
+    Callback chamado no thread principal após o término da tarefa.
+    Se download OK, dispara o clip síncrono + adição ao QGIS.
+    """
+    if exception is not None:
+        log(f"[TASK-CLIP] Exceção durante download {href}: {exception}")
+        return
+
+    if not result:
+        log(f"[TASK-CLIP] Download falhou ou foi cancelado para {href}. Clip não será executado.")
+        return
+
+    size_mb = os.path.getsize(local) / (1024 * 1024) if os.path.exists(local) else 0.0
+    log(f"[TASK-CLIP] Download concluído ({size_mb:.1f} MB). Iniciando clip e adição ao QGIS...")
+
+    try:
+        dlg._clip_and_add_raster_local(local, name)
+    except Exception as e:
+        log(f"[TASK-CLIP] Erro ao executar clip após download: {e}")
 
 
 # -------------------- GUI --------------------
@@ -604,14 +723,11 @@ class BDCDialog(QtWidgets.QDialog):
 
     def _build_aoi(self, for_probe=False):
         log(f"[CALL] BDCDialog._build_aoi(for_probe={for_probe})")
-        wgs84 = QgsCoordinateReferenceSystem("EPSG:4326")
-
         if self.rbSel.isChecked():
             log("AOI ← seleção da camada ativa")
             lyr = iface.activeLayer()
             if not isinstance(lyr, QgsVectorLayer):
                 raise RuntimeError("Camada ativa não é vetorial. Selecione feições em uma camada vetorial.")
-            # usa a mesma lógica centralizada
             self._update_aoi_from_selection(lyr)
         else:
             if not self.rows:
@@ -764,7 +880,9 @@ class BDCDialog(QtWidgets.QDialog):
         except Exception as e:
             QtWidgets.QMessageBox.warning(self, "AOI", str(e))
             return
-        dt = f"{self.edStart.date().toString('yyyy-MM-dd')}/{self.edEnd.date().toString('yyyy-MM-dd')}"
+        start = self.edStart.date().toString("yyyy-MM-dd")
+        end = self.edEnd.date().toString("yyyy-MM-dd")
+        dt = f"{start}/{end}"
         ok, zero = [], []
         for coll in cols:
             try:
@@ -973,74 +1091,16 @@ class BDCDialog(QtWidgets.QDialog):
 
         log(f"[ASTER] {len(out)} granule(s) AST_07XT. CSV: {out_csv}")
 
-    def _clip_and_add_raster(self, href, name):
-        log(f"[CALL] BDCDialog._clip_and_add_raster(href={href!r}, name={name!r})")
+    def _clip_and_add_raster_local(self, local, name):
+        """
+        Parte síncrona de clip + adição ao QGIS, assumindo que o arquivo local já existe.
+        Executa no thread principal (chamado a partir do callback da task).
+        """
+        log(f"[CALL] BDCDialog._clip_and_add_raster_local(local={local!r}, name={name!r})")
         import processing
         from qgis.PyQt.QtCore import QVariant
 
         gdal_tune_for_http()
-
-        outdir = self.labOutdir.text().strip() or tempfile.gettempdir()
-        os.makedirs(outdir, exist_ok=True)
-        local = os.path.join(outdir, os.path.basename(href))
-
-        # ------------------ DOWNLOAD DO RASTER ------------------
-        if not os.path.exists(local):
-            try:
-                log(f"[CLIP] HTTP GET {href}")
-                log(f"[CLIP] Baixando para clip: {local}")
-
-                t0 = time.time()
-                with requests.get(href, stream=True, timeout=600) as r:
-                    r.raise_for_status()
-
-                    total = int(r.headers.get("Content-Length", "0") or 0)
-                    if total > 0:
-                        log(f"[CLIP] Tamanho remoto ~ {total / (1024 * 1024):.1f} MB")
-                    else:
-                        log("[CLIP] Content-Length não informado; progresso absoluto apenas.")
-
-                    downloaded = 0
-                    # próximo marco de log a cada ~50 MB
-                    next_report = 50 * 1024 * 1024
-
-                    with open(local, "wb") as f:
-                        for ch in r.iter_content(1024 * 1024):
-                            if not ch:
-                                continue
-                            f.write(ch)
-                            downloaded += len(ch)
-
-                            # log periódico de progresso
-                            if total > 0 and downloaded >= next_report:
-                                pct = downloaded / total * 100.0
-                                log(
-                                    f"[CLIP] Download {downloaded / (1024 * 1024):.1f}/{total / (1024 * 1024):.1f} MB ({pct:.1f}%)"
-                                )
-                                next_report += 50 * 1024 * 1024
-
-                    dt = time.time() - t0
-                    if total > 0:
-                        log(
-                            f"[CLIP] Download concluído: {downloaded / (1024 * 1024):.1f}/{total / (1024 * 1024):.1f} MB em {dt:.1f} s"
-                        )
-                    else:
-                        log(
-                            f"[CLIP] Download concluído: {downloaded / (1024 * 1024):.1f} MB em {dt:.1f} s"
-                        )
-
-            except requests.exceptions.Timeout as e:
-                log(f"[CLIP] Timeout no download para clip: {e}")
-                return False
-            except requests.exceptions.RequestException as e:
-                log(f"[CLIP] Erro HTTP no download para clip: {e}")
-                return False
-            except Exception as e:
-                log(f"[CLIP] Erro inesperado no download para clip: {e}")
-                return False
-        else:
-            size_mb = os.path.getsize(local) / (1024 * 1024)
-            log(f"[CLIP] Arquivo local já existe ({size_mb:.1f} MB): {local}")
 
         # ------------------ CONSTRUÇÃO DA AOI ------------------
         if self.aoi is None:
@@ -1117,6 +1177,41 @@ class BDCDialog(QtWidgets.QDialog):
 
         log("[CLIP] GDAL não validou raster recortado (rl.isValid() == False).")
         return False
+
+    def _clip_and_add_raster(self, href, name):
+        """
+        Método público chamado por view_selected para ASTER.
+        Se o arquivo local já existir, faz clip síncrono.
+        Caso contrário, agenda uma QgsTask para baixar em background e,
+        ao terminar, chama _clip_and_add_raster_local() no thread principal.
+        """
+        log(f"[CALL] BDCDialog._clip_and_add_raster(href={href!r}, name={name!r})")
+
+        outdir = self.labOutdir.text().strip() or tempfile.gettempdir()
+        os.makedirs(outdir, exist_ok=True)
+        local = os.path.join(outdir, os.path.basename(href))
+
+        if os.path.exists(local):
+            size_mb = os.path.getsize(local) / (1024 * 1024)
+            log(f"[CLIP] Arquivo local já existe ({size_mb:.1f} MB): {local}")
+            return self._clip_and_add_raster_local(local, name)
+
+        desc = f"Download ASTER para clip: {os.path.basename(local)}"
+        log(f"[TASK-CLIP] Criando task: {desc}")
+
+        task = QgsTask.fromFunction(
+            desc,
+            _download_for_clip,
+            on_finished=_on_download_for_clip_finished,
+            flags=QgsTask.CanCancel,
+            href=href,
+            local=local,
+            name=name,
+            dlg=self,
+        )
+        QgsApplication.taskManager().addTask(task)
+        log(f"[TASK-CLIP] Tarefa adicionada ao Task Manager: {task.description()}")
+        return True
 
     def run_search(self):
         log("[CALL] BDCDialog.run_search()")
@@ -1275,12 +1370,18 @@ class BDCDialog(QtWidgets.QDialog):
                 continue
             name = f"{coll}:{os.path.basename(href)}"
             if self._is_aster_provider():
+                # ASTER: agenda task para download + clip (se preciso)
                 if self._clip_and_add_raster(href, name):
                     ok += 1
             else:
+                # BDC/OUTROS: continua usando open_raster síncrono
                 if open_raster(href, name=name, outdir=self.labOutdir.text().strip(), just_download=False):
                     ok += 1
-        QtWidgets.QMessageBox.information(self, "Visualizar", f"{ok} camada(s) adicionada(s).")
+        QtWidgets.QMessageBox.information(
+            self,
+            "Visualizar",
+            f"{ok} requisição(ões) enviada(s). Para ASTER, acompanhe o progresso no Task Manager do QGIS."
+        )
 
     def download_selected(self):
         log("[CALL] BDCDialog.download_selected()")
@@ -1334,7 +1435,6 @@ class BDCDialog(QtWidgets.QDialog):
         try:
             self._update_aoi_from_selection(layer)
         except Exception as e:
-            # Não abre message box aqui para não incomodar; apenas loga.
             log(f"[SEL] Erro ao atualizar AOI/Folha a partir da seleção: {e}")
 
     def _on_current_layer_changed(self, layer):
@@ -1355,10 +1455,8 @@ class BDCDialog(QtWidgets.QDialog):
             try:
                 layer.selectionChanged.connect(self._on_layer_selection_changed)
             except TypeError:
-                # em caso de múltiplas conexões redundantes
                 pass
 
-            # se já houver seleção, sincroniza imediatamente
             if layer.selectedFeatureCount() > 0:
                 self._on_layer_selection_changed()
 
