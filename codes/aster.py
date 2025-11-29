@@ -1,76 +1,61 @@
 # -*- coding: utf-8 -*-
-# QGIS 3.44 – Catálogo BDC STAC (listar → filtrar → selecionar → visualizar/baixar)
-# Requisitos: requests (vem no QGIS), osgeo.gdal. Não precisa shapely/pystac-client.
+# QGIS 3.44 – Catálogo BDC STAC + ASTER_07XT (earthaccess)
+# Requisitos extras p/ ASTER: earthaccess (EDL), osgeo.gdal, requests.
 
 from qgis.PyQt import QtWidgets, QtCore
 from qgis.core import (
-    QgsGeometry, QgsCoordinateReferenceSystem, QgsCoordinateTransform,
-    QgsProject, QgsGeometryUtils, QgsVectorLayer, QgsRasterLayer, QgsFeature, QgsField
+    QgsGeometry,
+    QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform,
+    QgsProject,
+    QgsGeometryUtils,
+    QgsVectorLayer,
+    QgsRasterLayer,
+    QgsPointXY,
+    QgsFeature,
 )
 from qgis.utils import iface
-import csv, json, os, re, requests, tempfile
+
+import csv
+import json
+import os
+import re
+import tempfile
 from datetime import datetime
+
+import requests
 from osgeo import gdal
 
-import earthaccess as ea
-from shapely.geometry import shape as shp_shape
-from db_conn import get_folha_geom_geojson
+import earthaccess as ea  # ASTER_07XT via earthaccess
 
 DEFAULT_STAC = "https://data.inpe.br/bdc/stac/v1/"
 ASTER_STAC = "https://cmr.earthdata.nasa.gov/stac/LPCLOUD"
 
-EA_SESSION = None
 
-# -------------------- infra de log --------------------
-LOG_BUFFER = []
-LOG_WIDGET = None
-
-
-def attach_log_widget(widget):
-    global LOG_WIDGET
-    LOG_WIDGET = widget
-    try:
-        for line in LOG_BUFFER:
-            widget.appendPlainText(line)
-        sb = widget.verticalScrollBar()
-        sb.setValue(sb.maximum())
-    except Exception:
-        pass
-
-
+# -------------------- util/log --------------------
 def log(msg):
-    line = datetime.now().strftime("[%H:%M:%S] ") + str(msg)
-    print(line)
-    LOG_BUFFER.append(line)
-    if LOG_WIDGET is not None:
-        try:
-            LOG_WIDGET.appendPlainText(line)
-            sb = LOG_WIDGET.verticalScrollBar()
-            sb.setValue(sb.maximum())
-        except Exception:
-            pass
+    print(datetime.now().strftime("[%H:%M:%S] "), msg)
 
 
-log("[INIT] Módulo BDC STAC carregado.")
-
-# -------------------- util/json --------------------
 def safe_json(obj):
     return json.dumps(obj, ensure_ascii=False)
 
+
 # -------------------- quadricula.csv --------------------
 def read_grid_csv(csv_path):
-    log(f"[CALL] read_grid_csv(csv_path={csv_path!r})")
     rows = []
     with open(csv_path, newline="", encoding="utf-8") as f:
         rd = csv.DictReader(f)
         for r in rd:
             if not r.get("wkt_geom") or not r.get("EPSG"):
                 continue
-            rows.append({
-                "id_folha": r.get("id_folha", ""),
-                "epsg": int(r["EPSG"]),
-                "wkt": r["wkt_geom"]
-            })
+            rows.append(
+                {
+                    "id_folha": r.get("id_folha", ""),
+                    "epsg": int(r["EPSG"]),
+                    "wkt": r["wkt_geom"],
+                }
+            )
     if not rows:
         raise RuntimeError("CSV vazio ou sem colunas id_folha, EPSG, wkt_geom.")
     log(f"[CSV] OK: {len(rows)} linhas.")
@@ -86,7 +71,6 @@ def _looks_like_lonlat(g):
 
 
 def aoi_from_grid(rows):
-    log(f"[CALL] aoi_from_grid(rows_len={len(rows)})")
     wgs84 = QgsCoordinateReferenceSystem("EPSG:4326")
     geoms = []
     for i, r in enumerate(rows, 1):
@@ -104,13 +88,16 @@ def aoi_from_grid(rows):
         bb = g.boundingBox()
         c = g.centroid().asPoint()
         log(
-            f"[CSV] {i:02d} {r['id_folha']} bbox=[{bb.xMinimum():.6f},{bb.yMinimum():.6f},"
-            f"{bb.xMaximum():.6f},{bb.yMaximum():.6f}] centroid=({c.x():.6f},{c.y():.6f})"
+            f"[CSV] {i:02d} {r['id_folha']} "
+            f"bbox=[{bb.xMinimum():.6f},{bb.yMinimum():.6f},{bb.xMaximum():.6f},{bb.yMaximum():.6f}] "
+            f"centroid=({c.x():.6f},{c.y():.6f})"
         )
         geoms.append(g)
-    aoi = (QgsGeometryUtils.combineGeometry(geoms)
-           if hasattr(QgsGeometryUtils, "combineGeometry")
-           else QgsGeometry.unaryUnion(geoms))
+    aoi = (
+        QgsGeometryUtils.combineGeometry(geoms)
+        if hasattr(QgsGeometryUtils, "combineGeometry")
+        else QgsGeometry.unaryUnion(geoms)
+    )
     bb = aoi.boundingBox()
     c = aoi.centroid().asPoint()
     log(
@@ -121,7 +108,6 @@ def aoi_from_grid(rows):
 
 
 def aoi_from_active_selection():
-    log("[CALL] aoi_from_active_selection()")
     lyr = iface.activeLayer()
     if not isinstance(lyr, QgsVectorLayer):
         raise RuntimeError("Camada ativa não é vetorial. Selecione feições em uma camada vetorial.")
@@ -138,13 +124,16 @@ def aoi_from_active_selection():
         bb = g2.boundingBox()
         c = g2.centroid().asPoint()
         log(
-            f"[SEL] {i:02d} bbox=[{bb.xMinimum():.6f},{bb.yMinimum():.6f},"
-            f"{bb.xMaximum():.6f},{bb.yMaximum():.6f}] centroid=({c.x():.6f},{c.y():.6f})"
+            f"[SEL] {i:02d} "
+            f"bbox=[{bb.xMinimum():.6f},{bb.yMinimum():.6f},{bb.xMaximum():.6f},{bb.yMaximum():.6f}] "
+            f"centroid=({c.x():.6f},{c.y():.6f})"
         )
         geoms.append(g2)
-    aoi = (QgsGeometryUtils.combineGeometry(geoms)
-           if hasattr(QgsGeometryUtils, "combineGeometry")
-           else QgsGeometry.unaryUnion(geoms))
+    aoi = (
+        QgsGeometryUtils.combineGeometry(geoms)
+        if hasattr(QgsGeometryUtils, "combineGeometry")
+        else QgsGeometry.unaryUnion(geoms)
+    )
     bb = aoi.boundingBox()
     c = aoi.centroid().asPoint()
     log(
@@ -155,32 +144,33 @@ def aoi_from_active_selection():
 
 
 def geojson_from_qgsgeom(g):
-    log(f"[CALL] geojson_from_qgsgeom(type={type(g).__name__})")
     return json.loads(g.asJson())
 
-# -------------------- STAC --------------------
+
+# -------------------- STAC GENÉRICO --------------------
 def fetch_collections(stac_url):
-    log(f"[CALL] fetch_collections(stac_url={stac_url!r})")
     url = stac_url.rstrip("/") + "/collections"
     log(f"GET {url}")
     r = requests.get(url, timeout=30)
     r.raise_for_status()
     cols = r.json().get("collections", [])
     log(f"{len(cols)} coleções carregadas.")
-    return [{
-        "id": c.get("id", ""),
-        "title": c.get("title", "") or "",
-        "description": c.get("description", "") or "",
-        "summaries": c.get("summaries", {}) or {},
-        "has_cloud_cover": "eo:cloud_cover" in (c.get("summaries", {}) or {}),
-    } for c in cols]
+    out = []
+    for c in cols:
+        sm = c.get("summaries", {}) or {}
+        out.append(
+            {
+                "id": c.get("id", ""),
+                "title": c.get("title", "") or "",
+                "description": c.get("description", "") or "",
+                "summaries": sm,
+                "has_cloud_cover": "eo:cloud_cover" in sm,
+            }
+        )
+    return out
 
 
 def stac_search(stac_url, collections, aoi_geojson, datetime_str, max_cloud=None, limit=100, sort="desc"):
-    log(
-        f"[CALL] stac_search(stac_url={stac_url!r}, collections={collections}, "
-        f"datetime={datetime_str!r}, max_cloud={max_cloud}, limit={limit}, sort={sort!r})"
-    )
     url = stac_url.rstrip("/") + "/search"
     body = {
         "collections": collections,
@@ -198,9 +188,9 @@ def stac_search(stac_url, collections, aoi_geojson, datetime_str, max_cloud=None
     r.raise_for_status()
     return r.json()
 
+
 # -------------------- abrir/baixar assets --------------------
 def choose_tif_asset(assets: dict):
-    log(f"[CALL] choose_tif_asset(keys={list(assets.keys())})")
     for k in sorted(assets.keys()):
         href = assets[k].get("href", "")
         if href and re.search(r"\.tif(f)?$", href, re.I) and "thumb" not in k.lower() and "overview" not in k.lower():
@@ -209,7 +199,6 @@ def choose_tif_asset(assets: dict):
 
 
 def gdal_tune_for_http():
-    log("[CALL] gdal_tune_for_http()")
     gdal.SetConfigOption("CPL_VSIL_CURL_ALLOWED_EXTENSIONS", "tif,tiff")
     gdal.SetConfigOption("GDAL_DISABLE_READDIR_ON_OPEN", "YES")
     gdal.SetConfigOption("GDAL_HTTP_MAX_RETRY", "3")
@@ -217,10 +206,6 @@ def gdal_tune_for_http():
 
 
 def open_raster(href, name=None, outdir=None, just_download=False):
-    log(
-        f"[CALL] open_raster(href={href!r}, name={name!r}, "
-        f"outdir={outdir!r}, just_download={just_download})"
-    )
     gdal_tune_for_http()
     name = name or os.path.basename(href)
     vsicurl = "/vsicurl/" + href
@@ -254,28 +239,28 @@ def open_raster(href, name=None, outdir=None, just_download=False):
         log(f"Erro no download: {e}")
         return False
 
+
 # -------------------- GUI --------------------
 class BDCDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
-        log("[CALL] BDCDialog.__init__()")
         super().__init__(parent)
         self.setWindowTitle("BDC/ASTER – Listar/Filtrar/Selecionar dados (quadícula)")
         self.resize(1000, 680)
 
-        # Linha de topo
+        # provider
         self.cbProvider = QtWidgets.QComboBox()
         self.cbProvider.addItem("BDC (INPE)", DEFAULT_STAC)
         self.cbProvider.addItem("ASTER (LP DAAC STAC)", ASTER_STAC)
         self.cbProvider.addItem("Personalizado", "")
         self.cbProvider.setToolTip(
-            "Escolha o catálogo STAC: BDC ou ASTER (LP DAAC). Para outro, selecione Personalizado e edite a URL. "
-            "Filtro de nuvem só é enviado quando o provedor/coleção suporta a propriedade eo:cloud_cover (BDC normalmente)."
+            "Catálogo STAC: BDC ou ASTER (LP DAAC). Para outro, use Personalizado.\n"
+            "Para AST_07XT, a busca pode usar earthaccess (point no centróide da folha)."
         )
 
         self.edStac = QtWidgets.QLineEdit(DEFAULT_STAC)
         self.edStac.setToolTip(
-            "URL do catálogo STAC. Agora aceita BDC ou ASTER (LP DAAC), ou um endpoint personalizado. "
-            "Em catálogos sem eo:cloud_cover (ex.: LPCLOUD/ASTER), o filtro de nuvem será ignorado."
+            "URL do catálogo STAC. Em catálogos sem eo:cloud_cover (ex.: LPCLOUD/ASTER), "
+            "o filtro de nuvem STAC é ignorado, mas AST_07XT pode usar earthaccess."
         )
         self.btnCols = QtWidgets.QPushButton("Carregar coleções")
         self.edFilter = QtWidgets.QLineEdit()
@@ -283,23 +268,22 @@ class BDCDialog(QtWidgets.QDialog):
         self.btnApplyFilter = QtWidgets.QPushButton("Aplicar filtro")
         self.btnSelectAll = QtWidgets.QPushButton("Selecionar todas")
 
-        # Lista de coleções
         self.listCols = QtWidgets.QListWidget()
         self.listCols.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.listCols.setAlternatingRowColors(True)
 
-        # Origem da AOI
+        # origem AOI
         self.rbSel = QtWidgets.QRadioButton("Usar seleção da camada ativa")
         self.rbCsv = QtWidgets.QRadioButton("Usar quadricula.csv")
         self.rbSel.setChecked(True)
         self.btnGrid = QtWidgets.QPushButton("Escolher CSV…")
         self.labGrid = QtWidgets.QLabel("(nenhum)")
 
-        # Folha (opcional, DB)
+        # folha do DB (apenas código – atualizado pela seleção)
         self.edFolha = QtWidgets.QLineEdit()
-        self.edFolha.setPlaceholderText("folha_id (opcional, ex.: SB21_ZA_II1_NE)")
+        self.edFolha.setPlaceholderText("código da folha, ex.: SB21_ZA_II2_NW")
 
-        # Parâmetros de busca
+        # parâmetros de busca
         self.edStart = QtWidgets.QDateEdit(QtCore.QDate.currentDate().addMonths(-6))
         self.edStart.setDisplayFormat("yyyy-MM-dd")
         self.edStart.setCalendarPopup(True)
@@ -311,19 +295,16 @@ class BDCDialog(QtWidgets.QDialog):
         self.spCloud.setDecimals(1)
         self.spCloud.setValue(20.0)
         self.spCloud.setToolTip(
-            "Filtro por nuvem (eo:cloud_cover) enviado apenas para provedores/coleções que anunciam esse campo. "
-            "No ASTER/LPCLOUD o filtro é omitido."
+            "Filtro por nuvem (eo:cloud_cover). Em ASTER/earthaccess, usa CloudCover do UMM."
         )
         self.spLimit = QtWidgets.QSpinBox()
         self.spLimit.setRange(1, 10000)
         self.spLimit.setValue(200)
         self.cbAsc = QtWidgets.QCheckBox("Mais antigas primeiro (asc)")
 
-        # Ações de busca
         self.btnProbe = QtWidgets.QPushButton("Provar (1 item/coleção)")
         self.btnSearch = QtWidgets.QPushButton("Listar dados")
 
-        # Tabela de resultados
         self.table = QtWidgets.QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels(
             ["collection", "item_id", "datetime", "cloud_cover", "bbox", "assets", "href_tif", "all_hrefs"]
@@ -331,20 +312,13 @@ class BDCDialog(QtWidgets.QDialog):
         self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
 
-        # Log de execução
-        self.txtLog = QtWidgets.QPlainTextEdit()
-        self.txtLog.setReadOnly(True)
-        self.txtLog.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
-        self.txtLog.setPlaceholderText("Log de execução (funções, parâmetros, requisições).")
-
-        # Saída/ações finais
         self.btnAdd = QtWidgets.QPushButton("Visualizar selecionados no QGIS")
         self.btnDl = QtWidgets.QPushButton("Baixar selecionados")
         self.cbAllAssets = QtWidgets.QCheckBox("Baixar todos assets dos itens")
         self.btnOutdir = QtWidgets.QPushButton("Pasta de saída…")
         self.labOutdir = QtWidgets.QLabel(os.path.expanduser("~"))
 
-        # Layouts
+        # layouts
         top = QtWidgets.QHBoxLayout()
         top.addWidget(QtWidgets.QLabel("Catálogo STAC (BDC/ASTER):"))
         top.addWidget(self.cbProvider)
@@ -362,9 +336,9 @@ class BDCDialog(QtWidgets.QDialog):
         aoi.addWidget(self.btnGrid)
         aoi.addWidget(self.labGrid, 1)
 
-        row_folha = QtWidgets.QHBoxLayout()
-        row_folha.addWidget(QtWidgets.QLabel("Folha (DB):"))
-        row_folha.addWidget(self.edFolha, 1)
+        folha_row = QtWidgets.QHBoxLayout()
+        folha_row.addWidget(QtWidgets.QLabel("Folha (DB):"))
+        folha_row.addWidget(self.edFolha, 1)
 
         par = QtWidgets.QHBoxLayout()
         par.addWidget(QtWidgets.QLabel("Início:"))
@@ -395,17 +369,19 @@ class BDCDialog(QtWidgets.QDialog):
         lay.addLayout(filt)
         lay.addWidget(self.listCols, 1)
         lay.addLayout(aoi)
-        lay.addLayout(row_folha)
+        lay.addLayout(folha_row)
         lay.addLayout(par)
         lay.addLayout(actions)
         lay.addWidget(self.table, 2)
-        lay.addWidget(self.txtLog, 1)
         lay.addLayout(bottom)
 
-        # state
+        # estado
         self.rows = None
         self.aoi = None
         self._all_collections = []
+        self._ea_logged = False
+        self._last_mode = ""  # "stac" ou "aster_ea"
+        self._sel_layer = None
 
         # signals
         self.btnCols.clicked.connect(self.load_collections)
@@ -420,53 +396,20 @@ class BDCDialog(QtWidgets.QDialog):
         self.cbProvider.currentIndexChanged.connect(self._on_provider_change)
         self.edStac.textChanged.connect(self._on_stac_changed)
 
-        attach_log_widget(self.txtLog)
-        log("[BDCDialog] Diálogo iniciado.")
+        # acompanhar seleção da camada ativa p/ atualizar Folha(DB)
+        self._connect_layer_selection_signal(iface.activeLayer())
+        iface.currentLayerChanged.connect(self._on_current_layer_changed)
 
-    # ---------- helpers ----------
+    # ---------- helpers de estado ----------
     def _current_stac(self):
-        val = self.edStac.text().strip()
-        log(f"[CALL] BDCDialog._current_stac() -> {val!r}")
-        return val
-
-    def _is_aster_provider(self):
-        st = self._current_stac().rstrip("/")
-        res = st == ASTER_STAC.rstrip("/")
-        log(f"[CALL] BDCDialog._is_aster_provider() -> {res}")
-        return res
-
-    def _ensure_earthaccess_login(self):
-        log("[CALL] BDCDialog._ensure_earthaccess_login()")
-        global EA_SESSION
-        if EA_SESSION is None:
-            EA_SESSION = ea.login()
-        return EA_SESSION
-
-    def _aster_search_point(self):
-        log("[CALL] BDCDialog._aster_search_point()")
-        fol = (self.edFolha.text() or "").strip()
-        if fol:
-            gj = get_folha_geom_geojson(fol)
-            g = shp_shape(gj)
-            c = g.centroid
-            lon, lat = c.x, c.y
-            log(f"[ASTER] Centro da folha {fol}: ({lon:.6f},{lat:.6f})")
-            return lon, lat
-        if self.aoi is None:
-            self._build_aoi()
-        c = self.aoi.centroid().asPoint()
-        lon, lat = c.x(), c.y()
-        log(f"[ASTER] Centro da AOI: ({lon:.6f},{lat:.6f})")
-        return lon, lat
+        return self.edStac.text().strip()
 
     def _on_provider_change(self, idx):
-        log(f"[CALL] BDCDialog._on_provider_change(idx={idx})")
         url = self.cbProvider.itemData(idx)
         if url:
             self.edStac.setText(url)
 
     def _on_stac_changed(self, text):
-        log(f"[CALL] BDCDialog._on_stac_changed(text={text!r})")
         for i in range(self.cbProvider.count() - 1):
             if text.strip() == self.cbProvider.itemData(i):
                 if self.cbProvider.currentIndex() != i:
@@ -479,8 +422,36 @@ class BDCDialog(QtWidgets.QDialog):
             self.cbProvider.setCurrentIndex(self.cbProvider.count() - 1)
             self.cbProvider.blockSignals(False)
 
+    def _connect_layer_selection_signal(self, lyr):
+        if self._sel_layer is not None:
+            try:
+                self._sel_layer.selectionChanged.disconnect(self._on_layer_selection_changed)
+            except Exception:
+                pass
+        self._sel_layer = None
+        if isinstance(lyr, QgsVectorLayer):
+            lyr.selectionChanged.connect(self._on_layer_selection_changed)
+            self._sel_layer = lyr
+
+    def _on_current_layer_changed(self, lyr):
+        self._connect_layer_selection_signal(lyr)
+
+    def _on_layer_selection_changed(self, selected, deselected, clear_and_select):
+        lyr = self._sel_layer
+        if not isinstance(lyr, QgsVectorLayer):
+            return
+        sel = lyr.selectedFeatures()
+        if not sel:
+            return
+        ft = sel[0]
+        for name in ("codigo", "id_folha", "folha", "cod_folha"):
+            if name in ft.fields().names():
+                val = ft[name]
+                if val is not None:
+                    self.edFolha.setText(str(val))
+                break
+
     def _build_aoi(self, for_probe=False):
-        log(f"[CALL] BDCDialog._build_aoi(for_probe={for_probe})")
         if self.rbSel.isChecked():
             log("AOI ← seleção da camada ativa")
             self.aoi = aoi_from_active_selection()
@@ -494,13 +465,11 @@ class BDCDialog(QtWidgets.QDialog):
         return gj
 
     def _selected_collections(self):
-        cols = [
+        return [
             self.listCols.item(i).data(QtCore.Qt.UserRole)
             for i in range(self.listCols.count())
             if self.listCols.item(i).checkState() == QtCore.Qt.Checked
         ]
-        log(f"[CALL] BDCDialog._selected_collections() -> {cols}")
-        return cols
 
     def _collection_meta(self, coll_id):
         for c in self._all_collections:
@@ -509,21 +478,19 @@ class BDCDialog(QtWidgets.QDialog):
         return None
 
     def _cloud_filter_allowed(self, selected_ids):
-        log(f"[CALL] BDCDialog._cloud_filter_allowed(selected_ids={selected_ids})")
         stac = self._current_stac().rstrip("/")
         if stac == DEFAULT_STAC.rstrip("/"):
             return True
         if stac == ASTER_STAC.rstrip("/"):
+            # STAC LPCLOUD não tem eo:cloud_cover, mas AST_07XT via earthaccess
+            # usa CloudCover internamente; filtro STAC é ignorado.
             return False
         metas = [self._collection_meta(cid) for cid in selected_ids]
         if not metas:
             return False
-        allowed = all(m and m.get("has_cloud_cover") for m in metas)
-        log(f"[CLOUD] allowed={allowed} para {selected_ids}")
-        return allowed
+        return all(m and m.get("has_cloud_cover") for m in metas)
 
     def _http_error_message(self, err):
-        log(f"[CALL] BDCDialog._http_error_message(err={type(err).__name__})")
         resp = getattr(err, "response", None)
         if not resp:
             return str(err)
@@ -537,20 +504,231 @@ class BDCDialog(QtWidgets.QDialog):
         reason = resp.reason or ""
         return f"HTTP {resp.status_code} {reason}\nURL: {resp.url}\nBody: {body or '<vazio>'}"
 
+    # ---------- earthaccess / ASTER_07XT ----------
+    def _ensure_ea_login(self):
+        if self._ea_logged:
+            return True
+        try:
+            ea.login()  # usa .netrc/credenciais já configuradas
+            self._ea_logged = True
+            return True
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "earthaccess", f"Falha no login earthaccess:\n{e}")
+            return False
+
+    def _umm_datetime(self, umm):
+        te = umm.get("TemporalExtent") or {}
+        tstr = ""
+        if "SingleDateTime" in te:
+            tstr = te.get("SingleDateTime") or ""
+        else:
+            rds = te.get("RangeDateTimes") or []
+            if rds:
+                tstr = rds[0].get("BeginningDateTime") or ""
+        if not tstr:
+            return None
+        try:
+            if tstr.endswith("Z"):
+                tstr = tstr.replace("Z", "+00:00")
+            return datetime.fromisoformat(tstr)
+        except Exception:
+            return None
+
+    def _aster_footprint_coords(self, gran):
+        try:
+            gpolys = (
+                gran["umm"]["SpatialExtent"]["HorizontalSpatialDomain"]["Geometry"]["GPolygons"]
+                or []
+            )
+            if not gpolys:
+                return []
+            pts = gpolys[0]["Boundary"]["Points"]
+            coords = [(float(p["Longitude"]), float(p["Latitude"])) for p in pts]
+            return coords
+        except Exception:
+            return []
+
+    def _aster_data_links(self, gran):
+        try:
+            links = gran.data_links()
+        except Exception:
+            try:
+                links = gran.get("data_links") or []
+            except Exception:
+                links = []
+        return list(links) if links else []
+
+    def _aster_pick_href(self, links):
+        if not links:
+            return ""
+        prefs = ["SRF_SWIR_B04", "SRF_VNIR_B01", "B04", "B01"]
+        for key in prefs:
+            for h in links:
+                if key in h:
+                    return h
+        return links[0]
+
+    def _update_aster_footprints_layer(self, granules):
+        proj = QgsProject.instance()
+        name = "ASTER_07XT_footprints"
+        for lyr in list(proj.mapLayers().values()):
+            if lyr.name() == name:
+                proj.removeMapLayer(lyr.id())
+        vl = QgsVectorLayer(
+            "LineString?crs=EPSG:4326&field=granule_id:string(80)&field=cloud:double&field=datetime:string(32)",
+            name,
+            "memory",
+        )
+        pr = vl.dataProvider()
+        feats = []
+        for g in granules:
+            umm = g["umm"]
+            iid = umm.get("GranuleUR", "")
+            cc = umm.get("CloudCover", None)
+            dt = self._umm_datetime(umm)
+            coords = self._aster_footprint_coords(g)
+            if len(coords) < 2:
+                continue
+            pts = [QgsPointXY(float(lon), float(lat)) for lon, lat in coords]
+            ft = QgsFeature()
+            ft.setGeometry(QgsGeometry.fromPolylineXY(pts))
+            ft.setAttributes(
+                [
+                    iid,
+                    float(cc) if cc is not None else -1.0,
+                    dt.isoformat() if dt else "",
+                ]
+            )
+            feats.append(ft)
+        if feats:
+            pr.addFeatures(feats)
+            vl.updateExtents()
+            proj.addMapLayer(vl)
+            log(f"[ASTER] Footprints layer: {len(feats)} feições.")
+
+    def _run_search_aster_earthaccess(self):
+        if not self._ensure_ea_login():
+            return
+
+        try:
+            aoi_gj = self._build_aoi()
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, "AOI", str(e))
+            return
+
+        if self.aoi is None:
+            QtWidgets.QMessageBox.warning(self, "AOI", "AOI não definida.")
+            return
+
+        cpt = self.aoi.centroid().asPoint()
+        pt = (cpt.x(), cpt.y())
+        start = self.edStart.date().toString("yyyy-MM-dd")
+        end = self.edEnd.date().toString("yyyy-MM-dd")
+        temporal = (start, end)
+        cloud_max = float(self.spCloud.value())
+        limit = int(self.spLimit.value())
+
+        log(
+            f"[ASTER] earthaccess.search_data: point={pt}, "
+            f"temporal={temporal}, cloud_max={cloud_max}, limit={limit}"
+        )
+
+        res = ea.search_data(
+            short_name="AST_07XT",
+            version="004",
+            cloud_hosted=True,
+            point=pt,
+            temporal=temporal,
+        )
+
+        granules = []
+        for g in res:
+            umm = g["umm"]
+            cc = umm.get("CloudCover", None)
+            if cc is not None and float(cc) > cloud_max:
+                continue
+            granules.append(g)
+
+        def key_fn(g):
+            umm = g["umm"]
+            cc = umm.get("CloudCover", None)
+            ccv = float(cc) if cc is not None else 9999.0
+            dt = self._umm_datetime(umm) or datetime.min
+            return (ccv, dt)
+
+        granules.sort(key=key_fn, reverse=False)
+        if self.cbAsc.isChecked():
+            pass  # já em ordem cronológica crescente
+        else:
+            granules.sort(key=lambda g: self._umm_datetime(g["umm"]) or datetime.min, reverse=True)
+        granules = granules[:limit]
+
+        self._last_mode = "aster_ea"
+        self._populate_aster_results(granules)
+        self._update_aster_footprints_layer(granules)
+
+    def _populate_aster_results(self, granules):
+        self.table.setRowCount(0)
+        out = []
+        for g in granules:
+            umm = g["umm"]
+            coll = umm.get("CollectionReference", {}).get("ShortName", "AST_07XT")
+            iid = umm.get("GranuleUR", "")
+            dtm = self._umm_datetime(umm)
+            cc = umm.get("CloudCover", "")
+            coords = self._aster_footprint_coords(g)
+            if coords:
+                lons = [c[0] for c in coords]
+                lats = [c[1] for c in coords]
+                bbox = [min(lons), min(lats), max(lons), max(lats)]
+            else:
+                bbox = []
+            links = self._aster_data_links(g)
+            href_tif = self._aster_pick_href(links)
+            all_hrefs = links
+
+            r = self.table.rowCount()
+            self.table.insertRow(r)
+            vals = [
+                coll,
+                iid,
+                dtm.isoformat() if dtm else "",
+                str(cc),
+                json.dumps(bbox),
+                "data_links",
+                href_tif or "",
+                json.dumps(all_hrefs),
+            ]
+            for c, v in enumerate(vals):
+                self.table.setItem(r, c, QtWidgets.QTableWidgetItem(v))
+
+            out.append(
+                {
+                    "collection": coll,
+                    "item_id": iid,
+                    "datetime": dtm.isoformat() if dtm else "",
+                    "cloud_cover": cc,
+                    "bbox": json.dumps(bbox),
+                    "assets": "data_links",
+                    "href_tif": href_tif or "",
+                    "all_hrefs": all_hrefs,
+                }
+            )
+
+        outdir = self.labOutdir.text().strip()
+        os.makedirs(outdir, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        out_csv = os.path.join(outdir, f"aster_07xt_earthaccess_{ts}.csv")
+        with open(out_csv, "w", newline="", encoding="utf-8") as f:
+            wr = csv.DictWriter(
+                f, fieldnames=["collection", "item_id", "datetime", "cloud_cover", "bbox", "assets", "href_tif", "all_hrefs"]
+            )
+            wr.writeheader()
+            wr.writerows(out)
+        log(f"[ASTER] {len(out)} item(ns) encontrados. CSV: {out_csv}")
+
     # ---------- UI actions ----------
     def load_collections(self):
-        log("[CALL] BDCDialog.load_collections()")
-        if self._is_aster_provider():
-            cols = [{
-                "id": "AST_07XT",
-                "title": "ASTER 07XT SRF VNIR+SWIR (earthaccess)",
-                "description": "Busca simplificada via earthaccess/LP DAAC usando ponto central da folha/AOI.",
-                "summaries": {},
-                "has_cloud_cover": True,
-            }]
-            self._all_collections = cols
-            self._populate_cols(cols)
-            return
         try:
             cols = fetch_collections(self._current_stac())
         except requests.exceptions.HTTPError as e:
@@ -559,11 +737,23 @@ class BDCDialog(QtWidgets.QDialog):
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Erro /collections", str(e))
             return
+
+        # acrescenta coleção "virtual" AST_07XT/earthaccess quando estiver no LPCLOUD
+        if self._current_stac().rstrip("/") == ASTER_STAC.rstrip("/"):
+            cols.append(
+                {
+                    "id": "AST_07XT",
+                    "title": "ASTER 07XT SRF VNIR+SWIR (earthaccess)",
+                    "description": "Granules AST_07XT via earthaccess.search_data (point no centróide da folha).",
+                    "summaries": {},
+                    "has_cloud_cover": True,
+                }
+            )
+
         self._all_collections = cols
         self._populate_cols(cols)
 
     def _populate_cols(self, cols):
-        log(f"[CALL] BDCDialog._populate_cols(n={len(cols)})")
         self.listCols.clear()
         for c in cols:
             txt = f"{c['id']} — {c['title']}"
@@ -573,13 +763,12 @@ class BDCDialog(QtWidgets.QDialog):
             if c.get("has_cloud_cover"):
                 desc += "\n[cloud cover disponível]"
             else:
-                desc += "\n[sem eo:cloud_cover; filtro de nuvem será ignorado]"
+                desc += "\n[sem eo:cloud_cover STAC; earthaccess pode tratar CloudCover em ASTER_07XT]"
             it.setToolTip(desc)
             it.setCheckState(QtCore.Qt.Unchecked)
             self.listCols.addItem(it)
 
     def apply_filter(self):
-        log("[CALL] BDCDialog.apply_filter()")
         if not self._all_collections:
             return
         q = (self.edFilter.text() or "").strip().lower()
@@ -595,12 +784,10 @@ class BDCDialog(QtWidgets.QDialog):
         self._populate_cols([c for c in self._all_collections if ok(c)])
 
     def select_all_cols(self):
-        log("[CALL] BDCDialog.select_all_cols()")
         for i in range(self.listCols.count()):
             self.listCols.item(i).setCheckState(QtCore.Qt.Checked)
 
     def pick_grid(self):
-        log("[CALL] BDCDialog.pick_grid()")
         p, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Selecionar quadricula.csv", "", "CSV (*.csv)")
         if not p:
             return
@@ -611,20 +798,11 @@ class BDCDialog(QtWidgets.QDialog):
             QtWidgets.QMessageBox.critical(self, "CSV", str(e))
 
     def pick_outdir(self):
-        log("[CALL] BDCDialog.pick_outdir()")
         d = QtWidgets.QFileDialog.getExistingDirectory(self, "Pasta de saída", self.labOutdir.text())
         if d:
             self.labOutdir.setText(d)
 
     def do_probe(self):
-        log("[CALL] BDCDialog.do_probe()")
-        if self._is_aster_provider():
-            QtWidgets.QMessageBox.information(
-                self,
-                "Probe",
-                "Prova rápida não implementada para ASTER (earthaccess). Use 'Listar dados'."
-            )
-            return
         cols = self._selected_collections()
         if not cols:
             QtWidgets.QMessageBox.warning(self, "Coleções", "Marque pelo menos uma.")
@@ -638,9 +816,30 @@ class BDCDialog(QtWidgets.QDialog):
         ok, zero = [], []
         for coll in cols:
             try:
+                stac_url = self._current_stac().rstrip("/")
+                if stac_url == ASTER_STAC.rstrip("/") and coll == "AST_07XT":
+                    # probe earthaccess
+                    if not self._ensure_ea_login():
+                        zero.append(coll)
+                        continue
+                    cpt = self.aoi.centroid().asPoint()
+                    temporal = (
+                        self.edStart.date().toString("yyyy-MM-dd"),
+                        self.edEnd.date().toString("yyyy-MM-dd"),
+                    )
+                    res = ea.search_data(
+                        short_name="AST_07XT",
+                        version="004",
+                        cloud_hosted=True,
+                        point=(cpt.x(), cpt.y()),
+                        temporal=temporal,
+                    )
+                    (ok if res else zero).append(coll)
+                    continue
+
                 allow_cloud = self._cloud_filter_allowed([coll])
                 if not allow_cloud:
-                    log(f"[PROBE] {coll}: filtro de nuvem omitido (sem eo:cloud_cover).")
+                    log(f"[PROBE] {coll}: filtro de nuvem STAC omitido.")
                 js = stac_search(
                     self._current_stac(),
                     [coll],
@@ -652,270 +851,36 @@ class BDCDialog(QtWidgets.QDialog):
                 )
                 (ok if js.get("features") else zero).append(coll)
             except requests.exceptions.HTTPError as e:
-                QtWidgets.QMessageBox.critical(
-                    self,
-                    "Erro /search",
-                    f"{coll}: {self._http_error_message(e)}"
-                )
+                QtWidgets.QMessageBox.critical(self, "Erro /search", f"{coll}: {self._http_error_message(e)}")
                 zero.append(coll)
             except Exception:
                 zero.append(coll)
         log(f"PROBE: OK={ok} ZERO={zero}")
 
-    def run_aster_earthaccess(self):
-        log("[CALL] BDCDialog.run_aster_earthaccess()")
-        try:
-            self._ensure_earthaccess_login()
-        except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "earthaccess/login", str(e))
-            return
-        try:
-            lon, lat = self._aster_search_point()
-        except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "AOI/Folha", str(e))
-            return
-
-        start = self.edStart.date().toString("yyyy-MM-dd")
-        end = self.edEnd.date().toString("yyyy-MM-dd")
-        temporal = (start, end)
-        cloud_max = float(self.spCloud.value())
-
-        log(f"[ASTER] Busca AST_07XT ponto=({lon:.6f},{lat:.6f}), temporal={temporal}, nuvem<={cloud_max}")
-
-        try:
-            granules = list(
-                ea.search_data(
-                    short_name="AST_07XT",
-                    version="004",
-                    point=(lon, lat),
-                    temporal=temporal,
-                    cloud_hosted=True,
-                )
-            )
-        except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "ASTER search", str(e))
-            return
-
-        if not granules:
-            QtWidgets.QMessageBox.information(
-                self,
-                "ASTER",
-                "Nenhum granule AST_07XT encontrado para esta AOI/intervalo."
-            )
-            self.table.setRowCount(0)
-            return
-
-        def _key(g):
-            umm = g.get("umm", {})
-            cc = umm.get("CloudCover")
-            if cc is None:
-                cc = 9999.0
-            te = umm.get("TemporalExtent", {})
-            if "SingleDateTime" in te:
-                dtm = te["SingleDateTime"]
-            else:
-                r = (te.get("RangeDateTimes") or te.get("RangeDateTime") or [{}])[0]
-                dtm = r.get("BeginningDateTime", "")
-            return (cc, dtm)
-
-        granules_f = []
-        for g in granules:
-            umm = g.get("umm", {})
-            cc = umm.get("CloudCover")
-            if cc is not None and cc > cloud_max:
-                continue
-            granules_f.append(g)
-
-        granules_f.sort(key=_key)
-
-        self.table.setRowCount(0)
-        out = []
-
-        for g in granules_f:
-            umm = g.get("umm", {})
-
-            coll = umm.get("CollectionReference", {}).get("ShortName", "AST_07XT")
-            iid = umm.get("GranuleUR", "")
-
-            cc = umm.get("CloudCover", "")
-
-            te = umm.get("TemporalExtent", {})
-            if "SingleDateTime" in te:
-                dtm = te["SingleDateTime"]
-            else:
-                r = (te.get("RangeDateTimes") or te.get("RangeDateTime") or [{}])[0]
-                dtm = r.get("BeginningDateTime", "")
-
-            bbox = []
-            try:
-                sp = umm.get("SpatialExtent", {})
-                hs = sp.get("HorizontalSpatialDomain", {})
-                geom = hs.get("Geometry", {})
-                gpolys = geom.get("GPolygons") or []
-                if gpolys:
-                    pts = gpolys[0]["Boundary"]["Points"]
-                    xs = [p["Longitude"] for p in pts]
-                    ys = [p["Latitude"] for p in pts]
-                    bbox = [min(xs), min(ys), max(xs), max(ys)]
-            except Exception:
-                bbox = []
-
-            hrefs = []
-            try:
-                hrefs = [h for h in g.data_links() if h.lower().endswith((".tif", ".tiff"))]
-            except Exception:
-                pass
-            best_href = hrefs[0] if hrefs else ""
-
-            r = self.table.rowCount()
-            self.table.insertRow(r)
-            vals = [
-                coll,
-                iid,
-                dtm,
-                str(cc),
-                json.dumps(bbox),
-                "data_links",
-                best_href,
-                json.dumps(hrefs),
-            ]
-            for c, v in enumerate(vals):
-                self.table.setItem(r, c, QtWidgets.QTableWidgetItem(v))
-
-            out.append({
-                "collection": coll,
-                "item_id": iid,
-                "datetime": dtm,
-                "cloud_cover": cc,
-                "bbox": bbox,
-                "assets": "data_links",
-                "href_tif": best_href,
-                "all_hrefs": hrefs,
-            })
-
-        outdir = self.labOutdir.text().strip()
-        os.makedirs(outdir, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        out_csv = os.path.join(outdir, f"aster07xt_earthaccess_{ts}.csv")
-
-        with open(out_csv, "w", newline="", encoding="utf-8") as f:
-            wr = csv.DictWriter(
-                f,
-                fieldnames=["collection", "item_id", "datetime", "cloud_cover", "bbox", "assets", "href_tif", "all_hrefs"],
-            )
-            wr.writeheader()
-            for r in out:
-                wr.writerow({
-                    "collection": r["collection"],
-                    "item_id": r["item_id"],
-                    "datetime": r["datetime"],
-                    "cloud_cover": r["cloud_cover"],
-                    "bbox": json.dumps(r["bbox"]),
-                    "assets": r["assets"],
-                    "href_tif": r["href_tif"],
-                    "all_hrefs": json.dumps(r["all_hrefs"]),
-                })
-
-        log(f"[ASTER] {len(out)} granule(s) AST_07XT. CSV: {out_csv}")
-
-    def _clip_and_add_raster(self, href, name):
-        log(f"[CALL] BDCDialog._clip_and_add_raster(href={href!r}, name={name!r})")
-        import processing
-        from qgis.PyQt.QtCore import QVariant
-
-        gdal_tune_for_http()
-        outdir = self.labOutdir.text().strip() or tempfile.gettempdir()
-        os.makedirs(outdir, exist_ok=True)
-        local = os.path.join(outdir, os.path.basename(href))
-
-        if not os.path.exists(local):
-            try:
-                log(f"[CLIP] Baixando para clip: {local}")
-                with requests.get(href, stream=True, timeout=600) as r:
-                    r.raise_for_status()
-                    with open(local, "wb") as f:
-                        for ch in r.iter_content(1024 * 1024):
-                            if ch:
-                                f.write(ch)
-            except Exception as e:
-                log(f"Erro no download para clip: {e}")
-                return False
-
-        if self.aoi is None:
-            try:
-                self._build_aoi()
-            except Exception as e:
-                QtWidgets.QMessageBox.warning(self, "AOI", str(e))
-                return False
-
-        aoi_layer = QgsVectorLayer("Polygon?crs=EPSG:4326", "AOI_clip", "memory")
-        pr = aoi_layer.dataProvider()
-        pr.addAttributes([QgsField("id", QVariant.Int)])
-        aoi_layer.updateFields()
-        feat = QgsFeature(aoi_layer.fields())
-        feat.setGeometry(self.aoi)
-        feat.setAttribute("id", 1)
-        pr.addFeature(feat)
-        aoi_layer.updateExtents()
-
-        params = {
-            "INPUT": local,
-            "MASK": aoi_layer,
-            "SOURCE_CRS": None,
-            "TARGET_CRS": None,
-            "NODATA": 0,
-            "ALPHA_BAND": False,
-            "CROP_TO_CUTLINE": True,
-            "KEEP_RESOLUTION": True,
-            "OPTIONS": "",
-            "DATA_TYPE": 0,
-            "MULTITHREADING": True,
-            "EXTRA": "",
-            "OUTPUT": "TEMPORARY_OUTPUT",
-        }
-
-        log(f"[CLIP] Params gdal:cliprasterbymasklayer: {params}")
-
-        try:
-            res = processing.run("gdal:cliprasterbymasklayer", params)
-        except Exception as e:
-            log(f"Erro ao recortar raster: {e}")
-            return False
-
-        out_path = res.get("OUTPUT")
-        log(f"[CLIP] OUTPUT={out_path!r}")
-        if not out_path:
-            log("Clip não retornou caminho de saída.")
-            return False
-
-        rl = QgsRasterLayer(out_path, name, "gdal")
-        if rl.isValid():
-            QgsProject.instance().addMapLayer(rl)
-            return True
-
-        log("GDAL não validou raster recortado.")
-        return False
-
     def run_search(self):
-        log("[CALL] BDCDialog.run_search()")
-        if self._is_aster_provider():
-            self.run_aster_earthaccess()
-            return
-
         cols = self._selected_collections()
         if not cols:
             QtWidgets.QMessageBox.warning(self, "Coleções", "Marque pelo menos uma.")
             return
+
+        stac_url = self._current_stac().rstrip("/")
+
+        # caso especial ASTER_07XT via earthaccess
+        if stac_url == ASTER_STAC.rstrip("/") and len(cols) == 1 and cols[0] == "AST_07XT":
+            self._run_search_aster_earthaccess()
+            return
+
         try:
             aoi_gj = self._build_aoi()
         except Exception as e:
             QtWidgets.QMessageBox.warning(self, "AOI", str(e))
             return
         dt = f"{self.edStart.date().toString('yyyy-MM-dd')}/{self.edEnd.date().toString('yyyy-MM-dd')}"
+
         try:
             allow_cloud = self._cloud_filter_allowed(cols)
             if not allow_cloud:
-                log("[SEARCH] Filtro de nuvem omitido (coleções/provedor sem eo:cloud_cover).")
+                log("[SEARCH] Filtro de nuvem STAC omitido (coleções/provedor sem eo:cloud_cover).")
             js = stac_search(
                 self._current_stac(),
                 cols,
@@ -932,6 +897,7 @@ class BDCDialog(QtWidgets.QDialog):
             QtWidgets.QMessageBox.critical(self, "Erro /search", str(e))
             return
 
+        self._last_mode = "stac"
         feats = js.get("features", [])
         self.table.setRowCount(0)
         out = []
@@ -959,16 +925,18 @@ class BDCDialog(QtWidgets.QDialog):
             ]
             for c, v in enumerate(vals):
                 self.table.setItem(r, c, QtWidgets.QTableWidgetItem(v))
-            out.append({
-                "collection": coll,
-                "item_id": iid,
-                "datetime": dtm,
-                "cloud_cover": cc,
-                "bbox": json.dumps(bbox),
-                "assets": ",".join(assets.keys()),
-                "href_tif": best_href or "",
-                "all_hrefs": all_hrefs,
-            })
+            out.append(
+                {
+                    "collection": coll,
+                    "item_id": iid,
+                    "datetime": dtm,
+                    "cloud_cover": cc,
+                    "bbox": json.dumps(bbox),
+                    "assets": ",".join(assets.keys()),
+                    "href_tif": best_href or "",
+                    "all_hrefs": all_hrefs,
+                }
+            )
 
         outdir = self.labOutdir.text().strip()
         os.makedirs(outdir, exist_ok=True)
@@ -976,11 +944,7 @@ class BDCDialog(QtWidgets.QDialog):
         out_csv = os.path.join(outdir, f"stac_search_{ts}.csv")
         with open(out_csv, "w", newline="", encoding="utf-8") as f:
             wr = csv.DictWriter(
-                f,
-                fieldnames=[
-                    "collection", "item_id", "datetime", "cloud_cover",
-                    "bbox", "assets", "href_tif", "all_hrefs"
-                ],
+                f, fieldnames=["collection", "item_id", "datetime", "cloud_cover", "bbox", "assets", "href_tif", "all_hrefs"]
             )
             wr.writeheader()
             wr.writerows(out)
@@ -988,12 +952,66 @@ class BDCDialog(QtWidgets.QDialog):
 
     # ---------- ações finais ----------
     def _selected_rows(self):
-        rows = sorted({i.row() for i in self.table.selectedIndexes()})
-        log(f"[CALL] BDCDialog._selected_rows() -> {rows}")
-        return rows
+        return sorted({i.row() for i in self.table.selectedIndexes()})
+
+    def _clip_and_add_to_qgis(self, href, name_prefix=""):
+        # sempre atualiza AOI p/ permitir trocar folha entre chamadas
+        try:
+            self._build_aoi()
+        except Exception:
+            self.aoi = None
+
+        outdir = self.labOutdir.text().strip()
+        os.makedirs(outdir, exist_ok=True)
+        fname = os.path.basename(href)
+        local = os.path.join(outdir, fname)
+        open_raster(href, name=fname, outdir=outdir, just_download=True)
+
+        if self.aoi is None:
+            # sem AOI → abre inteiro
+            return open_raster(href, name=name_prefix + fname, outdir=outdir, just_download=False)
+
+        try:
+            from qgis import processing
+        except Exception as e:
+            log(f"processing indisponível, abrindo inteiro. Erro: {e}")
+            return open_raster(href, name=name_prefix + fname, outdir=outdir, just_download=False)
+
+        mask = QgsVectorLayer("MultiPolygon?crs=EPSG:4326", "aoi_mask", "memory")
+        pr = mask.dataProvider()
+        ft = QgsFeature()
+        ft.setGeometry(self.aoi)
+        pr.addFeatures([ft])
+        mask.updateExtents()
+
+        out_clip = os.path.join(outdir, f"ASTER_clip_{fname}")
+        params = {
+            "INPUT": local,
+            "MASK": mask,
+            "SOURCE_CRS": None,
+            "TARGET_CRS": None,
+            "NODATA": 0,
+            "ALPHA_BAND": False,
+            "CROP_TO_CUTLINE": True,
+            "KEEP_RESOLUTION": True,
+            "OPTIONS": "",
+            "DATA_TYPE": 0,
+            "EXTRA": "",
+            "OUTPUT": out_clip,
+        }
+        try:
+            res = processing.run("gdal:cliprasterbymasklayer", params)
+            out_path = res.get("OUTPUT", out_clip)
+            rl = QgsRasterLayer(out_path, os.path.basename(out_path), "gdal")
+            if rl.isValid():
+                QgsProject.instance().addMapLayer(rl)
+                return True
+            log("GDAL não validou o raster recortado, abrindo inteiro.")
+        except Exception as e:
+            log(f"Erro ao recortar raster: {e}")
+        return open_raster(href, name=name_prefix + fname, outdir=outdir, just_download=False)
 
     def view_selected(self):
-        log("[CALL] BDCDialog.view_selected()")
         rows = self._selected_rows()
         if not rows:
             QtWidgets.QMessageBox.information(self, "Selecionar", "Selecione linha(s) na tabela.")
@@ -1001,22 +1019,19 @@ class BDCDialog(QtWidgets.QDialog):
         ok = 0
         for r in rows:
             href = self.table.item(r, 6).text().strip() if self.table.item(r, 6) else ""
-            coll = self.table.item(r, 0).text().strip()
-            log(f"[VIEW] row={r}, coll={coll}, href={href!r}")
+            coll = self.table.item(r, 0).text().strip() if self.table.item(r, 0) else ""
             if not href:
-                log(f"[{r + 1}] sem href_tif — tente baixar todos assets.")
+                log(f"[{r+1}] sem href_tif — tente baixar todos assets.")
                 continue
-            name = f"{coll}:{os.path.basename(href)}"
-            if self._is_aster_provider():
-                if self._clip_and_add_raster(href, name):
+            if self._last_mode == "aster_ea" and coll == "AST_07XT":
+                if self._clip_and_add_to_qgis(href, name_prefix=f"{coll}:"):
                     ok += 1
             else:
-                if open_raster(href, name=name, outdir=self.labOutdir.text().strip(), just_download=False):
+                if open_raster(href, name=f"{coll}:{os.path.basename(href)}", outdir=self.labOutdir.text().strip(), just_download=False):
                     ok += 1
         QtWidgets.QMessageBox.information(self, "Visualizar", f"{ok} camada(s) adicionada(s).")
 
     def download_selected(self):
-        log("[CALL] BDCDialog.download_selected()")
         rows = self._selected_rows()
         if not rows:
             QtWidgets.QMessageBox.information(self, "Selecionar", "Selecione linha(s) na tabela.")
@@ -1038,18 +1053,17 @@ class BDCDialog(QtWidgets.QDialog):
             else:
                 href = self.table.item(r, 6).text().strip() if self.table.item(r, 6) else ""
                 to_get = [href] if href else []
-            log(f"[DL] row={r}, to_get={to_get}")
             for href in to_get:
                 if open_raster(href, name=os.path.basename(href), outdir=outdir, just_download=True):
                     ok += 1
         QtWidgets.QMessageBox.information(self, "Download", f"{ok} arquivo(s) baixado(s) para:\n{outdir}")
 
-# --------- entrypoint (não modal) ----------
+
+# --------- entrypoint ----------
 def run():
-    log("[ENTRYPOINT] run() chamado.")
     dlg = BDCDialog()
     dlg.show()
-    globals()['__BDC_DLG__'] = dlg  # mantém vivo
+    globals()["__BDC_DLG__"] = dlg
 
-# iniciar
+
 run()
