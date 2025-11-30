@@ -710,6 +710,78 @@ class BDCDialog(QtWidgets.QDialog):
         self._on_current_layer_changed(iface.activeLayer())
 
     # ---------- helpers ----------
+    def _pick_href_for_row(self, row: int):
+        """
+        Retorna o href (TIFF) escolhido pelo usuário para a linha `row`.
+
+        - Prioriza a lista JSON de all_hrefs (coluna 7).
+        - Se só houver um href, retorna direto.
+        - Se houver vários, abre um diálogo para o usuário escolher qual banda/arquivo.
+        - Se o usuário cancelar o diálogo, retorna None.
+        """
+        cell_href = self.table.item(row, 6)
+        href_main = cell_href.text().strip() if cell_href is not None else ""
+
+        cell_all = self.table.item(row, 7)
+        hrefs = []
+        if cell_all is not None:
+            txt = cell_all.text() or ""
+            try:
+                data = json.loads(txt)
+                if isinstance(data, list):
+                    hrefs = [h for h in data if isinstance(h, str) and h]
+            except Exception:
+                hrefs = []
+
+        # Garante que o href principal também esteja na lista, se existir
+        if href_main:
+            if href_main not in hrefs:
+                hrefs.insert(0, href_main)
+
+        # Remove duplicados mantendo a ordem
+        seen = set()
+        hrefs_unique = []
+        for h in hrefs:
+            if h not in seen:
+                seen.add(h)
+                hrefs_unique.append(h)
+        hrefs = hrefs_unique
+
+        # Nenhum href disponível
+        if not hrefs:
+            return None
+
+        # Só um href → não precisa perguntar nada
+        if len(hrefs) == 1:
+            return hrefs[0]
+
+        # Vários hrefs → perguntar qual banda/arquivo o usuário quer
+        labels = [os.path.basename(h) for h in hrefs]
+
+        # Índice padrão: o href_main, se existir; senão o primeiro
+        idx_default = 0
+        if href_main and href_main in hrefs:
+            idx_default = hrefs.index(href_main)
+
+        item, ok = QtWidgets.QInputDialog.getItem(
+            self,
+            "Escolher banda",
+            "Selecione qual banda/arquivo deseja visualizar:",
+            labels,
+            idx_default,
+            False,  # não editável
+        )
+        if not ok:
+            # Usuário cancelou
+            return None
+
+        # Recupera o href correspondente ao rótulo escolhido
+        try:
+            chosen_idx = labels.index(item)
+        except ValueError:
+            return None
+
+        return hrefs[chosen_idx]
     def _current_stac(self):
         val = self.edStac.text().strip()
         log(f"[CALL] BDCDialog._current_stac() -> {val!r}")
@@ -1893,6 +1965,42 @@ class BDCDialog(QtWidgets.QDialog):
         return rows
 
     def view_selected(self):
+        log("[CALL] BDCDialog.view_selected()")
+        rows = self._selected_rows()
+        if not rows:
+            QtWidgets.QMessageBox.information(self, "Selecionar", "Selecione linha(s) na tabela.")
+            return
+
+        ok = 0
+        for r in rows:
+            href = self._pick_href_for_row(r)
+            coll = self.table.item(r, 0).text().strip() if self.table.item(r, 0) else ""
+            iid = self.table.item(r, 1).text().strip() if self.table.item(r, 1) else ""
+            log(f"[VIEW] row={r}, coll={coll}, id={iid}, href={href!r}")
+
+            if not href:
+                log(f"[{r + 1}] sem href selecionado (nenhum disponível ou usuário cancelou).")
+                continue
+
+            name = f"{coll}:{os.path.basename(href)}"
+
+            # Para ASTER/Sentinel via Earthdata usamos granule; para BDC/HTTP genérico, granule=None.
+            is_earthdata = ("AST_07" in coll.upper()) or self._collection_is_sentinel(coll, iid)
+            granule = self._get_earthdata_granule(coll, iid) if is_earthdata else None
+
+            if self._clip_and_add_raster(href, name, granule=granule):
+                ok += 1
+
+        QtWidgets.QMessageBox.information(
+            self,
+            "Visualizar",
+            (
+                f"{ok} requisição(ões) de clip/visualização enviada(s).\n"
+                "Para downloads em background, acompanhe o progresso no Task Manager do QGIS."
+            ),
+        )
+
+    def view_selected_(self):
         log("[CALL] BDCDialog.view_selected()")
         rows = self._selected_rows()
         if not rows:
