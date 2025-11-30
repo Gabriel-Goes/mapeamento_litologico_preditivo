@@ -38,7 +38,7 @@ EA_SESSION = None
 # -------------------- infra de log + emitter (thread-safe) --------------------
 LOG_BUFFER = []
 LOG_WIDGET = None
-LOG_FILE_PATH = os.path.join(os.path.expanduser("~"), "bdc_stac_qgis.log")
+LOG_FILE_PATH = os.path.join(os.path.expanduser("~"), "./projetos/PreditorTerra/codes/bdc_stac_qgis.log")
 LOG_EMITTER = None
 
 
@@ -295,7 +295,7 @@ def stac_search(stac_url, collections, aoi_geojson, datetime_str, max_cloud=None
     return js
 
 
-# -------------------- abrir/baixar assets genéricos (BDC/HTTP público) --------------------
+# ------------- abrir/baixar assets genéricos (BDC/HTTP público) -------
 def choose_tif_asset(assets: dict):
     log(f"[CALL] choose_tif_asset(keys={list(assets.keys())})")
     for k in sorted(assets.keys()):
@@ -1268,9 +1268,11 @@ class BDCDialog(QtWidgets.QDialog):
         granules_f.sort(key=_key)
 
         # indexa granules ASTER por GranuleUR para uso em visualização/download
-        self._aster_granules = {}
-
+        was_sorting = self.table.isSortingEnabled()
+        self.table.setSortingEnabled(False)
         self.table.setRowCount(0)
+        self._aster_granules = {}
+        self.table.clearSelection()
         out = []
 
         for g in granules_f:
@@ -1398,8 +1400,9 @@ class BDCDialog(QtWidgets.QDialog):
 
         log(f"[ASTER] {len(out)} granule(s) AST_07XT após filtro de nuvem. CSV: {out_csv}")
 
+        self.table.setSortingEnabled(was_sorting)
         # opcional: ordenar tabela por cobertura (descendente) após preencher
-        if len(out) > 0:
+        if len(out) > 0 and was_sorting:
             self.table.sortByColumn(8, QtCore.Qt.DescendingOrder)
 
     def _clip_and_add_raster_local(self, local, name):
@@ -1578,7 +1581,10 @@ class BDCDialog(QtWidgets.QDialog):
             return
 
         feats = js.get("features", [])
+        was_sorting = self.table.isSortingEnabled()
+        self.table.setSortingEnabled(False)
         self.table.setRowCount(0)
+        self.table.clearSelection()
         out = []
         for ft in feats:
             props = ft.get("properties", {})
@@ -1616,7 +1622,7 @@ class BDCDialog(QtWidgets.QDialog):
                 "all_hrefs": all_hrefs,
                 "coverage_ratio": None,
             })
-
+        self.table.setSortingEnabled(was_sorting)
         outdir = self.labOutdir.text().strip()
         os.makedirs(outdir, exist_ok=True)
         folha = (self.edFolha.text() or "").strip()
@@ -1905,8 +1911,6 @@ class BDCDialog(QtWidgets.QDialog):
 
             is_earthdata = ("AST_07" in coll.upper()) or self._collection_is_sentinel(coll, iid)
             granule = self._get_earthdata_granule(coll, iid) if is_earthdata else None
-
-            # ASTER e Sentinel-2/HLS (HLSS30/HLS.S30/C2021957295-LPCLOUD) são sempre clipados pela folha/AOI
             if is_earthdata:
                 if self._clip_and_add_raster(href, name, granule=granule):
                     ok += 1
