@@ -17,7 +17,7 @@ from qgis.core import (
     QgsPointXY,
 )
 from qgis.utils import iface
-import csv, json, os, re, requests, tempfile
+import csv, json, os, re, tempfile, urllib.request, urllib.error
 from datetime import datetime, timedelta
 from osgeo import gdal
 
@@ -26,6 +26,7 @@ from db_conn import get_folha_geom_geojson
 
 import time
 import hashlib
+import traceback  # <-- para logar tracebacks no TASK-CLIP
 
 DEFAULT_STAC = "https://data.inpe.br/bdc/stac/v1/"
 ASTER_STAC = "https://cmr.earthdata.nasa.gov/stac/LPCLOUD"
@@ -228,9 +229,22 @@ def fetch_collections(stac_url):
     log(f"[CALL] fetch_collections(stac_url={stac_url!r})")
     url = stac_url.rstrip("/") + "/collections"
     log(f"GET {url}")
-    r = requests.get(url, timeout=30)
-    r.raise_for_status()
-    cols = r.json().get("collections", [])
+    req = urllib.request.Request(url, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data_bytes = resp.read()
+    except urllib.error.HTTPError as e:
+        # será tratado por _http_error_message no nível da UI
+        raise
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Erro de conexão em /collections: {e}")
+
+    try:
+        js = json.loads(data_bytes.decode("utf-8"))
+    except Exception as e:
+        raise RuntimeError(f"Erro ao decodificar JSON de /collections: {e}")
+
+    cols = js.get("collections", [])
     log(f"{len(cols)} coleções carregadas.")
     return [{
         "id": c.get("id", ""),
@@ -256,15 +270,32 @@ def stac_search(stac_url, collections, aoi_geojson, datetime_str, max_cloud=None
     }
     if max_cloud is not None:
         body.setdefault("query", {})["eo:cloud_cover"] = {"lt": float(max_cloud)}
+
+    payload = json.dumps(body).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
     log("POST " + url)
     log("Body: " + safe_json(body))
-    r = requests.post(url, json=body, timeout=120, headers={"Content-Type": "application/json"})
-    log(f"HTTP {r.status_code}")
-    r.raise_for_status()
-    return r.json()
+
+    req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            status = getattr(resp, "status", 200)
+            log(f"HTTP {status}")
+            data_bytes = resp.read()
+    except urllib.error.HTTPError as e:
+        # propagamos para a UI formatar a mensagem
+        raise
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Erro de conexão em /search: {e}")
+
+    try:
+        js = json.loads(data_bytes.decode("utf-8"))
+    except Exception as e:
+        raise RuntimeError(f"Erro ao decodificar JSON de /search: {e}")
+    return js
 
 
-# -------------------- abrir/baixar assets --------------------
+# -------------------- abrir/baixar assets genéricos (BDC/HTTP público) --------------------
 def choose_tif_asset(assets: dict):
     log(f"[CALL] choose_tif_asset(keys={list(assets.keys())})")
     for k in sorted(assets.keys()):
@@ -289,49 +320,135 @@ def open_raster(href, name=None, outdir=None, just_download=False):
     )
     gdal_tune_for_http()
     name = name or os.path.basename(href)
-    vsicurl = "/vsicurl/" + href
+
+    # 1) tentar abrir remotamente direto com GDAL (sem /vsicurl explícito)
     if not just_download:
-        log(f"Tentando abrir via /vsicurl/: {href}")
-        rl = QgsRasterLayer(vsicurl, name, "gdal")
+        log(f"Tentando abrir raster remoto diretamente via GDAL: {href}")
+        rl = QgsRasterLayer(href, name, "gdal")
         if rl.isValid():
             QgsProject.instance().addMapLayer(rl)
             return True
-        log("Falhou /vsicurl — tentando baixar para disco…")
+        log("Falha ao abrir raster remoto direto; tentando baixar para disco.")
+
+    # 2) fallback: baixar via urllib e abrir localmente
     try:
         outdir = outdir or tempfile.gettempdir()
         os.makedirs(outdir, exist_ok=True)
         local = os.path.join(outdir, os.path.basename(href))
-        log(f"Baixando: {local}")
-        with requests.get(href, stream=True, timeout=600) as r:
-            r.raise_for_status()
-            with open(local, "wb") as f:
-                for ch in r.iter_content(1024 * 1024):
-                    if ch:
-                        f.write(ch)
+        log(f"Baixando raster via urllib: {local}")
+
+        req = urllib.request.Request(href, method="GET")
+        with urllib.request.urlopen(req, timeout=600) as resp, open(local, "wb") as f:
+            block = 1024 * 1024
+            total = 0
+            while True:
+                chunk = resp.read(block)
+                if not chunk:
+                    break
+                f.write(chunk)
+                total += len(chunk)
+        log(f"Download concluído (~{total / (1024 * 1024):.1f} MB).")
+
         if just_download:
             return True
+
         rl2 = QgsRasterLayer(local, name, "gdal")
         if rl2.isValid():
             QgsProject.instance().addMapLayer(rl2)
             return True
+
         log("GDAL não validou a camada (mesmo local).")
         return False
+
+    except urllib.error.HTTPError as e:
+        log(f"Erro HTTP no download raster: {e.code} {e.reason}")
+        return False
+    except urllib.error.URLError as e:
+        log(f"Erro de rede no download raster: {e}")
+        return False
     except Exception as e:
-        log(f"Erro no download: {e}")
+        log(f"Erro inesperado no download raster: {type(e).__name__}: {e}")
+        log(traceback.format_exc())
         return False
 
 
 # -------------------- TASKS: download para clip (ASTER/Sentinel) --------------------
-def _download_for_clip(task, href, local):
+def _download_for_clip(task, href, local, name, dlg, granule=None):
+    """
+    Função executada em background pelo QgsTask:
+    - Se granule != None: usa earthaccess.open(href) para fazer streaming autenticado (Earthdata).
+    - Caso contrário: baixa via urllib.request (BDC ou outros HTTPS públicos).
+    Retorna o caminho local do arquivo baixado (ou None em caso de falha/cancelamento).
+    """
     gdal_tune_for_http()
-    log(f"[TASK-CLIP] Iniciando download para clip: {href} -> {local}")
+    log(f"[TASK-CLIP] Iniciando download para clip: {href} -> {local} (granule={'sim' if granule else 'não'})")
 
     try:
         t0 = time.time()
-        with requests.get(href, stream=True, timeout=600) as r:
-            r.raise_for_status()
+        os.makedirs(os.path.dirname(local), exist_ok=True)
 
-            total = int(r.headers.get("Content-Length", "0") or 0)
+        # Caminho Earthdata (ASTER/Sentinel-2)
+        if granule is not None:
+            log("[TASK-CLIP] Usando earthaccess.open para streaming autenticado.")
+            try:
+                global EA_SESSION
+                if EA_SESSION is None:
+                    EA_SESSION = ea.login()
+            except Exception as e:
+                log(f"[TASK-CLIP] Falha ao autenticar no earthaccess: {type(e).__name__}: {e}")
+                log(traceback.format_exc())
+                return None
+
+            try:
+                files = ea.open([href])
+            except Exception as e:
+                log(f"[TASK-CLIP] Erro em earthaccess.open({href!r}): {type(e).__name__}: {e}")
+                log(traceback.format_exc())
+                return None
+
+            file_obj = None
+            try:
+                for fo in files:
+                    file_obj = fo
+                    break
+            except Exception as e:
+                log(f"[TASK-CLIP] Falha ao iterar objeto retornado por earthaccess.open: {type(e).__name__}: {e}")
+                log(traceback.format_exc())
+                return None
+
+            if file_obj is None:
+                log("[TASK-CLIP] earthaccess.open não retornou objeto de arquivo.")
+                return None
+
+            downloaded = 0
+            chunk_size = 1024 * 1024
+            with open(local, "wb") as f:
+                while True:
+                    if task.isCanceled():
+                        log("[TASK-CLIP] Download cancelado pelo usuário.")
+                        return None
+                    chunk = file_obj.read(chunk_size)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    downloaded += len(chunk)
+            dt = time.time() - t0
+            log(
+                f"[TASK-CLIP] Download (earthaccess.open) concluído: "
+                f"{downloaded / (1024 * 1024):.1f} MB em {dt:.1f} s"
+            )
+            return local
+
+        # Caminho genérico (BDC/HTTPS público) via urllib
+        log(f"[TASK-CLIP] Download HTTP direto via urllib: {href} -> {local}")
+        req = urllib.request.Request(href, method="GET")
+        with urllib.request.urlopen(req, timeout=600) as resp:
+            total_str = resp.headers.get("Content-Length") or "0"
+            try:
+                total = int(total_str)
+            except ValueError:
+                total = 0
+
             if total > 0:
                 log(f"[TASK-CLIP] Tamanho remoto ~ {total / (1024 * 1024):.1f} MB")
             else:
@@ -339,19 +456,18 @@ def _download_for_clip(task, href, local):
 
             downloaded = 0
             next_report = 50 * 1024 * 1024
-
-            os.makedirs(os.path.dirname(local), exist_ok=True)
+            chunk_size = 1024 * 1024
 
             with open(local, "wb") as f:
-                for ch in r.iter_content(1024 * 1024):
+                while True:
                     if task.isCanceled():
                         log("[TASK-CLIP] Download cancelado pelo usuário.")
-                        return False
-                    if not ch:
-                        continue
-                    f.write(ch)
-                    downloaded += len(ch)
-
+                        return None
+                    chunk = resp.read(chunk_size)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    downloaded += len(chunk)
                     if total > 0 and downloaded >= next_report:
                         pct = downloaded / total * 100.0
                         log(
@@ -369,35 +485,54 @@ def _download_for_clip(task, href, local):
         else:
             log(f"[TASK-CLIP] Download concluído: {downloaded / (1024 * 1024):.1f} MB em {dt:.1f} s")
 
-        return True
+        return local
 
-    except requests.exceptions.Timeout as e:
-        log(f"[TASK-CLIP] Timeout no download para clip: {e}")
-        return False
-    except requests.exceptions.RequestException as e:
-        log(f"[TASK-CLIP] Erro HTTP no download para clip: {e}")
-        return False
+    except urllib.error.HTTPError as e:
+        log(f"[TASK-CLIP] Erro HTTP no download para clip: {e.code} {e.reason}")
+        return None
+    except urllib.error.URLError as e:
+        log(f"[TASK-CLIP] Erro de rede no download para clip: {e}")
+        return None
     except Exception as e:
-        log(f"[TASK-CLIP] Erro inesperado no download para clip: {e}")
-        return False
+        log(f"[TASK-CLIP] Erro inesperado no download para clip: {type(e).__name__}: {e}")
+        log(traceback.format_exc())
+        return None
 
 
-def _on_download_for_clip_finished(exception, result, href, local, name, dlg):
+def _on_download_for_clip_finished(exception, result, href, local, name, dlg, granule=None):
+    """
+    Callback do QgsTask.fromFunction: recebe (exception, result) do QGIS,
+    os demais parâmetros são capturados via defaults na lambda definida
+    em _clip_and_add_raster.
+    """
     if exception is not None:
-        log(f"[TASK-CLIP] Exceção durante download {href}: {exception}")
+        log(f"[TASK-CLIP] Exceção durante download {href}: {type(exception).__name__}: {exception}")
+        try:
+            tb = "".join(
+                traceback.format_exception(type(exception), exception, exception.__traceback__)
+            )
+            log(tb)
+        except Exception:
+            pass
         return
 
     if not result:
         log(f"[TASK-CLIP] Download falhou ou foi cancelado para {href}. Clip não será executado.")
         return
 
-    size_mb = os.path.getsize(local) / (1024 * 1024) if os.path.exists(local) else 0.0
+    real_local = result
+    try:
+        size_mb = os.path.getsize(real_local) / (1024 * 1024)
+    except OSError:
+        size_mb = 0.0
+
     log(f"[TASK-CLIP] Download concluído ({size_mb:.1f} MB). Iniciando clip e adição ao QGIS...")
 
     try:
-        dlg._clip_and_add_raster_local(local, name)
+        dlg._clip_and_add_raster_local(real_local, name)
     except Exception as e:
-        log(f"[TASK-CLIP] Erro ao executar clip após download: {e}")
+        log(f"[TASK-CLIP] Erro ao executar clip após download: {type(e).__name__}: {e}")
+        log(traceback.format_exc())
 
 
 # -------------------- GUI --------------------
@@ -440,8 +575,7 @@ class BDCDialog(QtWidgets.QDialog):
 
         self.edFolha = QtWidgets.QLineEdit()
         self.edFolha.setPlaceholderText("Código da folha (ex.: SB21_ZA_II1_NE)")
-
-        self.edStart = QtWidgets.QDateEdit(QtCore.QDate.currentDate().addMonths(-6))
+        self.edStart = QtWidgets.QDateEdit(QtCore.QDate.currentDate().addYears(-1))
         self.edStart.setDisplayFormat("yyyy-MM-dd")
         self.edStart.setCalendarPopup(True)
         self.edEnd = QtWidgets.QDateEdit(QtCore.QDate.currentDate())
@@ -550,6 +684,9 @@ class BDCDialog(QtWidgets.QDialog):
         self.aoi = None
         self._all_collections = []
         self._sel_layer_ = None
+        # mapeamento de granules Earthdata (earthaccess) por item_id (GranuleUR)
+        self._aster_granules = {}
+        self._s2_granules = {}
 
         self.btnCols.clicked.connect(self.load_collections)
         self.btnApplyFilter.clicked.connect(self.apply_filter)
@@ -681,6 +818,24 @@ class BDCDialog(QtWidgets.QDialog):
             return True
 
         return False
+
+    def _get_earthdata_granule(self, coll_id, item_id):
+        """
+        Retorna o objeto granule (earthaccess) associado a (collection, item_id),
+        quando for ASTER (AST_07*) ou Sentinel-2/HLS.
+        """
+        coll_id = (coll_id or "").strip()
+        item_id = (item_id or "").strip()
+        if not item_id:
+            return None
+
+        if "AST_07" in coll_id.upper():
+            return self._aster_granules.get(item_id)
+
+        if self._collection_is_sentinel(coll_id, item_id):
+            return self._s2_granules.get(item_id)
+
+        return None
 
     def _aster_search_bbox(self):
         log("[CALL] BDCDialog._aster_search_bbox()")
@@ -857,18 +1012,21 @@ class BDCDialog(QtWidgets.QDialog):
 
     def _http_error_message(self, err):
         log(f"[CALL] BDCDialog._http_error_message(err={type(err).__name__})")
-        resp = getattr(err, "response", None)
-        if not resp:
-            return str(err)
-        try:
-            body = (resp.text or "").strip()
-        except Exception:
-            body = "<sem corpo>"
-        max_len = 1000
-        if isinstance(body, str) and len(body) > max_len:
-            body = body[:max_len] + "…"
-        reason = resp.reason or ""
-        return f"HTTP {resp.status_code} {reason}\nURL: {resp.url}\nBody: {body or '<vazio>'}"
+
+        if isinstance(err, urllib.error.HTTPError):
+            try:
+                body_bytes = err.read() or b""
+                body = body_bytes.decode("utf-8", errors="replace").strip()
+            except Exception:
+                body = "<sem corpo>"
+            max_len = 1000
+            if len(body) > max_len:
+                body = body[:max_len] + "…"
+            reason = err.reason or ""
+            url = err.geturl()
+            return f"HTTP {err.code} {reason}\nURL: {url}\nBody: {body or '<vazio>'}"
+
+        return str(err)
 
     # ---------- UI actions ----------
     def load_collections(self):
@@ -886,7 +1044,7 @@ class BDCDialog(QtWidgets.QDialog):
             return
         try:
             cols = fetch_collections(self._current_stac())
-        except requests.exceptions.HTTPError as e:
+        except urllib.error.HTTPError as e:
             QtWidgets.QMessageBox.critical(self, "Erro /collections", self._http_error_message(e))
             return
         except Exception as e:
@@ -986,7 +1144,7 @@ class BDCDialog(QtWidgets.QDialog):
                     sort="asc" if self.cbAsc.isChecked() else "desc",
                 )
                 (ok if js.get("features") else zero).append(coll)
-            except requests.exceptions.HTTPError as e:
+            except urllib.error.HTTPError as e:
                 QtWidgets.QMessageBox.critical(
                     self,
                     "Erro /search",
@@ -1063,7 +1221,7 @@ class BDCDialog(QtWidgets.QDialog):
                     point=(px_, py_),
                     temporal=temporal,
                     cloud_hosted=True,
-                    day_night_flag='day',
+                    day_night_flag="day",
                 )
             )
         except Exception as e:
@@ -1109,6 +1267,9 @@ class BDCDialog(QtWidgets.QDialog):
 
         granules_f.sort(key=_key)
 
+        # indexa granules ASTER por GranuleUR para uso em visualização/download
+        self._aster_granules = {}
+
         self.table.setRowCount(0)
         out = []
 
@@ -1117,6 +1278,9 @@ class BDCDialog(QtWidgets.QDialog):
 
             coll = umm.get("CollectionReference", {}).get("ShortName", "AST_07XT")
             iid = umm.get("GranuleUR", "")
+
+            if iid:
+                self._aster_granules[iid] = g
 
             cc = umm.get("CloudCover", "")
 
@@ -1294,7 +1458,8 @@ class BDCDialog(QtWidgets.QDialog):
             t_clip = time.time() - t_clip0
             log(f"[CLIP] gdal:cliprasterbymasklayer terminou em {t_clip:.1f} s")
         except Exception as e:
-            log(f"[CLIP] Erro ao recortar raster: {e}")
+            log(f"[CLIP] Erro ao recortar raster: {type(e).__name__}: {e}")
+            log(traceback.format_exc())
             return False
 
         out_path = res.get("OUTPUT")
@@ -1317,30 +1482,40 @@ class BDCDialog(QtWidgets.QDialog):
         log("[CLIP] GDAL não validou raster recortado (rl.isValid() == False).")
         return False
 
-    def _clip_and_add_raster(self, href, name):
-        log(f"[CALL] BDCDialog._clip_and_add_raster(href={href!r}, name={name!r})")
+    def _clip_and_add_raster(self, href, name, granule=None):
+        log(f"[CALL] BDCDialog._clip_and_add_raster(href={href!r}, name={name!r}, granule={'sim' if granule else 'não'})")
 
         outdir = self.labOutdir.text().strip() or tempfile.gettempdir()
         os.makedirs(outdir, exist_ok=True)
         local = os.path.join(outdir, os.path.basename(href))
 
+        # Agora reutiliza o arquivo local, independentemente de ser Earthdata ou não
         if os.path.exists(local):
-            size_mb = os.path.getsize(local) / (1024 * 1024)
+            try:
+                size_mb = os.path.getsize(local) / (1024 * 1024)
+            except OSError:
+                size_mb = 0.0
             log(f"[CLIP] Arquivo local já existe ({size_mb:.1f} MB): {local}")
             return self._clip_and_add_raster_local(local, name)
 
         desc = f"Download raster para clip: {os.path.basename(local)}"
         log(f"[TASK-CLIP] Criando task: {desc}")
 
+        # Wrapper para injetar contexto em _on_download_for_clip_finished sem violar
+        # a assinatura esperada (exception, result) pelo QGIS
+        def _finished(e, r, href=href, local=local, name=name, dlg=self, granule=granule):
+            _on_download_for_clip_finished(e, r, href, local, name, dlg, granule)
+
         task = QgsTask.fromFunction(
             desc,
             _download_for_clip,
-            on_finished=_on_download_for_clip_finished,
+            on_finished=_finished,
             flags=QgsTask.CanCancel,
             href=href,
             local=local,
             name=name,
             dlg=self,
+            granule=granule,
         )
         QgsApplication.taskManager().addTask(task)
         log(f"[TASK-CLIP] Tarefa adicionada ao Task Manager: {task.description()}")
@@ -1395,7 +1570,7 @@ class BDCDialog(QtWidgets.QDialog):
                 limit=int(self.spLimit.value()),
                 sort="asc" if self.cbAsc.isChecked() else "desc",
             )
-        except requests.exceptions.HTTPError as e:
+        except urllib.error.HTTPError as e:
             QtWidgets.QMessageBox.critical(self, "Erro /search", self._http_error_message(e))
             return
         except Exception as e:
@@ -1545,11 +1720,10 @@ class BDCDialog(QtWidgets.QDialog):
                 ea.search_data(
                     concept_id=SENTINEL2_SHORT_NAME,
                     bounding_box=bbox,
+                    temporal=temporal,
+                    cloud_cover=(0.0, cloud_max),
                     cloud_hosted=True,
-                    day_night_flag='day',
-                    # opcionalmente poderíamos restringir por cloud_cover e temporal:
-                    # cloud_cover=(0, cloud_max),
-                    # temporal=temporal,
+                    day_night_flag="day",
                 )
             )
         except Exception as e:
@@ -1563,9 +1737,16 @@ class BDCDialog(QtWidgets.QDialog):
             )
             return
 
+        # indexa granules Sentinel-2 por GranuleUR
+        self._s2_granules = {}
+
         best = None
         for g in granules:
             umm = g.get("umm", {})
+            iid_g = umm.get("GranuleUR", "")
+            if iid_g:
+                self._s2_granules[iid_g] = g
+
             cc = umm.get("CloudCover", None)
             te = umm.get("TemporalExtent", {}) or {}
             dtm = ""
@@ -1651,7 +1832,8 @@ class BDCDialog(QtWidgets.QDialog):
         coverage_pct = best["coverage_pct"]
 
         log(
-            f"[S2] Melhor Sentinel-2A para ASTER {coll}/{self.table.item(r, 1).text().strip() if self.table.item(r,1) else ''}: "
+            f"[S2] Melhor Sentinel-2A para ASTER {coll}/"
+            f"{self.table.item(r, 1).text().strip() if self.table.item(r, 1) else ''}: "
             f"coleção={coll_id}, id={iid}, datetime={dt_s}, cloud={cc}, cov%={coverage_pct}, href={best_href}"
         )
 
@@ -1695,7 +1877,8 @@ class BDCDialog(QtWidgets.QDialog):
         # tenta abrir a cena Sentinel-2A já clipada à folha/AOI
         if best_href:
             name = f"{coll_id}:{os.path.basename(best_href)}"
-            self._clip_and_add_raster(best_href, name)
+            granule = self._get_earthdata_granule(coll_id, iid)
+            self._clip_and_add_raster(best_href, name, granule=granule)
 
     # ---------- ações finais ----------
     def _selected_rows(self):
@@ -1712,7 +1895,7 @@ class BDCDialog(QtWidgets.QDialog):
         ok = 0
         for r in rows:
             href = self.table.item(r, 6).text().strip() if self.table.item(r, 6) else ""
-            coll = self.table.item(r, 0).text().strip()
+            coll = self.table.item(r, 0).text().strip() if self.table.item(r, 0) else ""
             iid = self.table.item(r, 1).text().strip() if self.table.item(r, 1) else ""
             log(f"[VIEW] row={r}, coll={coll}, id={iid}, href={href!r}")
             if not href:
@@ -1720,9 +1903,12 @@ class BDCDialog(QtWidgets.QDialog):
                 continue
             name = f"{coll}:{os.path.basename(href)}"
 
+            is_earthdata = ("AST_07" in coll.upper()) or self._collection_is_sentinel(coll, iid)
+            granule = self._get_earthdata_granule(coll, iid) if is_earthdata else None
+
             # ASTER e Sentinel-2/HLS (HLSS30/HLS.S30/C2021957295-LPCLOUD) são sempre clipados pela folha/AOI
-            if "AST_07" in coll.upper() or self._collection_is_sentinel(coll, iid):
-                if self._clip_and_add_raster(href, name):
+            if is_earthdata:
+                if self._clip_and_add_raster(href, name, granule=granule):
                     ok += 1
             else:
                 if open_raster(
@@ -1746,14 +1932,35 @@ class BDCDialog(QtWidgets.QDialog):
             return
 
         outdir = self.labOutdir.text().strip()
+        os.makedirs(outdir, exist_ok=True)
         all_assets = self.cbAllAssets.isChecked()
         ok = 0
 
         for r in rows:
+            coll = self.table.item(r, 0).text().strip() if self.table.item(r, 0) else ""
+            iid = self.table.item(r, 1).text().strip() if self.table.item(r, 1) else ""
+
+            is_earthdata = ("AST_07" in coll.upper()) or self._collection_is_sentinel(coll, iid)
+            granule = self._get_earthdata_granule(coll, iid) if is_earthdata else None
+
+            # Caminho Earthdata: usar earthaccess.download no granule
+            if granule is not None:
+                log(f"[DL] row={r} Earthdata: coll={coll}, iid={iid}")
+                try:
+                    self._ensure_earthaccess_login()
+                    files = ea.download([granule], local_path=outdir)
+                    log(f"[DL] earthaccess.download retornou: {files}")
+                    for path in files:
+                        if isinstance(path, str) and os.path.isfile(path):
+                            ok += 1
+                except Exception as e:
+                    log(f"[DL] Erro em earthaccess.download para {iid}: {e}")
+                continue
+
+            # Caminho genérico (BDC/HTTPS): usa href(s) + open_raster(just_download=True)
             to_get = []
 
             if all_assets:
-                # lê all_hrefs da coluna 7, se existir
                 cell_all = self.table.item(r, 7)
                 if cell_all is not None:
                     try:
@@ -1772,7 +1979,6 @@ class BDCDialog(QtWidgets.QDialog):
                     if href:
                         to_get = [href]
             else:
-                # modo padrão: só usa href_tif
                 cell_href = self.table.item(r, 6)
                 href = cell_href.text().strip() if cell_href is not None else ""
                 if href:
@@ -1836,7 +2042,7 @@ def run():
     log("[ENTRYPOINT] run() chamado.")
     dlg = BDCDialog()
     dlg.show()
-    globals()['__BDC_DLG__'] = dlg
+    globals()["__BDC_DLG__"] = dlg
 
 
 run()
