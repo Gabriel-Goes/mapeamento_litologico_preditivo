@@ -18,3 +18,4 @@ codes/recortes_orbitais/logs/*
 *.tif.meta.json
 *.npz
 *pc_cache/*
+*data/
