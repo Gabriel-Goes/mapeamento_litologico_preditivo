@@ -618,6 +618,8 @@ class BDCDialog(QtWidgets.QDialog):
 
         self.btnAdd = QtWidgets.QPushButton("Visualizar selecionados no QGIS")
         self.btnDl = QtWidgets.QPushButton("Baixar selecionados")
+        # novo botão: baixa TODAS as bandas já clipadas para a folha_id
+        self.btnBandsClip = QtWidgets.QPushButton("Baixar bandas clipadas (AST/S2)")
         self.cbAllAssets = QtWidgets.QCheckBox("Baixar todos assets dos itens")
         self.btnOutdir = QtWidgets.QPushButton("Pasta de saída…")
         self.labOutdir = QtWidgets.QLabel(os.path.expanduser("~"))
@@ -663,6 +665,7 @@ class BDCDialog(QtWidgets.QDialog):
         bottom = QtWidgets.QHBoxLayout()
         bottom.addWidget(self.btnAdd)
         bottom.addWidget(self.btnDl)
+        bottom.addWidget(self.btnBandsClip)
         bottom.addWidget(self.cbAllAssets)
         bottom.addStretch(1)
         bottom.addWidget(self.btnOutdir)
@@ -697,6 +700,7 @@ class BDCDialog(QtWidgets.QDialog):
         self.btnFindS2.clicked.connect(self.find_sentinel_for_selected_aster)
         self.btnAdd.clicked.connect(self.view_selected)
         self.btnDl.clicked.connect(self.download_selected)
+        self.btnBandsClip.clicked.connect(self.download_clipped_bands)
         self.btnOutdir.clicked.connect(self.pick_outdir)
         self.cbProvider.currentIndexChanged.connect(self._on_provider_change)
         self.edStac.textChanged.connect(self._on_stac_changed)
@@ -712,7 +716,7 @@ class BDCDialog(QtWidgets.QDialog):
     # ---------- helpers ----------
     def _pick_href_for_row(self, row: int):
         """
-        Retorna o href (TIFF) escolhido pelo usuário para a linha `row`.
+        Retorna o href (TIFF) escolhido pelo usuário para a linha row.
 
         - Prioriza a lista JSON de all_hrefs (coluna 7).
         - Se só houver um href, retorna direto.
@@ -782,6 +786,7 @@ class BDCDialog(QtWidgets.QDialog):
             return None
 
         return hrefs[chosen_idx]
+
     def _current_stac(self):
         val = self.edStac.text().strip()
         log(f"[CALL] BDCDialog._current_stac() -> {val!r}")
@@ -1477,13 +1482,22 @@ class BDCDialog(QtWidgets.QDialog):
         if len(out) > 0 and was_sorting:
             self.table.sortByColumn(8, QtCore.Qt.DescendingOrder)
 
-    def _clip_and_add_raster_local(self, local, name):
-        log(f"[CALL] BDCDialog._clip_and_add_raster_local(local={local!r}, name={name!r})")
+    def _clip_and_add_raster_local(self, local, name, save_path=None, add_layer=True):
+        """
+        Recorta o raster 'local' pela AOI e:
+        - se save_path is None: usa saída temporária do QGIS e adiciona a camada ao projeto (com add_layer=True).
+        - se save_path não for None: salva explicitamente em save_path; se add_layer=False, não adiciona ao projeto.
+        """
+        log(
+            f"[CALL] BDCDialog._clip_and_add_raster_local(local={local!r}, "
+            f"name={name!r}, save_path={save_path!r}, add_layer={add_layer})"
+        )
         import processing
         from qgis.PyQt.QtCore import QVariant
 
         gdal_tune_for_http()
 
+        # Garantir AOI (preferencialmente a folha do DB, se existir)
         if self.aoi is None:
             try:
                 log("[CLIP] AOI ainda não construída; chamando _build_aoi()")
@@ -1508,6 +1522,13 @@ class BDCDialog(QtWidgets.QDialog):
 
         log("[CLIP] AOI_layer em memória criado com 1 feição.")
 
+        # saída: temporária ou caminho explícito
+        if save_path is not None:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            output_param = save_path
+        else:
+            output_param = "TEMPORARY_OUTPUT"
+
         params = {
             "INPUT": local,
             "MASK": aoi_layer,
@@ -1521,7 +1542,7 @@ class BDCDialog(QtWidgets.QDialog):
             "DATA_TYPE": 0,
             "MULTITHREADING": True,
             "EXTRA": "",
-            "OUTPUT": "TEMPORARY_OUTPUT",
+            "OUTPUT": output_param,
         }
 
         log(f"[CLIP] Params gdal:cliprasterbymasklayer: {params!r}")
@@ -1537,11 +1558,15 @@ class BDCDialog(QtWidgets.QDialog):
             log(traceback.format_exc())
             return False
 
-        out_path = res.get("OUTPUT")
+        out_path = res.get("OUTPUT") or save_path
         log(f"[CLIP] OUTPUT={out_path!r}")
         if not out_path:
             log("[CLIP] Clip não retornou caminho de saída.")
             return False
+
+        if not add_layer:
+            log(f"[CLIP] Raster recortado salvo em {out_path!r} (camada NÃO adicionada ao projeto).")
+            return True
 
         log(f"[CLIP] Criando QgsRasterLayer a partir de {out_path!r}")
         rl = QgsRasterLayer(out_path, name, "gdal")
@@ -2111,6 +2136,284 @@ class BDCDialog(QtWidgets.QDialog):
 
         text_ = f"{ok} arquivo(s) baixado(s) para:\n{outdir}"
         QtWidgets.QMessageBox.information(self, "Download", text_)
+
+    def _download_href_sync(self, href, local, granule=None):
+        """
+        Baixa um único href para 'local' de forma síncrona.
+
+        - Se granule != None: assume Earthdata/LP DAAC e usa earthaccess.open().
+        - Caso contrário: HTTP direto via urllib.
+        """
+        log(
+            f"[CALL] BDCDialog._download_href_sync(href={href!r}, local={local!r}, "
+            f"granule={'sim' if granule else 'não'})"
+        )
+        gdal_tune_for_http()
+
+        if os.path.exists(local):
+            try:
+                size_mb = os.path.getsize(local) / (1024 * 1024)
+            except OSError:
+                size_mb = 0.0
+            log(f"[DL-SYNC] Arquivo já existe ({size_mb:.1f} MB): {local}")
+            return True
+
+        try:
+            os.makedirs(os.path.dirname(local), exist_ok=True)
+        except Exception as e:
+            log(f"[DL-SYNC] Falha ao criar diretório destino {os.path.dirname(local)!r}: {e}")
+            return False
+
+        t0 = time.time()
+
+        try:
+            # Caminho Earthdata (ASTER/Sentinel via LP DAAC)
+            if granule is not None:
+                log("[DL-SYNC] Earthdata: usando earthaccess.open() para streaming autenticado.")
+                try:
+                    self._ensure_earthaccess_login()
+                except Exception as e:
+                    log(f"[DL-SYNC] Falha ao autenticar no earthaccess: {e}")
+                    log(traceback.format_exc())
+                    return False
+
+                try:
+                    files = ea.open([href])
+                except Exception as e:
+                    log(f"[DL-SYNC] Erro em earthaccess.open({href!r}): {e}")
+                    log(traceback.format_exc())
+                    return False
+
+                file_obj = None
+                try:
+                    for fo in files:
+                        file_obj = fo
+                        break
+                except Exception as e:
+                    log(f"[DL-SYNC] Falha ao iterar objeto retornado por earthaccess.open: {e}")
+                    log(traceback.format_exc())
+                    return False
+
+                if file_obj is None:
+                    log("[DL-SYNC] earthaccess.open não retornou objeto de arquivo.")
+                    return False
+
+                downloaded = 0
+                chunk_size = 1024 * 1024
+                with open(local, "wb") as f:
+                    while True:
+                        chunk = file_obj.read(chunk_size)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        downloaded += len(chunk)
+
+                dt = time.time() - t0
+                log(
+                    f"[DL-SYNC] Download Earthdata concluído: "
+                    f"{downloaded / (1024 * 1024):.1f} MB em {dt:.1f} s -> {local}"
+                )
+                return True
+
+            # Caminho genérico (BDC/HTTPS público)
+            log(f"[DL-SYNC] HTTP direto via urllib: {href} -> {local}")
+            req = urllib.request.Request(href, method="GET")
+            with urllib.request.urlopen(req, timeout=600) as resp:
+                total_str = resp.headers.get("Content-Length") or "0"
+                try:
+                    total = int(total_str)
+                except ValueError:
+                    total = 0
+
+                if total > 0:
+                    log(f"[DL-SYNC] Tamanho remoto ~ {total / (1024 * 1024):.1f} MB")
+                else:
+                    log("[DL-SYNC] Content-Length não informado; apenas tamanho baixado.")
+
+                downloaded = 0
+                chunk_size = 1024 * 1024
+                with open(local, "wb") as f:
+                    while True:
+                        chunk = resp.read(chunk_size)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        downloaded += len(chunk)
+
+            dt = time.time() - t0
+            if total > 0:
+                log(
+                    f"[DL-SYNC] Download concluído: {downloaded / (1024 * 1024):.1f}/"
+                    f"{total / (1024 * 1024):.1f} MB em {dt:.1f} s -> {local}"
+                )
+            else:
+                log(
+                    f"[DL-SYNC] Download concluído: {downloaded / (1024 * 1024):.1f} MB em {dt:.1f} s -> {local}"
+                )
+            return True
+
+        except urllib.error.HTTPError as e:
+            log(f"[DL-SYNC] Erro HTTP em download: {e.code} {e.reason}")
+        except urllib.error.URLError as e:
+            log(f"[DL-SYNC] Erro de rede em download: {e}")
+        except Exception as e:
+            log(f"[DL-SYNC] Erro inesperado em download: {type(e).__name__}: {e}")
+            log(traceback.format_exc())
+
+        return False
+
+    def download_clipped_bands(self):
+        """
+        Baixa TODAS as bandas (todos hrefs .tif/.tiff de all_hrefs) dos itens selecionados
+        e salva já CLIPADAS para a região da folha_id em:
+
+            /home/ggrl/projetos/PreditorTerra/data/{Folha_ID}/
+
+        Funciona tanto para ASTER (AST_07XT/earthaccess) quanto para Sentinel-2A (HLS/S2 via earthaccess),
+        e também para itens genéricos do BDC (HTTP público).
+        """
+        log("[CALL] BDCDialog.download_clipped_bands()")
+        rows = self._selected_rows()
+        if not rows:
+            QtWidgets.QMessageBox.information(
+                self, "Bandas clipadas", "Selecione pelo menos uma linha na tabela."
+            )
+            return
+
+        folha_id = (self.edFolha.text() or "").strip()
+        if not folha_id:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Bandas clipadas",
+                "O campo 'Folha (DB)' está vazio. Informe o código da folha (ex.: SB21_ZA_II1_NE).",
+            )
+            return
+
+        # Diretório fixo solicitado: /home/ggrl/projetos/PreditorTerra/data/{Folha_ID}/
+        base_dir = "/home/ggrl/projetos/PreditorTerra/data"
+        folha_dir_name = _safe_slug(folha_id, folha_id)
+        target_dir = os.path.join(base_dir, folha_dir_name)
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Bandas clipadas",
+                f"Não foi possível criar o diretório destino:\n{target_dir}\n\n{e}",
+            )
+            return
+
+        # Garante que a AOI seja a geometria da folha do DB, se existir
+        folha_geom = self._folha_geom_qgis()
+        if folha_geom is not None and not folha_geom.isEmpty():
+            self.aoi = folha_geom
+            bb = self.aoi.boundingBox()
+            c = self.aoi.centroid().asPoint()
+            log(
+                f"[CLIP-BANDS] AOI ← folha DB {folha_id} "
+                f"bbox=[{bb.xMinimum():.6f},{bb.yMinimum():.6f},"
+                f"{bb.xMaximum():.6f},{bb.yMaximum():.6f}] centroid=({c.x():.6f},{c.y():.6f})"
+            )
+        elif self.aoi is None:
+            try:
+                self._build_aoi()
+            except Exception as e:
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "Bandas clipadas",
+                    f"Não foi possível construir AOI para clipar as bandas:\n{e}",
+                )
+                return
+
+        n_ok = 0
+        n_fail = 0
+
+        for r in rows:
+            coll = self.table.item(r, 0).text().strip() if self.table.item(r, 0) else ""
+            iid = self.table.item(r, 1).text().strip() if self.table.item(r, 1) else ""
+
+            is_earthdata = ("AST_07" in coll.upper()) or self._collection_is_sentinel(coll, iid)
+            granule = self._get_earthdata_granule(coll, iid) if is_earthdata else None
+
+            cell_all = self.table.item(r, 7)
+            hrefs = []
+            if cell_all is not None:
+                txt = cell_all.text() or ""
+                try:
+                    data = json.loads(txt)
+                    if isinstance(data, list):
+                        hrefs = [
+                            h for h in data
+                            if isinstance(h, str) and h.lower().endswith((".tif", ".tiff"))
+                        ]
+                except Exception as e:
+                    log(f"[CLIP-BANDS] Erro ao interpretar all_hrefs na linha {r}: {e}")
+
+            # fallback: se não houver all_hrefs, usa href_tif (coluna 6)
+            if not hrefs:
+                cell_href = self.table.item(r, 6)
+                href = cell_href.text().strip() if cell_href is not None else ""
+                if href and href.lower().endswith((".tif", ".tiff")):
+                    hrefs = [href]
+
+            if not hrefs:
+                log(f"[CLIP-BANDS] Linha {r}: nenhum href .tif/.tiff disponível.")
+                continue
+
+            log(f"[CLIP-BANDS] row={r}, coll={coll}, iid={iid}, hrefs={hrefs}")
+
+            safe_coll = _safe_slug(coll, "coll")[:50]
+            safe_iid = _safe_slug(iid, "item")[:80]
+
+            for href in hrefs:
+                band_basename = os.path.basename(href)
+                # arquivo cheio (para clip) e arquivo já clipado
+                local_full = os.path.join(
+                    target_dir,
+                    f"{safe_coll}_{safe_iid}__FULL__{band_basename}",
+                )
+                clip_out = os.path.join(
+                    target_dir,
+                    f"{safe_coll}_{safe_iid}__CLIP__{band_basename}",
+                )
+
+                # se já existir a versão clipada, não refaz
+                if os.path.exists(clip_out):
+                    log(f"[CLIP-BANDS] Já existe clipado: {clip_out}")
+                    n_ok += 1
+                    continue
+
+                # download síncrono do arquivo completo
+                if not self._download_href_sync(href, local_full, granule=granule):
+                    log(f"[CLIP-BANDS] Falha ao baixar href={href!r} para {local_full!r}")
+                    n_fail += 1
+                    continue
+
+                # clipar para a AOI da folha e salvar diretamente em clip_out
+                ok_clip = self._clip_and_add_raster_local(
+                    local_full,
+                    name=os.path.basename(clip_out),
+                    save_path=clip_out,
+                    add_layer=False,   # não adiciona as bandas clipadas automaticamente ao projeto
+                )
+                if ok_clip:
+                    n_ok += 1
+                    # opcional: remover arquivo completo após clip para economizar espaço
+                    try:
+                        os.remove(local_full)
+                        log(f"[CLIP-BANDS] Arquivo completo removido: {local_full}")
+                    except OSError:
+                        pass
+                else:
+                    n_fail += 1
+                    log(f"[CLIP-BANDS] Falha ao clipar {local_full!r} -> {clip_out!r}")
+
+        msg = (
+            f"{n_ok} banda(s) clipada(s) salva(s) em:\n{target_dir}\n\n"
+            f"{n_fail} falha(s) no processamento de bandas."
+        )
+        QtWidgets.QMessageBox.information(self, "Bandas clipadas", msg)
+        log(f"[CLIP-BANDS] Finalizado: {n_ok} OK, {n_fail} falha(s), destino={target_dir!r}")
 
     # ---------- slots auxiliares ----------
     def _on_aoi_source_toggled(self, checked):

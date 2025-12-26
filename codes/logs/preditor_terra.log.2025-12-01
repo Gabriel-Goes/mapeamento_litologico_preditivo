@@ -1,0 +1,254 @@
+2025-11-30T23:32:36.371Z | INFO | PreditorTerra | MainThread | setup_logger:163 | Logger inicializado | dir=/home/ggrl/projetos/PreditorTerra/codes/logs | file=/home/ggrl/projetos/PreditorTerra/codes/logs/preditor_terra.log | level=INFO
+2025-11-30T23:34:13.678Z | INFO | PreditorTerra | MainThread | _log:523 | # Montando grade…
+2025-11-30T23:34:14.038Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Build_mc escala=25k ids=1…
+2025-11-30T23:34:15.625Z | INFO | PreditorTerra | MainThread | timed_step:199 | ⏱ Build_mc escala=25k ids=1 concluído (1.587s)
+2025-11-30T23:34:15.967Z | INFO | PreditorTerra | MainThread | _log:523 | # Carregando dados brutos…
+2025-11-30T23:34:16.300Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600…
+2025-11-30T23:34:59.809Z | ERROR | PreditorTerra | MainThread | timed_step:201 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600 falhou: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+Traceback (most recent call last):
+  File "/home/ggrl/projetos/PreditorTerra/codes/PreditoTerra_QGIS.py", line 198, in timed_step
+    yield
+  File "/home/ggrl/projetos/PreditorTerra/codes/PreditoTerra_QGIS.py", line 1324, in _on_load
+    _g, _m = Upload_geof(quad, gama_xyz=self.cbGama.currentText(), mag_xyz=self.cbMag.currentText(), extend_size=int(self.sbExtend.value()))
+             ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ggrl/projetos/PreditorTerra/codes/PreditoTerra_QGIS.py", line 328, in Upload_geof
+    utm = pyproj.CRS('EPSG:'+str(folha['EPSG']))
+  File "/home/ggrl/.pyenv/versions/3.13.7/envs/geologia/lib/python3.13/site-packages/pyproj/crs/crs.py", line 350, in __init__
+    self._local.crs = _CRS(self.srs)
+                      ~~~~^^^^^^^^^^
+  File "pyproj/_crs.pyx", line 2364, in pyproj._crs._CRS.__init__
+pyproj.exceptions.CRSError: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+2025-11-30T23:35:00.158Z | ERROR | PreditorTerra | MainThread | _log:523 | [ERRO _on_load] Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+2025-11-30T23:35:16.935Z | WARNING | PreditorTerra | MainThread | _log:523 | Carregue dados brutos primeiro.
+2025-11-30T23:35:48.986Z | WARNING | PreditorTerra | MainThread | _log:523 | Carregue dados brutos primeiro.
+2025-11-30T23:35:52.386Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-30T23:35:52.743Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-30T23:36:10.935Z | WARNING | PreditorTerra | MainThread | _log:523 | Carregue dados brutos primeiro.
+2025-11-30T23:36:13.663Z | WARNING | PreditorTerra | MainThread | _log:523 | Carregue dados brutos primeiro.
+2025-11-30T23:36:14.263Z | WARNING | PreditorTerra | MainThread | _log:523 | Carregue dados brutos primeiro.
+2025-11-30T23:36:31.590Z | INFO | PreditorTerra | MainThread | _log:523 | # Montando grade…
+2025-11-30T23:36:31.929Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Build_mc escala=25k ids=1…
+2025-11-30T23:36:33.337Z | INFO | PreditorTerra | MainThread | timed_step:199 | ⏱ Build_mc escala=25k ids=1 concluído (1.408s)
+2025-11-30T23:36:33.652Z | INFO | PreditorTerra | MainThread | _log:523 | # Carregando dados brutos…
+2025-11-30T23:36:33.977Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600…
+2025-11-30T23:37:14.310Z | ERROR | PreditorTerra | MainThread | timed_step:201 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600 falhou: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+Traceback (most recent call last):
+  File "/home/ggrl/projetos/PreditorTerra/codes/PreditoTerra_QGIS.py", line 198, in timed_step
+    yield
+  File "/home/ggrl/projetos/PreditorTerra/codes/PreditoTerra_QGIS.py", line 1324, in _on_load
+    _g, _m = Upload_geof(quad, gama_xyz=self.cbGama.currentText(), mag_xyz=self.cbMag.currentText(), extend_size=int(self.sbExtend.value()))
+             ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ggrl/projetos/PreditorTerra/codes/PreditoTerra_QGIS.py", line 328, in Upload_geof
+    utm = pyproj.CRS('EPSG:'+str(folha['EPSG']))
+  File "/home/ggrl/.pyenv/versions/3.13.7/envs/geologia/lib/python3.13/site-packages/pyproj/crs/crs.py", line 350, in __init__
+    self._local.crs = _CRS(self.srs)
+                      ~~~~^^^^^^^^^^
+  File "pyproj/_crs.pyx", line 2364, in pyproj._crs._CRS.__init__
+pyproj.exceptions.CRSError: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+2025-11-30T23:37:14.624Z | ERROR | PreditorTerra | MainThread | _log:523 | [ERRO _on_load] Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+2025-11-30T23:37:16.468Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-30T23:37:16.774Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-30T23:38:44.447Z | INFO | PreditorTerra | MainThread | _log:523 | # Montando grade…
+2025-11-30T23:38:44.783Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Build_mc escala=25k ids=1…
+2025-11-30T23:38:46.226Z | INFO | PreditorTerra | MainThread | timed_step:199 | ⏱ Build_mc escala=25k ids=1 concluído (1.444s)
+2025-11-30T23:38:46.539Z | INFO | PreditorTerra | MainThread | _log:523 | # Carregando dados brutos…
+2025-11-30T23:38:46.857Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600…
+2025-11-30T23:39:23.616Z | ERROR | PreditorTerra | MainThread | timed_step:201 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600 falhou: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+Traceback (most recent call last):
+  File "/home/ggrl/projetos/PreditorTerra/codes/PreditoTerra_QGIS.py", line 198, in timed_step
+    yield
+  File "/home/ggrl/projetos/PreditorTerra/codes/PreditoTerra_QGIS.py", line 1324, in _on_load
+    _g, _m = Upload_geof(quad, gama_xyz=self.cbGama.currentText(), mag_xyz=self.cbMag.currentText(), extend_size=int(self.sbExtend.value()))
+             ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ggrl/projetos/PreditorTerra/codes/PreditoTerra_QGIS.py", line 328, in Upload_geof
+    utm = pyproj.CRS('EPSG:'+str(folha['EPSG']))
+  File "/home/ggrl/.pyenv/versions/3.13.7/envs/geologia/lib/python3.13/site-packages/pyproj/crs/crs.py", line 350, in __init__
+    self._local.crs = _CRS(self.srs)
+                      ~~~~^^^^^^^^^^
+  File "pyproj/_crs.pyx", line 2364, in pyproj._crs._CRS.__init__
+pyproj.exceptions.CRSError: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+2025-11-30T23:39:23.931Z | ERROR | PreditorTerra | MainThread | _log:523 | [ERRO _on_load] Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+2025-11-30T23:39:36.794Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-30T23:39:37.118Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-30T23:45:44.395Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-30T23:45:44.734Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-30T23:50:05.390Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-30T23:50:05.762Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-11-30T23:53:32.652Z | INFO | PreditorTerra | MainThread | _log:700 | # Montando grade…
+2025-11-30T23:53:32.655Z | INFO | PreditorTerra | MainThread | timed_step:267 | ⏱ Build_mc escala=25k ids=1…
+2025-11-30T23:53:33.786Z | INFO | PreditorTerra | MainThread | timed_step:270 | ⏱ Build_mc escala=25k ids=1 concluído (1.131s)
+2025-11-30T23:53:33.788Z | INFO | PreditorTerra | MainThread | _log:700 | # Carregando dados brutos…
+2025-11-30T23:53:33.789Z | INFO | PreditorTerra | MainThread | timed_step:267 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600…
+2025-11-30T23:54:08.552Z | ERROR | PreditorTerra | MainThread | timed_step:272 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600 falhou: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+Traceback (most recent call last):
+  File "PreditoTerra_QGIS.py", line 269, in timed_step
+  File "PreditoTerra_QGIS.py", line 2119, in _on_load
+  File "PreditoTerra_QGIS.py", line 417, in Upload_geof
+  File "/home/ggrl/.pyenv/versions/3.13.7/envs/geologia/lib/python3.13/site-packages/pyproj/crs/crs.py", line 350, in __init__
+    self._local.crs = _CRS(self.srs)
+                      ~~~~^^^^^^^^^^
+  File "pyproj/_crs.pyx", line 2364, in pyproj._crs._CRS.__init__
+pyproj.exceptions.CRSError: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+2025-11-30T23:54:08.566Z | ERROR | PreditorTerra | MainThread | _log:700 | [ERRO _on_load] Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+2025-11-30T23:54:31.997Z | WARNING | PreditorTerra | MainThread | _log:700 | Carregue dados brutos primeiro.
+2025-11-30T23:55:12.259Z | WARNING | PreditorTerra | MainThread | _log:700 | Carregue dados brutos primeiro.
+2025-11-30T23:55:22.475Z | INFO | PreditorTerra | MainThread | _log:700 | Selecione camadas.
+2025-11-30T23:55:34.363Z | INFO | PreditorTerra | MainThread | _log:700 | # Montando grade…
+2025-11-30T23:55:34.367Z | INFO | PreditorTerra | MainThread | timed_step:267 | ⏱ Build_mc escala=25k ids=1…
+2025-11-30T23:55:35.542Z | INFO | PreditorTerra | MainThread | timed_step:270 | ⏱ Build_mc escala=25k ids=1 concluído (1.175s)
+2025-11-30T23:55:35.546Z | INFO | PreditorTerra | MainThread | _log:700 | # Carregando dados brutos…
+2025-11-30T23:55:35.549Z | INFO | PreditorTerra | MainThread | timed_step:267 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600…
+2025-11-30T23:56:09.494Z | ERROR | PreditorTerra | MainThread | timed_step:272 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600 falhou: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+Traceback (most recent call last):
+  File "PreditoTerra_QGIS.py", line 269, in timed_step
+  File "PreditoTerra_QGIS.py", line 2119, in _on_load
+  File "PreditoTerra_QGIS.py", line 417, in Upload_geof
+  File "/home/ggrl/.pyenv/versions/3.13.7/envs/geologia/lib/python3.13/site-packages/pyproj/crs/crs.py", line 350, in __init__
+    self._local.crs = _CRS(self.srs)
+                      ~~~~^^^^^^^^^^
+  File "pyproj/_crs.pyx", line 2364, in pyproj._crs._CRS.__init__
+pyproj.exceptions.CRSError: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+2025-11-30T23:56:09.499Z | ERROR | PreditorTerra | MainThread | _log:700 | [ERRO _on_load] Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+2025-12-01T00:51:24.426Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-12-01T00:51:24.438Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-12-01T00:52:38.415Z | INFO | PreditorTerra | MainThread | _log:523 | # Montando grade…
+2025-12-01T00:52:38.428Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Build_mc escala=25k ids=1…
+2025-12-01T00:52:39.555Z | INFO | PreditorTerra | MainThread | timed_step:199 | ⏱ Build_mc escala=25k ids=1 concluído (1.126s)
+2025-12-01T00:52:39.560Z | INFO | PreditorTerra | MainThread | _log:523 | # Carregando dados brutos…
+2025-12-01T00:52:39.564Z | INFO | PreditorTerra | MainThread | timed_step:196 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600…
+2025-12-01T00:53:16.885Z | ERROR | PreditorTerra | MainThread | timed_step:201 | ⏱ Upload_geof gama=gama_line_1082 mag=mag_line_1082 extend=600 falhou: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+Traceback (most recent call last):
+  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 198, in timed_step
+    yield
+  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 1324, in _on_load
+    _g, _m = Upload_geof(quad, gama_xyz=self.cbGama.currentText(), mag_xyz=self.cbMag.currentText(), extend_size=int(self.sbExtend.value()))
+             ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ggrl/projetos/PreditorTerra/PreditorTerraQGIS.py", line 328, in Upload_geof
+    utm = pyproj.CRS('EPSG:'+str(folha['EPSG']))
+  File "/home/ggrl/.pyenv/versions/3.13.7/envs/geologia/lib/python3.13/site-packages/pyproj/crs/crs.py", line 350, in __init__
+    self._local.crs = _CRS(self.srs)
+                      ~~~~^^^^^^^^^^
+  File "pyproj/_crs.pyx", line 2364, in pyproj._crs._CRS.__init__
+pyproj.exceptions.CRSError: Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+2025-12-01T00:53:16.893Z | ERROR | PreditorTerra | MainThread | _log:523 | [ERRO _on_load] Invalid projection: EPSG:32721: (Internal Proj Error: proj_create: no database context specified)
+2025-12-01T00:53:18.330Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-12-01T00:53:18.335Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-12-01T00:54:08.835Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-12-01T00:55:46.276Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-12-01T13:09:06.366Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-12-01T13:09:22.062Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: Wayland does not support QWindow::requestActivate()
+2025-12-01T13:09:37.036Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QPageSetupDialog: Cannot be used on non-native printers
+2025-12-01T13:10:33.309Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: setGrabPopup called with a parent, QtWaylandClient::QWaylandXdgSurface(0x64b211888590) which does not match the current topmost grabbing popup, QtWaylandClient::QWaylandXdgSurface(0x64b22d325240) According to the xdg-shell protocol, this is not allowed. The wayland QPA plugin is currently handling it by setting the parent to the topmost grabbing popup. Note, however, that this may cause positioning errors and popups closing unxpectedly because xdg-shell mandate that child popups close before parents
+2025-12-01T13:10:40.309Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: setGrabPopup called with a parent, QtWaylandClient::QWaylandXdgSurface(0x64b211888590) which does not match the current topmost grabbing popup, QtWaylandClient::QWaylandXdgSurface(0x64b1929b1010) According to the xdg-shell protocol, this is not allowed. The wayland QPA plugin is currently handling it by setting the parent to the topmost grabbing popup. Note, however, that this may cause positioning errors and popups closing unxpectedly because xdg-shell mandate that child popups close before parents
+2025-12-01T13:18:40.910Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:18:40.921Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:18:42.231Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:18:42.238Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:18:45.339Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:18:45.349Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:18:46.561Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:18:46.569Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:18:50.478Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:18:50.486Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:03.225Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:03.233Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:15.624Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:15.632Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:18.322Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:18.330Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:19.515Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:19.527Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:20.700Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:20.709Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:33.373Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:33.382Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:42.417Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:42.426Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:45.136Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:45.145Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:56.174Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:56.183Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:58.765Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:19:58.774Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:18.898Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:18.907Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:18.984Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:18.997Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:30.790Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:30.809Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:31.799Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:31.810Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:32.284Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:32.298Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:33.014Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:33.024Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:33.077Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:33.087Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:33.165Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:33.175Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:33.252Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:33.262Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:33.285Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:33.299Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.081Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.095Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.119Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.129Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.153Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.164Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.361Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.374Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.406Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.417Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.569Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.581Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.608Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.620Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.767Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.779Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.814Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.825Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.851Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:34.863Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.010Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.022Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.050Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.069Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.095Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.107Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.184Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.199Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.227Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.239Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.268Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.280Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.431Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.444Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.598Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.611Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.639Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.652Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.682Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.698Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.726Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.739Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.799Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.818Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.848Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:35.861Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:36.054Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:36.071Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:36.101Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:36.114Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:36.144Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:36.159Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:36.214Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:36.227Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:36.258Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:36.272Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:36.308Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:36.322Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:49.511Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:49.525Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:49.552Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
+2025-12-01T13:20:49.574Z | WARNING | PreditorTerra | MainThread | _qt_handler:146 | Qt: QImage::scaled: Image is a null image
