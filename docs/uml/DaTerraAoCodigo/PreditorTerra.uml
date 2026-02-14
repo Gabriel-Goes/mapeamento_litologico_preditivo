@@ -60,6 +60,6 @@ modelos -up-> mlp : "gera ->"
 modelos -up-> mpmp : "gera ->"
 mlp -up-> validacao : "validação ->"
 mpmp -up-> validacao : "validação ->"
-validacao -down-> banco : "atualiza ->"
+validacao -left-> dados: "coleta->"
 
 @enduml
