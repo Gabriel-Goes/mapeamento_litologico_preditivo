@@ -1,6 +1,6 @@
 # Tech Stack
 
-**Analyzed:** February 13, 2026
+**Analyzed:** February 14, 2026
 
 ## Core
 - **Language:** Python 3.x (CPython) – scripts rely on f-strings, dataclasses hints and `__future__` annotations.

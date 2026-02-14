@@ -17,8 +17,8 @@
 
 ## Raster storage / caching
 - **Purpose:** Super-cube outputs, fused rasters, and cached STAC assets are written to disk for repeated analysis.
-- **Implementation:** `ORBITAL_DIR` (expected to be configured via `codes/config.py`, though the current file only shows PostgreSQL details) is used by `gs_fusion`, `supercube`, and `raster_utils` to store `*.tif` and `.meta.json` artifacts.
-- **Caching:** `raster_utils.download_pc_asset_to_local` persists downloaded STAC assets under `PC_CACHE_DIR` (also expected to be configured in `config.py`).
+- **Implementation:** `ORBITAL_DIR` (from `codes/config.py`) is used by `gs_fusion`, `supercube`, and `raster_utils` to store `*.tif` and `.meta.json` artifacts.
+- **Caching:** `raster_utils.download_pc_asset_to_local` persists downloaded STAC assets under `PC_CACHE_DIR` (from `codes/config.py`).
 
 ## Logging
 - **Service:** Local log files (`logs/preditor_terra*.log`) are written using `codes/log_utils.py`; no remote logging services are in use.
