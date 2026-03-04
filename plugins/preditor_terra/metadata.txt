@@ -1,0 +1,19 @@
+[general]
+name=Preditor Terra
+qgisMinimumVersion=3.28
+description=Fluxo preditivo litológico: folha cartográfica -> pontos geofísicos (PostGIS) -> SOM -> mapa no QGIS.
+version=0.2.0
+author=Preditor Terra Team
+email=contato@preditor-terra.local
+about=Plugin do Preditor Terra com dock para carregar dados por folha, interpolar, treinar/aplicar SOM e gerar mapa preditivo.
+hasProcessingProvider=no
+tags=geologia,postgis,som,litologia,qgis
+category=Database
+icon=icon.png
+experimental=False
+deprecated=False
+homepage=https://github.com/preditor-terra
+tracker=https://github.com/preditor-terra/issues
+repository=https://github.com/preditor-terra
+server=False
+

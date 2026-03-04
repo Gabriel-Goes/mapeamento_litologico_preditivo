@@ -26,15 +26,36 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm
 
-from sklearn_som.som import SOM
-from sklearn.preprocessing import StandardScaler
-from sklearn.impute import SimpleImputer
+try:
+    from sklearn_som.som import SOM as _SklearnSOM
+except Exception:
+    _SklearnSOM = None
+try:
+    from sklearn.preprocessing import StandardScaler as _SkStandardScaler
+    from sklearn.impute import SimpleImputer as _SkSimpleImputer
+except Exception:
+    _SkStandardScaler = None
+    _SkSimpleImputer = None
 
+from shapely import wkt as shp_wkt
 from shapely.ops import transform as shp_transform
 from pyproj import Transformer, CRS
-import verde as vd
-import rasterio
-from pystac_client import Client
+try:
+    import verde as vd  # type: ignore
+except Exception:
+    vd = None
+try:
+    import rasterio  # type: ignore
+except Exception:
+    rasterio = None
+try:
+    from pystac_client import Client  # type: ignore
+except Exception:
+    Client = None
+try:
+    import psycopg2  # type: ignore
+except Exception:
+    psycopg2 = None
 
 from qgis.core import (
     QgsProject, QgsVectorLayer, QgsFeature, QgsGeometry, QgsPointXY,
@@ -46,6 +67,145 @@ from qgis.core import (
 from osgeo import gdal, osr
 
 warnings.filterwarnings("ignore")
+
+if vd is None:
+    class _VerdeCompat:
+        @staticmethod
+        def inside(coords, region):
+            x, y = coords
+            w, e, s, n = region
+            x = np.asarray(x, dtype="float64")
+            y = np.asarray(y, dtype="float64")
+            return (x >= w) & (x <= e) & (y >= s) & (y <= n)
+
+        @staticmethod
+        def grid_coordinates(region, spacing=(100.0, 100.0), pixel_register=True):
+            w, e, s, n = region
+            if isinstance(spacing, (tuple, list)):
+                dx = float(spacing[0]); dy = float(spacing[1])
+            else:
+                dx = dy = float(spacing)
+            if pixel_register:
+                x0 = w + 0.5 * dx
+                y0 = s + 0.5 * dy
+                xs = np.arange(x0, e - 0.5 * dx + 1e-9, dx, dtype="float64")
+                ys = np.arange(y0, n - 0.5 * dy + 1e-9, dy, dtype="float64")
+            else:
+                xs = np.arange(w, e + 1e-9, dx, dtype="float64")
+                ys = np.arange(s, n + 1e-9, dy, dtype="float64")
+            if xs.size == 0:
+                xs = np.array([w], dtype="float64")
+            if ys.size == 0:
+                ys = np.array([s], dtype="float64")
+            return np.meshgrid(xs, ys)
+
+    vd = _VerdeCompat()
+
+if _SkSimpleImputer is None:
+    class SimpleImputer:
+        def __init__(self, strategy='median'):
+            self.strategy = strategy
+            self.fill_ = None
+
+        def fit(self, X):
+            X = np.asarray(X, dtype="float64")
+            if self.strategy != 'median':
+                raise ValueError("Fallback SimpleImputer suporta apenas strategy='median'.")
+            fill = np.nanmedian(X, axis=0)
+            fill = np.where(np.isfinite(fill), fill, 0.0)
+            self.fill_ = fill
+            return self
+
+        def transform(self, X):
+            if self.fill_ is None:
+                raise RuntimeError("SimpleImputer não ajustado.")
+            X = np.asarray(X, dtype="float64").copy()
+            mask = ~np.isfinite(X)
+            if mask.any():
+                X[mask] = np.take(self.fill_, np.where(mask)[1])
+            return X
+
+        def fit_transform(self, X):
+            return self.fit(X).transform(X)
+else:
+    SimpleImputer = _SkSimpleImputer
+
+if _SkStandardScaler is None:
+    class StandardScaler:
+        def __init__(self):
+            self.mean_ = None
+            self.scale_ = None
+
+        def fit(self, X):
+            X = np.asarray(X, dtype="float64")
+            self.mean_ = np.mean(X, axis=0)
+            sc = np.std(X, axis=0)
+            sc = np.where(sc > 1e-12, sc, 1.0)
+            self.scale_ = sc
+            return self
+
+        def transform(self, X):
+            if self.mean_ is None or self.scale_ is None:
+                raise RuntimeError("StandardScaler não ajustado.")
+            X = np.asarray(X, dtype="float64")
+            return (X - self.mean_) / self.scale_
+else:
+    StandardScaler = _SkStandardScaler
+
+if _SklearnSOM is None:
+    class SOM:
+        """
+        Fallback mínimo para SOM 1D (n=1), compatível com fit/predict/transform usados no dock.
+        """
+        def __init__(self, m=8, n=1, sigma=1.5, dim=4, max_iter=5000, learning_rate=0.5):
+            self.m = int(m)
+            self.n = int(n)
+            self.k = self.m * self.n
+            self.sigma = float(sigma)
+            self.dim = int(dim)
+            self.max_iter = int(max_iter)
+            self.learning_rate = float(learning_rate)
+            self.weights_ = None
+
+        def fit(self, X):
+            X = np.asarray(X, dtype="float64")
+            if X.ndim != 2 or X.shape[1] != self.dim:
+                raise ValueError(f"X deve ter shape [n, {self.dim}]")
+            if X.shape[0] == 0:
+                raise ValueError("X vazio para treino SOM.")
+
+            rng = np.random.default_rng(42)
+            idx = rng.integers(0, X.shape[0], size=self.k)
+            W = X[idx].copy()
+            unit_pos = np.arange(self.k, dtype="float64")
+
+            for t in range(max(1, self.max_iter)):
+                x = X[rng.integers(0, X.shape[0])]
+                d = np.linalg.norm(W - x, axis=1)
+                bmu = int(np.argmin(d))
+
+                frac = 1.0 - (t / max(1, self.max_iter - 1))
+                lr = max(0.01, self.learning_rate * frac)
+                radius = max(1.0, self.sigma * frac)
+                h = np.exp(-((unit_pos - bmu) ** 2) / (2.0 * radius * radius))
+                W += (lr * h[:, None]) * (x - W)
+
+            self.weights_ = W
+            return self
+
+        def transform(self, X):
+            if self.weights_ is None:
+                raise RuntimeError("SOM não treinado.")
+            X = np.asarray(X, dtype="float64")
+            # Distância para cada neurônio [n_samples, k]
+            D = np.sqrt(((X[:, None, :] - self.weights_[None, :, :]) ** 2).sum(axis=2))
+            return D
+
+        def predict(self, X):
+            D = self.transform(X)
+            return np.argmin(D, axis=1)
+else:
+    SOM = _SklearnSOM
 
 # ============================ HOTFIX PROJ/pyproj ============================
 # Corrige "pyproj.exceptions.CRSError: ... no database context specified"
@@ -211,6 +371,20 @@ som_last_pred = None
 bdc_items = []          # lista de pystac.Item da busca corrente
 sat_store = {}          # { item_id: {'collection','datetime','bbox','assets':{name:path}, 'hrefs':{name:href}} }
 
+# Backend de dados para a etapa SOM (postgres|files)
+DATA_BACKEND = os.getenv("PREDITOR_DATA_BACKEND", "postgres").strip().lower()
+
+# PostgreSQL (usado quando DATA_BACKEND=postgres ou fonte iniciando com db:)
+PG_HOST = os.getenv("PREDITOR_PG_HOST", "127.0.0.1")
+PG_PORT = int(os.getenv("PREDITOR_PG_PORT", "5432"))
+PG_DB = os.getenv("PREDITOR_PG_DB", "geologia")
+PG_USER = os.getenv("PREDITOR_PG_USER", "postgres")
+PG_PASS = os.getenv("PREDITOR_PG_PASS", "")
+PG_CONNECT_TIMEOUT = int(os.getenv("PREDITOR_PG_CONNECT_TIMEOUT", "8"))
+
+PG_DEFAULT_GAMA_SOURCE = os.getenv("PREDITOR_PG_GAMA_SOURCE", "geof.v_gamma_1082_corr")
+PG_DEFAULT_MAG_SOURCE = os.getenv("PREDITOR_PG_MAG_SOURCE", "").strip()
+
 # ====================== BACKEND: CAMINHOS / DADOS BASE ======================
 def set_gdb(path=''):
     """Raiz dos dados locais."""
@@ -221,7 +395,82 @@ def import_xyz(caminho):
     return pd.read_csv(caminho)
 
 
-def import_malha_cartog(escala='25k', ID=None, IDs=None):
+def _use_postgres_backend():
+    return DATA_BACKEND in {"postgres", "postgis", "db"}
+
+
+def _is_db_source_name(name):
+    if not name:
+        return False
+    txt = str(name).strip().lower()
+    if txt.startswith("db:"):
+        return True
+    return txt.startswith("geof.") or txt.startswith("carto.") or txt.startswith("litologia.")
+
+
+def _normalize_pg_relation(name, default_schema="geof"):
+    if not name:
+        return None
+    txt = str(name).strip()
+    txt_l = txt.lower()
+    if txt_l in {"none", "(sem fonte no banco)", "(sem fonte)", "sem fonte", "off", "null", "-"}:
+        return None
+    if txt_l.startswith("db:"):
+        txt = txt.split(":", 1)[1].strip()
+    if "." not in txt:
+        txt = f"{default_schema}.{txt}"
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?", txt):
+        raise ValueError(f"Nome de relação SQL inválido: {txt!r}")
+    return txt
+
+
+def _pg_connect():
+    if psycopg2 is None:
+        raise RuntimeError("psycopg2 não disponível no ambiente Python do QGIS.")
+    kwargs = {
+        "host": PG_HOST,
+        "port": PG_PORT,
+        "dbname": PG_DB,
+        "user": PG_USER,
+        "connect_timeout": PG_CONNECT_TIMEOUT,
+    }
+    if PG_PASS:
+        kwargs["password"] = PG_PASS
+    return psycopg2.connect(**kwargs)
+
+
+def _apply_folha_filters(df, ID=None, IDs=None):
+    if IDs:
+        return df[df["id_folha"].astype(str).isin([str(i) for i in IDs])].copy()
+    if ID:
+        if isinstance(ID, (list, tuple, set)):
+            pattern = "|".join(map(re.escape, ID))
+        else:
+            pattern = str(ID)
+        return df[df["id_folha"].astype(str).str.contains(pattern, na=False)].copy()
+    return df
+
+
+def _import_malha_cartog_from_postgres(escala='25k', ID=None, IDs=None):
+    sql = """
+        SELECT
+            codigo AS id_folha,
+            epsg   AS "EPSG",
+            ST_AsText(ST_Transform(geom, 4326)) AS geometry_wkt
+        FROM carto.folhas_cartograficas
+        WHERE escala = %s
+    """
+    with _pg_connect() as conn:
+        df = pd.read_sql_query(sql, conn, params=[escala])
+    if df.empty:
+        return df
+    df["geometry"] = df["geometry_wkt"].map(lambda v: shp_wkt.loads(v) if v else None)
+    df.drop(columns=["geometry_wkt"], inplace=True)
+    df["EPSG"] = pd.to_numeric(df["EPSG"], errors="coerce").astype("Int64")
+    return _apply_folha_filters(df, ID=ID, IDs=IDs)
+
+
+def _import_malha_cartog_from_gpkg(escala='25k', ID=None, IDs=None):
     """
     Lê a malha do GeoPackage e filtra por id_folha (exato ou regex).
 
@@ -273,17 +522,31 @@ def import_malha_cartog(escala='25k', ID=None, IDs=None):
 
     mc = pd.DataFrame.from_records(rows)
 
-    # Filtros por ID / IDs (mantém comportamento anterior)
-    if IDs:
-        mc = mc[mc["id_folha"].astype(str).isin([str(i) for i in IDs])].copy()
-    elif ID:
-        if isinstance(ID, (list, tuple, set)):
-            pattern = "|".join(map(re.escape, ID))
-        else:
-            pattern = str(ID)
-        mc = mc[mc["id_folha"].astype(str).str.contains(pattern, na=False)].copy()
+    return _apply_folha_filters(mc, ID=ID, IDs=IDs)
 
-    return mc
+
+def import_malha_cartog(escala='25k', ID=None, IDs=None):
+    """
+    Lê a malha cartográfica preferindo PostgreSQL (quando habilitado) com fallback para GeoPackage.
+    """
+    pg_exc = None
+    if _use_postgres_backend():
+        try:
+            mc = _import_malha_cartog_from_postgres(escala=escala, ID=ID, IDs=IDs)
+            LOGGER.info("Malha carregada do PostgreSQL: escala=%s linhas=%s", escala, len(mc))
+            return mc
+        except Exception as e:
+            pg_exc = e
+            LOGGER.warning("Falha lendo malha no PostgreSQL (%s). Fallback para GeoPackage.", e)
+
+    try:
+        mc = _import_malha_cartog_from_gpkg(escala=escala, ID=ID, IDs=IDs)
+        LOGGER.info("Malha carregada do GeoPackage: escala=%s linhas=%s", escala, len(mc))
+        return mc
+    except Exception as gpkg_e:
+        if pg_exc is not None:
+            raise RuntimeError(f"Falha na malha via PostgreSQL ({pg_exc}) e GeoPackage ({gpkg_e}).")
+        raise
 
 
 
@@ -304,8 +567,101 @@ def Build_mc(escala='50k', ID=['SF23_YA'], verbose=None):
         print(f'\n  {len(q)} folhas adicionadas.')
     return q
 
+
+def _load_gamma_from_postgres_for_folha(folha_codigo, source_relation, extend_size=0):
+    rel = _normalize_pg_relation(source_relation, default_schema="geof")
+    if rel is None:
+        return pd.DataFrame()
+    sql = f"""
+        WITH folha AS (
+            SELECT geom, epsg
+            FROM carto.folhas_cartograficas
+            WHERE codigo = %s
+            LIMIT 1
+        ),
+        aoi AS (
+            SELECT CASE
+                WHEN %s::double precision > 0
+                THEN ST_Transform(ST_Buffer(ST_Transform(geom, epsg), %s::double precision), 4326)
+                ELSE ST_Transform(geom, 4326)
+            END AS geom4326
+            FROM folha
+        )
+        SELECT
+            g.x::double precision          AS "X",
+            g.y::double precision          AS "Y",
+            g.ctcor::double precision      AS "CTCOR",
+            g.eth::double precision        AS "eTh",
+            g.eu::double precision         AS "eU",
+            g.kperc::double precision      AS "KPERC",
+            g.uth_razao::double precision  AS "UTHRAZAO",
+            g.uk_razao::double precision   AS "UKRAZAO",
+            g.thk_razao::double precision  AS "THKRAZAO",
+            g.mdt::double precision        AS "MDT",
+            g.lon::double precision        AS "LONGITUDE",
+            g.lat::double precision        AS "LATITUDE"
+        FROM {rel} g
+        JOIN aoi ON ST_Intersects(g.geom, aoi.geom4326)
+    """
+    with _pg_connect() as conn:
+        df = pd.read_sql_query(sql, conn, params=[folha_codigo, float(extend_size), float(extend_size)])
+    return df
+
+
+def _upload_geof_from_postgres(
+    quadricula=None,
+    gama_source=None,
+    mag_source=None,
+    extend_size=0,
+    gama_alias=None,
+):
+    gama_df_all = pd.DataFrame()
+    mag_df_all = pd.DataFrame()
+
+    # Sem camada magnética equivalente no banco atual; mantemos opcional.
+    mag_rel = _normalize_pg_relation(mag_source, default_schema="geof") if mag_source else None
+    if mag_rel:
+        LOGGER.warning("Fonte magnética no banco ainda não implementada (%s). Prosseguindo sem MAG.", mag_rel)
+
+    # Permite alias de chave (ex.: "db:geof.v_gamma_1082_corr") além do nome normalizado.
+    gama_keys = [k for k in dict.fromkeys([gama_source, gama_alias]) if k]
+    ids = list((quadricula or {}).keys())
+    for fid in ids:
+        g = _load_gamma_from_postgres_for_folha(fid, gama_source, extend_size=extend_size)
+        if len(g) > 100:
+            for k in gama_keys:
+                quadricula[fid][k] = g
+            gama_df_all = pd.concat([g, gama_df_all], ignore_index=True)
+            LOGGER.info("GAMA DB atualizado em %s: +%d pontos (acumulado=%d)", fid, len(g), len(gama_df_all))
+        else:
+            LOGGER.info("GAMA DB insuficiente em %s: %d pontos", fid, len(g))
+
+    return gama_df_all, mag_df_all
+
+
 def Upload_geof(quadricula=None, gama_xyz=None, mag_xyz=None, extend_size=0):
     """Carrega dados brutos (gama/mag) e associa às folhas em 'quadricula'."""
+    pg_err = None
+    try_pg = _use_postgres_backend() or _is_db_source_name(gama_xyz) or _is_db_source_name(mag_xyz)
+    if try_pg:
+        gama_source = _normalize_pg_relation(gama_xyz, default_schema="geof") if gama_xyz else _normalize_pg_relation(PG_DEFAULT_GAMA_SOURCE, default_schema="geof")
+        mag_source = _normalize_pg_relation(mag_xyz, default_schema="geof") if mag_xyz else _normalize_pg_relation(PG_DEFAULT_MAG_SOURCE, default_schema="geof")
+        if not gama_source:
+            gama_source = _normalize_pg_relation(PG_DEFAULT_GAMA_SOURCE, default_schema="geof")
+        try:
+            return _upload_geof_from_postgres(
+                quadricula=quadricula,
+                gama_source=gama_source,
+                mag_source=mag_source,
+                extend_size=extend_size,
+                gama_alias=gama_xyz,
+            )
+        except Exception as e:
+            pg_err = e
+            LOGGER.warning("Falha ao carregar geofísica do PostgreSQL (%s). Tentando arquivos locais.", e)
+            if _is_db_source_name(gama_xyz) or _is_db_source_name(mag_xyz):
+                raise RuntimeError(f"Falha no carregamento geofísico via banco: {e}") from e
+
     import pyproj
     gama_df_all = pd.DataFrame(); mag_df_all = pd.DataFrame()
 
@@ -348,6 +704,8 @@ def Upload_geof(quadricula=None, gama_xyz=None, mag_xyz=None, extend_size=0):
                 mag_df_all = pd.concat([m, mag_df_all])
                 print(f' - {mag_xyz} atualizado na folha: {fid} com {len(mag_df_all)} pontos')
 
+    if pg_err is not None:
+        LOGGER.info("Carga final via arquivos locais (fallback após erro PG): %s", pg_err)
     return gama_df_all, mag_df_all
 
 def pop_nodata(q):
@@ -580,6 +938,23 @@ def _find_source_column(df, canonical):
 def _source_order_for_feature(canonical):
     return ['mag','gama'] if canonical in ('GMT','MDT') else ['gama','mag']
 
+def _resolve_blob_layer_df(blob, key):
+    if not isinstance(blob, dict):
+        return None
+    df = blob.get(key)
+    if isinstance(df, pd.DataFrame):
+        return df
+    # Compat: quando a UI usa "db:schema.tabela" e a chave interna foi normalizada.
+    if _is_db_source_name(key):
+        try:
+            k_norm = _normalize_pg_relation(key, default_schema="geof")
+            df2 = blob.get(k_norm)
+            if isinstance(df2, pd.DataFrame):
+                return df2
+        except Exception:
+            pass
+    return None
+
 def _infer_suffix_from_names(*names):
     for nm in names or []:
         m = re.search(r'(\d{4})', str(nm) if nm else '')
@@ -651,7 +1026,8 @@ def _interpolate_current_selection(quad, ids, gama_key, mag_key, features, psize
     suf = _infer_suffix_from_names(gama_key, mag_key); out_name = f"geof_{suf}_{algo}"
     for fid in ids:
         blob = quad.get(fid, {})
-        gdf = blob.get(gama_key); mdf = blob.get(mag_key)
+        gdf = _resolve_blob_layer_df(blob, gama_key)
+        mdf = _resolve_blob_layer_df(blob, mag_key)
         if gdf is None and mdf is None:
             LOGGER.warning("fid=%s sem dados brutos (%s/%s)", fid, gama_key, mag_key); continue
         xu, yu = sintetic_grid(quad, fid, psize=int(psize))
@@ -697,16 +1073,21 @@ try:
 except Exception:
     # Fallback IDW simples
     def interp_at(x, y, z, xi, yi, algorithm='linear', extrapolate=True):
-        from sklearn.neighbors import NearestNeighbors
         x = np.asarray(x, dtype='float64'); y = np.asarray(y, dtype='float64'); z = np.asarray(z, dtype='float64')
         xi = np.asarray(xi, dtype='float64'); yi = np.asarray(yi, dtype='float64')
         out = np.full_like(xi, np.nan, dtype='float64')
-        k = min(12, len(x))
-        nn = NearestNeighbors(n_neighbors=k).fit(np.c_[x,y])
-        dist, idx = nn.kneighbors(np.c_[xi, yi], return_distance=True)
-        w = 1.0 / np.maximum(dist, 1e-9)
-        wz = (w * z[idx])
-        out = wz.sum(axis=1) / w.sum(axis=1)
+        k = int(min(12, len(x)))
+        pts = np.c_[x, y]
+        q = np.c_[xi, yi]
+        for i in range(len(q)):
+            d = np.sqrt(((pts - q[i]) ** 2).sum(axis=1))
+            if len(d) == 0:
+                continue
+            idx = np.argpartition(d, kth=max(0, k - 1))[:k]
+            dk = d[idx]
+            wk = 1.0 / np.maximum(dk, 1e-9)
+            zk = z[idx]
+            out[i] = np.sum(wk * zk) / np.sum(wk)
         return out.astype('float32')
 
 # ====================== BACKEND: SOM / TABELAS LONGAS ======================
@@ -837,6 +1218,14 @@ def boxplots_por_feature(
 # ====================== BACKEND: BDC / STAC (INPE) ======================
 BDC_ENDPOINT = "https://data.inpe.br/bdc/stac/v1"
 
+def _require_stac_client():
+    if Client is None:
+        raise RuntimeError("pystac_client não está disponível no Python do QGIS.")
+
+def _require_rasterio():
+    if rasterio is None:
+        raise RuntimeError("rasterio não está disponível no Python do QGIS.")
+
 def _aoi_bbox_from_ids(escala, ids):
     """
     Retorna [minx, miny, maxx, maxy] em coordenadas lon/lat (WGS84)
@@ -873,6 +1262,7 @@ def _aoi_bbox_from_ids(escala, ids):
     ]
 
 def _bdc_list_collections(pattern=None):
+    _require_stac_client()
     cli = Client.open(BDC_ENDPOINT)
     cols = [c.id for c in cli.get_collections()]
     if pattern:
@@ -880,6 +1270,7 @@ def _bdc_list_collections(pattern=None):
     return sorted(cols)
 
 def _bdc_search_items(collections, bbox, dt_range, cloud_min, cloud_max, limit, sort_dir):
+    _require_stac_client()
     cli = Client.open(BDC_ENDPOINT)
     q = {"eo:cloud_cover": {"gte": int(cloud_min), "lte": int(cloud_max)}}
     sortby = ["properties.datetime"] if sort_dir == "asc" else ["-properties.datetime"]
@@ -895,6 +1286,7 @@ def _bdc_pick_visual_asset(item):
     return None
 
 def _open_remote_raster(href):
+    _require_rasterio()
     try: return rasterio.open(href)
     except Exception: pass
     if not href.startswith('/vsicurl/'): return rasterio.open('/vsicurl/' + href)
@@ -1097,13 +1489,22 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
         gb_raw = QtWidgets.QGroupBox("Dados brutos (aerogeofísica)")
         lay_raw = QtWidgets.QGridLayout(gb_raw)
         self.sbExtend = QtWidgets.QSpinBox(); self.sbExtend.setRange(0, 2000); self.sbExtend.setSingleStep(100); self.sbExtend.setValue(600)
-        self.cbGama = QtWidgets.QComboBox(); self.cbGama.addItems(['gama_line_1075','gama_line_1105','gama_line_1089','gama_1039','gama_3022','gama_line_1082'])
-        self.cbMag  = QtWidgets.QComboBox(); self.cbMag.addItems(['mag_line_1075','mag_line_1105','mag_line_1089','mag_1039','mag_3022','mag_line_1082'])
+        self.cbGama = QtWidgets.QComboBox()
+        self.cbMag  = QtWidgets.QComboBox()
+        if _use_postgres_backend():
+            self.cbGama.addItems([f"db:{PG_DEFAULT_GAMA_SOURCE}"])
+            self.cbMag.addItems(["(sem fonte no banco)"])
+        else:
+            self.cbGama.addItems(['gama_line_1075','gama_line_1105','gama_line_1089','gama_1039','gama_3022','gama_line_1082'])
+            self.cbMag.addItems(['mag_line_1075','mag_line_1105','mag_line_1089','mag_1039','mag_3022','mag_line_1082'])
         self.btnLoad = QtWidgets.QPushButton("Carregar brutos"); self.btnLoad.setStyleSheet("font-weight:600;")
         lay_raw.addWidget(QtWidgets.QLabel("extend_size"),0,0); lay_raw.addWidget(self.sbExtend,0,1)
         lay_raw.addWidget(QtWidgets.QLabel("Gama"),0,2); lay_raw.addWidget(self.cbGama,0,3)
         lay_raw.addWidget(QtWidgets.QLabel("Mag"),0,4); lay_raw.addWidget(self.cbMag,0,5)
         lay_raw.addWidget(self.btnLoad,0,6)
+        self.btnQuickFlow = QtWidgets.QPushButton("Fluxo Rápido (DB -> SOM -> Mapa)")
+        self.btnQuickFlow.setStyleSheet("font-weight:700;")
+        lay_raw.addWidget(self.btnQuickFlow,1,0,1,7)
         lay_d.addWidget(gb_raw)
 
         # Interpolação
@@ -1112,8 +1513,11 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
         self.listFeatsGrid = QtWidgets.QListWidget(); self.listFeatsGrid.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         for f in ['GMT','CTCOR','eTh','eU','KPERC','UTHRAZAO','UKRAZAO','THKRAZAO','MDT']:
             self.listFeatsGrid.addItem(f)
+        default_feats = {'CTCOR','eTh','eU','KPERC','UTHRAZAO','UKRAZAO','THKRAZAO','MDT'}
+        if not _use_postgres_backend():
+            default_feats.add('GMT')
         for idx in range(self.listFeatsGrid.count()):
-            if self.listFeatsGrid.item(idx).text() in ('GMT','CTCOR','eTh','eU','KPERC','MDT'):
+            if self.listFeatsGrid.item(idx).text() in default_feats:
                 self.listFeatsGrid.item(idx).setSelected(True)
         self.sbPixel = QtWidgets.QSpinBox(); self.sbPixel.setRange(50, 1000); self.sbPixel.setSingleStep(50); self.sbPixel.setValue(100)
         self.cbAlgo  = QtWidgets.QComboBox(); self.cbAlgo.addItems(['linear','cubic'])
@@ -1236,6 +1640,7 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
         self.btnSelAll.clicked.connect(lambda: self._select_all(self.listIds, True))
         self.btnClear.clicked.connect(lambda: self._select_all(self.listIds, False))
         self.btnLoad.clicked.connect(self._on_load)
+        self.btnQuickFlow.clicked.connect(self._on_quick_flow)
         self.btnInterp.clicked.connect(self._on_interp)
         self.btnPreview.clicked.connect(self._on_preview)
 
@@ -1320,6 +1725,7 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
                 quad = Build_mc(escala=self.cbEscala.currentText(), ID=list(ids), verbose=False)
 
             _info(self.log, "# Carregando dados brutos…")
+            _info(self.log, f"Backend={DATA_BACKEND} | gama={self.cbGama.currentText()} | mag={self.cbMag.currentText()}")
             with timed_step(f"Upload_geof gama={self.cbGama.currentText()} mag={self.cbMag.currentText()} extend={int(self.sbExtend.value())}"):
                 _g, _m = Upload_geof(quad, gama_xyz=self.cbGama.currentText(), mag_xyz=self.cbMag.currentText(), extend_size=int(self.sbExtend.value()))
 
@@ -1330,6 +1736,103 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
             _info(self.log, "Pronto. Agora execute a INTERPOLAÇÃO.")
         except Exception as e:
             _err(self.log, f"[ERRO _on_load] {e}")
+
+    def _on_quick_flow(self):
+        """
+        Fluxo 1-clique: malha -> pontos DB por interseção -> interpolação -> treino SOM -> mapa preditivo.
+        """
+        try:
+            ids = self._selected_texts(self.listIds)
+            if not ids:
+                _warn(self.log, "Selecione ao menos 1 folha.")
+                return
+
+            feats_grid = self._selected_texts(self.listFeatsGrid)
+            if not feats_grid:
+                _warn(self.log, "Selecione ao menos 1 feature para interpolação.")
+                return
+
+            ks_sel = [int(i.text()) for i in self.listKs.selectedItems()]
+            k = sorted(set(ks_sel or [8]))[0]
+            sigma = float(self.dsbSigma.value())
+            n_iter = int(self.sbIter.value())
+            pix = int(self.sbPixel.value())
+            algo = self.cbAlgo.currentText()
+            noneg = self.ckNoNegI.isChecked()
+
+            _info(self.log, "# Fluxo rápido iniciado (DB -> SOM -> Mapa)...")
+            _info(self.log, f"Folhas={len(ids)} | k={k} | pixel={pix} | algo={algo}")
+
+            with timed_step("Fluxo rápido completo"):
+                quad = Build_mc(escala=self.cbEscala.currentText(), ID=list(ids), verbose=False)
+                _g, _m = Upload_geof(
+                    quad,
+                    gama_xyz=self.cbGama.currentText(),
+                    mag_xyz=self.cbMag.currentText(),
+                    extend_size=int(self.sbExtend.value()),
+                )
+                quad = pop_nodata(quad)
+                if not quad:
+                    raise RuntimeError("Nenhuma folha com pontos geofísicos válidos após interseção no banco.")
+
+                ids_ok = [fid for fid in ids if fid in quad]
+                if not ids_ok:
+                    raise RuntimeError("Nenhuma das folhas selecionadas recebeu pontos do banco.")
+
+                out_layer = _interpolate_current_selection(
+                    quad, ids_ok,
+                    self.cbGama.currentText(), self.cbMag.currentText(),
+                    feats_grid, pix, algo, noneg
+                )
+
+                feats_som = self._selected_texts(self.listFeatsSom) or list(feats_grid)
+                feats_som = [f for f in feats_som if any(
+                    isinstance(quad.get(fid, {}).get(out_layer), pd.DataFrame) and f in quad[fid][out_layer].columns
+                    for fid in ids_ok
+                )]
+                if not feats_som:
+                    raise RuntimeError("Sem features SOM válidas na grade interpolada.")
+
+                X_all, _, _ = _build_matrix_for_fids(quad, feats_som, out_layer, fids=ids_ok)
+                valid_cols = np.isfinite(X_all).any(axis=0)
+                if not valid_cols.any():
+                    raise RuntimeError("Todas as features selecionadas ficaram sem dados válidos (NaN).")
+                if not np.all(valid_cols):
+                    dropped = [feats_som[i] for i, ok in enumerate(valid_cols) if not ok]
+                    feats_som = [feats_som[i] for i, ok in enumerate(valid_cols) if ok]
+                    X_all = X_all[:, valid_cols]
+                    _warn(self.log, f"Features removidas por NaN total: {dropped}")
+
+                imp = SimpleImputer(strategy='median')
+                X_imp = imp.fit_transform(X_all)
+                sca = StandardScaler().fit(X_imp)
+                X_std = sca.transform(X_imp)
+                np.random.seed(int(self.sbSeed.value()))
+                som = SOM(m=k, n=1, sigma=sigma, dim=len(feats_som), max_iter=n_iter)
+                som.fit(X_std)
+
+                X_te, slc_te, metas_te = _build_matrix_for_fids(quad, feats_som, out_layer, fids=ids_ok)
+                X_te_std = sca.transform(imp.transform(X_te))
+                qe = _qe(som, X_te_std)
+                te = _te_1d(som, X_te_std)
+                classes = _predict_per_folha(som, X_te_std, slc_te, metas_te)
+                _plot_classes(classes, metas_te, n_clusters=k, flip_ns=self.ckFlip.isChecked(),
+                              titulo=f"Mapa preditivo (SOM) k={k} | {out_layer}")
+
+                som_store.clear()
+                som_store[k] = {'som': som, 'imp': imp, 'sca': sca, 'feats': feats_som, 'layer': out_layer}
+                globals()['quadricula'] = quad
+                globals()['data_grid'] = out_layer
+                globals()['som_last_pred'] = {
+                    'k': k, 'classes': classes, 'metas': metas_te,
+                    'fids': tuple(ids_ok), 'feats': tuple(feats_som), 'layer': out_layer
+                }
+
+            self._rescan_from_quadricula_ui()
+            _info(self.log, f"Fluxo concluído | folhas={len(ids_ok)} | pontos_gama={len(_g)} | QE={qe:.6g} | TE={te:.6g}")
+            _info(self.log, "Mapa preditivo adicionado ao grupo: Preditor Terra/SOM (rasters).")
+        except Exception as e:
+            _err(self.log, f"[ERRO fluxo rápido] {e}")
 
     def _on_interp(self):
         try:
@@ -1371,6 +1874,15 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
             X_all, _, _ = _build_matrix_for_fids(q, feats, layer, fids=None)
         except Exception as e:
             _log(self.log, f"Erro montando matriz: {e}"); return
+        valid_cols = np.isfinite(X_all).any(axis=0)
+        if not valid_cols.any():
+            _log(self.log, "Sem dados válidos nas features selecionadas (todas NaN).")
+            return
+        if not np.all(valid_cols):
+            dropped = [feats[i] for i, ok in enumerate(valid_cols) if not ok]
+            feats = [feats[i] for i, ok in enumerate(valid_cols) if ok]
+            X_all = X_all[:, valid_cols]
+            _log(self.log, f"[TREINO] Features removidas por falta de dados: {dropped}")
         imp = SimpleImputer(strategy='median'); X_imp = imp.fit_transform(X_all)
         sca = StandardScaler().fit(X_imp); X_std = sca.transform(X_imp)
         ks = [int(i.text()) for i in self.listKs.selectedItems()]
@@ -1467,7 +1979,7 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
         _log(self.log, f"AOI bbox (WGS84): {bbox}")
         try:
             items = _bdc_search_items(
-                collections=cols, bbox=bbox, datetime=self.leDate.text().strip(),
+                collections=cols, bbox=bbox, dt_range=self.leDate.text().strip(),
                 cloud_min=int(self.sbCloudMin.value()), cloud_max=int(self.sbCloudMax.value()),
                 limit=int(self.sbLimit.value()), sort_dir=self.cbSort.currentText()
             )
@@ -1583,17 +2095,35 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
             _log(self.log, f"OK. {it_done}/{len(items)} itens amostrados; {total_cols} coluna(s) adicionada(s).")
 
 # ====================== BOOTSTRAP DOCK ======================
-def _open_preditor_terra_dock():
-    # Fecha instância anterior (se houver)
-    for d in iface.mainWindow().findChildren(QtWidgets.QDockWidget):
+def close_preditor_terra_dock(qgis_iface=None):
+    if qgis_iface is None:
+        qgis_iface = iface
+    if qgis_iface is None:
+        return
+    for d in qgis_iface.mainWindow().findChildren(QtWidgets.QDockWidget):
         if d.objectName() == "PreditorTerraDock":
             d.close()
-            iface.mainWindow().removeDockWidget(d)
+            qgis_iface.mainWindow().removeDockWidget(d)
             d.deleteLater()
-    dock = PreditorTerraDock(iface)
-    iface.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+
+
+def open_preditor_terra_dock(qgis_iface=None):
+    if qgis_iface is None:
+        qgis_iface = iface
+    if qgis_iface is None:
+        raise RuntimeError("QGIS iface indisponível para abrir o dock.")
+    close_preditor_terra_dock(qgis_iface)
+    dock = PreditorTerraDock(qgis_iface)
+    qgis_iface.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
     dock.show()
     return dock
 
-# abrir agora
-_open_preditor_terra_dock()
+
+# Compat com versões anteriores.
+def _open_preditor_terra_dock():
+    return open_preditor_terra_dock(iface)
+
+
+# Execução direta via QGIS --code / console.
+if __name__ in {"__main__", "__console__", "builtins"}:
+    open_preditor_terra_dock(iface)
