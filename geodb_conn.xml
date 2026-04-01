@@ -1,4 +1,4 @@
 <!DOCTYPE connections>
 <qgsPgConnections version="1.0">
-    <postgis schema="" estimatedMetadata="0" database="geologia" name="geoserver" sslmode="1" publicOnly="0" port="5432" dontResolveType="0" allowGeometrylessTables="0" savePassword="false" projectsInDatabase="0" geometryColumnsOnly="0" service="" host="localhost" saveUsername="false"/>
+    <postgis schema="" estimatedMetadata="0" database="geologia" name="geoserver_ssh_tunnel" sslmode="1" publicOnly="0" port="55432" dontResolveType="0" allowGeometrylessTables="0" savePassword="false" projectsInDatabase="0" geometryColumnsOnly="0" service="" host="127.0.0.1" saveUsername="false"/>
 </qgsPgConnections>

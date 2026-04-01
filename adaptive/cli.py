@@ -12,15 +12,23 @@ from adaptive.settings import Settings
 
 def _cmd_init_db(args: argparse.Namespace) -> int:
     s = Settings.from_env()
-    s.validate()
+    try:
+        s.validate()
+    except Exception as exc:
+        print(f"[fail] settings: {exc!r}")
+        return 2
 
     sql_path = Path(args.sql_file)
     if not sql_path.exists():
         raise SystemExit(f"SQL file not found: {sql_path}")
 
-    exec_sql_file(s.pg_conn_str, sql_path)
-    print(f"[ok] schema applied: {sql_path}")
-    return 0
+    try:
+        exec_sql_file(s.pg_conn_str, sql_path)
+        print(f"[ok] schema applied: {sql_path}")
+        return 0
+    except Exception as exc:
+        print(f"[fail] init-db: {exc!r}")
+        return 2
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
@@ -28,7 +36,7 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     try:
         s.validate()
     except Exception as exc:
-        print(f"[fail] settings: {exc}")
+        print(f"[fail] settings: {exc!r}")
         return 2
 
     try:
@@ -37,7 +45,7 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
             conn.exec_driver_sql("SELECT 1")
         print("[ok] db connection")
     except Exception as exc:
-        print(f"[fail] db connection: {exc}")
+        print(f"[fail] db connection: {exc!r}")
         return 2
 
     print(f"[ok] orbital_dir: {s.orbital_dir}")
@@ -56,7 +64,7 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
                     conn.exec_driver_sql(f"SELECT 1 FROM {table} LIMIT 1")
                     print(f"[ok] table {table} ({label})")
                 except Exception as exc:
-                    print(f"[warn] table {table} missing/unreadable: {exc}")
+                    print(f"[warn] table {table} missing/unreadable: {exc!r}")
 
     return 0
 
@@ -68,7 +76,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
     """
 
     s = Settings.from_env()
-    s.validate()
+    try:
+        s.validate()
+    except Exception as exc:
+        print(f"[fail] settings: {exc!r}")
+        return 2
 
     engine = get_engine(s.pg_conn_str)
 
@@ -102,7 +114,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         print(str(rid))
         return 1
     except Exception as exc:
-        print(f"[fail] could not create run: {exc}")
+        print(f"[fail] could not create run: {exc!r}")
         return 2
 
 

@@ -19,3 +19,5 @@ codes/recortes_orbitais/logs/*
 *.npz
 *pc_cache/*
 *data/
+logs/sessions/*
+.qgis_profiles/*

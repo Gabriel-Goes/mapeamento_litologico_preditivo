@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote
 
 
 @dataclass(frozen=True)
@@ -23,11 +24,35 @@ class Settings:
         try:
             from codes import config as repo_config
 
-            pg_conn_str = os.getenv("PG_CONN_STR", repo_config.PG_CONN_STR)
+            pg_conn_str = os.getenv("PG_CONN_STR", "").strip()
+            if not pg_conn_str:
+                # Compatibilidade com launcher do QGIS que usa PREDITOR_PG_*.
+                p_user = os.getenv("PREDITOR_PG_USER", os.getenv("PG_USER", repo_config.PG_USER))
+                p_pass = os.getenv("PREDITOR_PG_PASS", os.getenv("PG_PASS", repo_config.PG_PASS))
+                p_host = os.getenv("PREDITOR_PG_HOST", os.getenv("PG_HOST", repo_config.PG_HOST))
+                p_port = os.getenv("PREDITOR_PG_PORT", os.getenv("PG_PORT", repo_config.PG_PORT))
+                p_db = os.getenv("PREDITOR_PG_DB", os.getenv("PG_DB", repo_config.PG_DB))
+                pg_conn_str = (
+                    "postgresql://"
+                    f"{quote(str(p_user))}:{quote(str(p_pass))}"
+                    f"@{p_host}:{p_port}/{p_db}"
+                )
+
             orbital_dir = Path(os.getenv("ORBITAL_DIR", repo_config.ORBITAL_DIR))
         except Exception:
             # Fallback for minimal installs.
-            pg_conn_str = os.getenv("PG_CONN_STR", "")
+            pg_conn_str = os.getenv("PG_CONN_STR", "").strip()
+            if not pg_conn_str:
+                p_user = os.getenv("PREDITOR_PG_USER", os.getenv("PG_USER", "postgres"))
+                p_pass = os.getenv("PREDITOR_PG_PASS", os.getenv("PG_PASS", ""))
+                p_host = os.getenv("PREDITOR_PG_HOST", os.getenv("PG_HOST", "127.0.0.1"))
+                p_port = os.getenv("PREDITOR_PG_PORT", os.getenv("PG_PORT", "5432"))
+                p_db = os.getenv("PREDITOR_PG_DB", os.getenv("PG_DB", "postgres"))
+                pg_conn_str = (
+                    "postgresql://"
+                    f"{quote(str(p_user))}:{quote(str(p_pass))}"
+                    f"@{p_host}:{p_port}/{p_db}"
+                )
             orbital_dir = Path(os.getenv("ORBITAL_DIR", "./artifacts")).resolve()
 
         artifacts_dir = Path(os.getenv("ARTIFACTS_DIR", str(orbital_dir / "adaptive_artifacts"))).resolve()

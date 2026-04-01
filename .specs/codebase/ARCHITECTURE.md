@@ -1,35 +1,155 @@
-# Architecture
+# Architecture — Layered Evolution
 
-**Pattern:** Modular monolith with pipelines organized as standalone scripts under `codes/` and exploratory notebooks under `jupyternotebooks/` + `candidatos_orbitais/`.
+The architecture of Preditor Terra is not a designed-from-scratch system — it is an accumulation of 7 eras of development, each adding capabilities on top of the previous. Understanding the layers is essential for navigating the codebase.
 
-## High-Level Structure
-- Input: PostgreSQL/PostGIS (`db_conn.get_folha_geom_geojson`, `labeling_lito.get_litologia_100k_for_folha`) supplies folha boxes and lithology polygons for each request.
-- Enrichment: `codes/search_pair` + `codes/stac_utils` query prioritized STAC catalogs (Planetary Computer, others configured via `DEFAULT_STAC_CATALOGS`) to find ASTER and Sentinel-2 scenes that fully cover the folha.
-- Preprocessing: `codes/raster_utils` clips rasters, measures nodata/cloud fractions, and `codes/gs_fusion` fuses ASTER VNIR/SWIR with Sentinel-2 PAN through Gram-Schmidt, producing inputs for `codes/supercube`.
-- Labeling: `codes/labeling_lito.build_label_raster_for_folha` rasterizes PostGIS lithology and aligns it with the super-cube raster grid.
-- Dataset creation: `codes/dataset_pixels.extract_pixel_dataset` (per-pixel spectral vectors) and `codes/dataset_patches.generate_patches` (patch-based labels) consume the super-cube + label raster to produce NumPy arrays for training.
-- ML: `codes/torch_datasets` wraps those arrays for PyTorch; `codes/models_cnn` defines pixel/patch CNNs; `codes/train.train_pixel_cnn` and `train_pixel_cnn` orchestrate training/evaluation loops.
-- Ops/UI: `codes/PreditorTerra_Final.py` and related QGIS scripts (`PreditorTerra_qgis.py`, `TerraX.py`, etc.) expose the workflow as a PyQt dock, providing UI widgets, preview generation, and logging (`logs/preditor_terra*.log`).
-- Supporting flows: `codes/aster_pipeline.py` ranks ASTER scenes via `search_pair`; `codes/full_pipeline.py` orchestrates the end-to-end selection → fusion → dataset → preview steps; `codes/gs_pipeline.py` exposes the Gram-Schmidt process as a CLI.
+---
 
-## Data Flow Highlights
-1. **Geometry + lithology retrieval:** `db_conn.get_folha_geom_geojson` and `labeling_lito` query PostGIS metadata (`carto.folhas_cartograficas`, `litologia.litologia_100k`) to get both the folha boundary and lithological polygons in the super-cube CRS.
-2. **Scene selection:** `search_pair.search_aster_cloudfree_for_folha` runs STAC searches across prioritized catalogs (`codes/stac_utils.iter_catalog_clients`) applying coverage, cloud, and temporal filters; `search_s2_cloudfree_for_folha_given_aster` finds Sentinel-2 scenes aligned with the ASTER selection.
-3. **Clipping & fusion:** `raster_utils.clip_raster_to_folha` trims the chosen assets; `gs_fusion.run_gs_pair_pipeline` downloads Sentinel-2 bands, reprojects ASTER data, fuses them, and stores outputs in `ORBITAL_DIR`.
-4. **Super-cube & labels:** `supercube.build_supercube` stacks Sentinel-2 and fused ASTER bands, writing a GeoTIFF + metadata; `labeling_lito.build_label_raster_for_folha` rasterizes lithology to match the grid.
-5. **Dataset extraction & ML:** Pixel/patch datasets are extracted, normalized, and fed into PyTorch training routines with progress logged to console (`train.py`).
-6. **Inference/UI:** Trained models can be applied via `PreditorTerra_Final` in QGIS or via notebooks for manual inspection.
+## Architectural Layers (chronological)
+
+### Layer 1: Data Foundations (Era 1-2, Jul 2021 – Feb 2023)
+
+The earliest layer: geophysical data processing and a cartographic grid system.
+
+- **Geophysical processing:** pandas-based interpolation of gamaespectrometry data, `verde` gridding
+- **Cartographic grid:** `ConstroiFolhas` / `DicionarioFolhas` — the folha-based spatial indexing that still underpins all pipeline operations
+- **SOM classification:** Self-Organizing Maps for unsupervised lithology clustering (`sklearn_som`)
+- **Storage:** GeoPackage and early PostGIS tables (`carto.folhas_cartograficas`, `litologia.litologia_100k`)
+- **Key files:** `fonte/mapgeo/nucleo/`, early `codes/` scripts, `jupyternotebooks/`
+
+### Layer 2: QGIS Integration (Era 3-4, Mar 2023 – Jul 2025)
+
+Made the data science accessible through a QGIS plugin, then modernized the codebase.
+
+- **Plugin architecture:** `classFactory` pattern, `QDockWidget` UI, PyQt bindings
+- **PostGIS connectivity:** SQLAlchemy engine via `codes/db_conn.py`
+- **Academic output:** SIICUSP posters, reports, UML diagrams
+- **Codex modernization (Era 4):** MIT license, env vars replacing hardcoded paths, deprecated API fixes, first test stubs
+- **Key files:** `fonte/mapgeo/mapgeo.py`, `codes/db_conn.py`, `codes/PreditorTerra_Final.py`
+
+### Layer 3: Satellite ML Pipeline (Era 5, Nov 2025)
+
+The terraX pipeline: a full STAC-to-prediction workflow for lithological mapping.
+
+- **STAC search + scene ranking:** Multi-catalog search (Planetary Computer, BDC) with coverage/cloud/temporal filters
+- **Gram-Schmidt fusion:** ASTER VNIR/SWIR fused with Sentinel-2 PAN bands
+- **Super-cube construction:** Stacked multi-sensor raster for ML input
+- **Dataset extraction:** Pixel-level and patch-level datasets from super-cube + label raster
+- **CNN training:** PyTorch pixel/patch classifiers with CUDA support
+- **Full pipeline orchestration:** `full_pipeline.py` chains selection → fusion → dataset → training
+- **Design document:** `CODEX.md` captures the complete pipeline design
+- **Key files:** `codes/search_pair.py`, `codes/gs_fusion.py`, `codes/supercube.py`, `codes/dataset_pixels.py`, `codes/dataset_patches.py`, `codes/train.py`, `codes/models_cnn.py`, `codes/full_pipeline.py`
+
+### Layer 4: Adaptive System (Era 6, Jan–Feb 2026)
+
+Formal specifications and infrastructure for continuous re-prediction.
+
+- **Specs framework:** `.specs/` with PROJECT, ARCHITECTURE, ROADMAP, feature specs
+- **PostGIS schema:** `sql/adaptive_schema.sql` for collaborative observations + ML run tracking
+- **CLI:** `adaptive/cli.py` with `doctor`, `init-db`, `run` commands (scaffold)
+- **DB abstraction:** `adaptive/db.py` with SQLAlchemy → psycopg2 fallback for resilience
+- **Settings:** `adaptive/settings.py` — `@dataclass` configuration from environment variables
+- **Vision:** "Orbis Praedictus" / "Carta Viva" — the living map concept
+- **Key files:** `adaptive/cli.py`, `adaptive/db.py`, `adaptive/settings.py`, `sql/adaptive_schema.sql`
+
+### Layer 5: Territorial MCDA (Era 7, Mar 2026)
+
+A field-ready MVP plugin for territorial priority mapping.
+
+- **Standalone QGIS plugin:** `preditor_territorial_mvp/` with embedded GPKG (no external DB required)
+- **MCDA scoring:** Grid-based multicriteria analysis — lithology scoring + mineral occurrence distance
+- **Priority classification:** 4 priority classes with restriction masks (conservation units) and slope constraints
+- **QgsTask pattern:** Async background processing keeps QGIS responsive during heavy operations
+- **pytest suite:** First formal tests — synthetic geometry fixtures, MCDA engine validation
+- **ZIP delivery:** Distributable plugin package for field deployment
+- **Key files:** `plugins/preditor_territorial_mvp/*`, `codes/territorial_priority.py`, `codes/territorial_sources.py`, `tests/test_territorial_priority.py`, `tests/test_mvp_mcda_engine.py`
+
+---
+
+## Current Data Flows
+
+### STAC → Fusion → ML Flow (Layer 3)
+
+```
+PostGIS (folha geometry + lithology)
+  ↓
+STAC search (Planetary Computer / BDC)
+  → ASTER L1T/07/07XT scene selection
+  → Sentinel-2 L2A scene selection
+  ↓
+Clip + reproject to folha grid
+  ↓
+Gram-Schmidt fusion (ASTER + S2)
+  ↓
+Super-cube (stacked multi-band raster)
+  ↓
+Label raster (lithology rasterized to grid)
+  ↓
+Dataset extraction (pixel or patch)
+  ↓
+CNN training (PyTorch) → probability maps
+```
+
+### Territorial MCDA Flow (Layer 5)
+
+```
+Embedded GPKG (mc_100k, litologia_100k, ocorr_min_cprm)
+  ↓
+Grid construction (folha-based cells)
+  ↓
+Lithology scoring (per-cell SOM-derived scores)
+  + Occurrence distance (distance to mineral occurrences)
+  ↓
+Restriction mask (conservation units, indigenous lands)
+  + Slope constraint (DEM-derived)
+  ↓
+Priority classification (4 classes)
+  ↓
+Output rasters (PT_POTENCIAL, PT_RESTRICOES, PT_PRIORIDADE) + JSON report
+```
+
+### Adaptive Loop Flow (Layer 4, scaffold)
+
+```
+New observation (PostGIS insert)
+  ↓
+Trigger detection (planned: LISTEN/NOTIFY or polling)
+  ↓
+Per-folha data assembly
+  ↓
+Retrain classifier
+  ↓
+Generate new probability maps
+  ↓
+Compare vs previous run (delta rasters + metrics)
+  ↓
+Store outputs + metadata
+```
+
+---
+
+## Plugin Architecture
+
+Both QGIS plugins follow the standard pattern:
+
+- **Entry point:** `classFactory(iface)` in `__init__.py` returns the plugin instance
+- **Plugin class:** Manages toolbar actions, calls `initGui()` / `unload()`
+- **UI:** `QDockWidget`-based dock panels
+- **Differences:**
+  - `preditor_terra`: Requires PostGIS connectivity, SOM workflows, scene preview
+  - `preditor_territorial_mvp`: Self-contained with embedded GPKG, uses `QgsTask` for async processing
+
+---
 
 ## Code Organization
-- `codes/` holds executable scripts (`full_pipeline`, `gs_pipeline`, `aster_pipeline`, `PreditorTerra_*`, `train`, `models_cnn`, support modules). Files typically expose a `main()` or CLI entry guarded by `if __name__ == "__main__":`.
-- `dotfiles/` contains environment manifests used to reproduce the Python ecosystem.
-- `jupyternotebooks/` and `candidatos_orbitais/` are experimentation sandboxes: they mix data download, STAC exploration, and modeling prototypes.
-- `docs/` stores research posters, UML diagrams, and text docs describing workflows (e.g., `docs/uml/`).
-- `logs/` keeps historical log output that matches the console log pattern from `log_utils.log_stdout`.
-- `sources/` (with `scripts/` and `tutoriais/`) hosts older tutorial artefacts referenced by notebooks.
 
-## Example Components
-- **STAC ranking:** `codes/aster_pipeline.py` filters for VNIR/SWIR assets (`item_has_assets`), sorts by coverage/cloud/delta-days, and optionally writes CSV/JSON.
-- **Fusion & super-cube:** `codes/gs_fusion.py` + `codes/supercube.py` deliver Gram-Schmidt fusion outputs used by `codes/full_pipeline.py` and `gs_pipeline.py`.
-- **ML training:** `codes/train.py` uses `PixelSpectralDataset` and `PatchDataset` defined in `torch_datasets.py` plus CNN definitions from `models_cnn.py`.
-- **UI gadget:** `PreditorTerra_Final.py` integrates PyQt widgets, preview generation (`scene_preview`), and Sat/STAC metadata tracking (`sat_store`).
+| Directory | Era | Runtime | Description |
+|-----------|-----|---------|-------------|
+| `codes/` | 1→7 | System Python / QGIS Python | Core scripts and pipelines |
+| `adaptive/` | 6 | System Python (CLI) | Adaptive loop package |
+| `plugins/preditor_terra/` | 3 | QGIS Python | SOM/PostGIS plugin |
+| `plugins/preditor_territorial_mvp/` | 7 | QGIS Python | Standalone MCDA plugin |
+| `fonte/mapgeo/` | 2-3 | QGIS Python | Legacy plugin (deprecated) |
+| `scripts/` | 7 | bash | Operational tooling |
+| `tests/` | 7 | System Python (pytest) | Test suite |
+| `sql/` | 6 | PostgreSQL | Schema definitions |
+| `jupyternotebooks/` | 1-5 | Jupyter | Exploration (unmaintained) |

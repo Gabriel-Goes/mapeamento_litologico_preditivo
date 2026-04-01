@@ -5,7 +5,29 @@
 
 ---
 
-## M0 - Boilerplate Hardening
+## M0.1 - QGIS Territorial MVP Delivery [COMPLETE]
+
+**Goal:** Ship an installable QGIS ZIP plugin for immediate field validation with Gamba.
+**Target:** `Instalar a partir de ZIP` works with internal GeoPackage and produces territorial maps.
+**Era:** 7 (Mar 2026)
+
+### Features
+
+**ZIP Plugin Packaging** - COMPLETE
+- Built distributable `preditor_territorial_mvp_v*.zip` via `scripts/build_qgis_plugin_mvp_zip.sh`.
+- Bundled `gamba_mvp.gpkg` with `mc_100k`, `litologia_100k`, `ocorr_min_cprm`.
+
+**MCDA Territorial Flow (Standalone)** - COMPLETE
+- Folha-driven multicriteria scoring from internal GPKG.
+- Generates `PT_POTENCIAL`, `PT_RESTRICOES`, `PT_PRIORIDADE` rasters + JSON report.
+
+**UI Responsiveness for Long Operations** - COMPLETE
+- Heavy MCDA operations run via `QgsTask` background execution.
+- QGIS remains usable during processing; cancel operation supported.
+
+---
+
+## M0 - Boilerplate Hardening [Era 4-5]
 
 **Goal:** Make the existing repo runnable as a reliable starting point (config + reproducibility).
 **Target:** Repo can run STAC selection + super-cube generation end-to-end with documented config.
@@ -13,15 +35,15 @@
 ### Features
 
 **Configuration Unification** - COMPLETE
-- Centralize DB + STAC + output path configuration in `codes/config.py`.
+- Centralized DB + STAC + output path configuration in `codes/config.py`.
 - Support `STAC_CATALOGS_FILE` override for catalog endpoints.
 
-**Minimal CLI Health Checks** - PLANNED
-- Add a `codes/doctor.py` that validates DB connectivity, required tables, STAC reachability, and writable output dirs.
+**Minimal CLI Health Checks** - COMPLETE (moved to `adaptive/cli.py doctor`)
+- Validates DB connectivity, required tables, and writable output dirs.
 
 ---
 
-## M1 - Adaptive Loop MVP
+## M1 - Adaptive Loop MVP [Era 6, in progress]
 
 **Goal:** A reproducible, folha-driven pipeline that updates predictions when new data appears.
 
@@ -30,6 +52,7 @@
 **Collaborative Data Schema** - IN PROGRESS
 - Tables for user contributions (points/lines/polygons) + attributes + provenance.
 - Tables for acquisition measurements (e.g., magnetometry, gamma spectrometry) with time and units.
+- Schema defined in `sql/adaptive_schema.sql`.
 
 **Run Tracking + Versioning** - IN PROGRESS
 - Tables for `run`, `model_version`, `dataset_snapshot`, `metrics`, `output_artifacts`.

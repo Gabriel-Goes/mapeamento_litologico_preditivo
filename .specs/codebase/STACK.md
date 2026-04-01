@@ -1,37 +1,59 @@
 # Tech Stack
 
-**Analyzed:** February 14, 2026
+**Analyzed:** March 18, 2026
 
 ## Core
-- **Language:** Python 3.x (CPython) – scripts rely on f-strings, dataclasses hints and `__future__` annotations.
-- **Runtime:** Standalone command-line scripts and QGIS plugins executed inside QGIS/PyQt environments.
-- **Package managers:** `conda` (via `dotfiles/environment.yml`) to install geospatial/ML stacks and `pip` for extras (`rasterio`, `vert`, `scikit-learn`, `torch`).
+
+- **Language:** Python 3.x (CPython) – scripts rely on f-strings, dataclasses, and `__future__` annotations.
+- **Runtime:** Three surfaces: standalone CLI scripts (system Python), QGIS plugins (QGIS Python), and Jupyter notebooks.
+- **Package managers:** `conda` (via `dotfiles/environment.yml`) for geospatial/ML stacks; `pip` for extras.
 
 ## Frontend/UI
-- **UI framework:** PyQt/QGIS (`qgis.PyQt`, `qgis.core`) – `codes/PreditorTerra_Final.py` builds the custom QGIS dock/widget.
-- **Visualization:** `matplotlib` (plots integrated within QGIS or standalone), `verde`/`rioxarray` for raster rendering of previews.
-- **State:** Global dictionaries (e.g., `som_store`, `bdc_items`) maintained in scripts rather than external state management.
+
+- **UI framework:** PyQt/QGIS (`qgis.PyQt`, `qgis.core`) [Era 2→7] — two plugins and a consolidated dock widget.
+- **QgsTask:** [Era 7] Background task execution for long-running MCDA operations; keeps QGIS responsive.
+- **Visualization:** `matplotlib` [Era 1+] for plots; `verde`/`rioxarray` for raster rendering.
+- **State:** Global dictionaries (e.g., `som_store`, `bdc_items`) in scripts; no external state management.
 
 ## Backend/Data Processing
-- **Data access:** PostgreSQL/PostGIS via `codes/db_conn.py` and `SQLAlchemy` engines (`create_engine`, `text`).
-- **Geospatial stack:** `geopandas`, `shapely`, `pyproj`, `rasterio`, `xarray`, `rioxarray`, `fiona` and hydro-specific `verde` for interpolation.
-- **Raster/array utilities:** Custom helpers (`codes/raster_utils.py`, `codes/supercube.py`, `codes/gs_fusion.py`) rely on `numpy`, `osgeo`, `gdal`, `requests` and `tqdm` for downloads.
 
-## Machine learning
-- **Deep learning:** PyTorch (`torch`, `torch.nn`, `DataLoader`, CUDA-aware device selection) used in `codes/train.py`, `models_cnn.py`, and `torch_datasets.py` for pixel/patch classifiers.
-- **Classical ML:** scikit-learn (`sklearn.metrics`, `sklearn.preprocessing`) plus the third-party `sklearn_som` for prototype SOM workflows.
-- **Data wrangling:** `pandas` for tabular logging and `numpy` for numerical operations.
+- **PostgreSQL/PostGIS:** [Era 3→6] Geometry boundaries, lithology polygons, adaptive loop schema.
+- **SQLAlchemy:** [Era 3] `create_engine` + `text` for DB access in `codes/db_conn.py`.
+- **psycopg2:** [Era 6] Fallback driver in `adaptive/db.py` when SQLAlchemy is unavailable.
+- **GeoPackage:** [Era 7] Embedded spatial data in `preditor_territorial_mvp/data/` — self-contained, no DB required.
+- **ogr2ogr:** [Era 7] Used in `scripts/build_gamba_mvp_data.sh` for PostGIS → GPKG extraction.
+- **Geospatial stack:** `geopandas` [Era 1+], `shapely` [Era 1+], `pyproj` [Era 1+], `rasterio` [Era 5], `xarray`/`rioxarray` [Era 5], `fiona` [Era 5], `verde` [Era 1] for interpolation.
+- **Raster/array utilities:** `numpy` [Era 1+], `osgeo`/`gdal` [Era 2+], `requests` [Era 5], `tqdm` [Era 5] for downloads.
 
-## Spatial/Remote sensing integrations
-- **STAC client:** `pystac_client` + `planetary_computer` for signed access to Microsoft Planetary Computer catalogs (see `codes/stac_utils.py`).
-- **Asset fusion:** Gram-Schmidt fusion routines (`codes/gs_fusion.py`) combine ASTER VNIR/SWIR with Sentinel-2 PAN bands.
+## Machine Learning
+
+- **Deep learning:** PyTorch [Era 5] (`torch`, `torch.nn`, `DataLoader`, CUDA-aware device selection) — pixel/patch CNN classifiers.
+- **Classical ML:** scikit-learn [Era 2+] (`sklearn.metrics`, `sklearn.preprocessing`).
+- **SOM:** `sklearn_som` [Era 2, active in Era 5+] for unsupervised lithology clustering in QGIS dock.
+- **Data wrangling:** `pandas` [Era 1+] for tabular operations; `numpy` [Era 1+] for numerical.
+
+## Spatial/Remote Sensing Integrations
+
+- **STAC client:** `pystac_client` [Era 5] + `planetary_computer` for signed access to Microsoft Planetary Computer.
+- **BDC STAC:** [Era 5] Brazil Data Cube catalog access via `codes/bdc_qgis_search.py`.
+- **Asset fusion:** Gram-Schmidt routines [Era 5] in `codes/gs_fusion.py` combine ASTER VNIR/SWIR with Sentinel-2 PAN bands.
+
+## MCDA
+
+- **Grid-based scoring:** [Era 7] Lithology scoring + mineral occurrence distance, with restriction/slope masks.
+- **Priority classification:** [Era 7] 4 classes output as rasters + JSON summary report.
 
 ## Testing & Tools
-- **Testing frameworks:** Not defined; experimentation happens via scripts/notebooks (no automated test suite discovered).
-- **Dev tooling:** `conda` environments via `dotfiles/environment.yml`, `install.sh` bootstraps the virtualenv, and numerous Jupyter notebooks under `jupyternotebooks/` and `candidatos_orbitais/` for exploratory work.
-- **Logging:** `codes/log_utils.py` writes to `logs/preditor_terra*.log` for manual inspection.
 
-## External services
-- **Planetary Computer STAC:** STAC searches/dataset downloads rely on Azure-hosted catalogs (`PC_STAC_URL`) with caching helpers (`raster_utils.download_pc_asset_to_local`).
-- **PostgreSQL/PostGIS:** geometry/lithology tables (`carto.folhas_cartograficas`, `litologia.litologia_100k`) provide spatial context for each folha via `db_conn`.
-- **QGIS GUI environment:** The `PreditorTerra_*` scripts are executed in the QGIS Python console, so PyQt bindings and QGIS project APIs are prerequisites.
+- **pytest:** [Era 7] Test framework with synthetic geometry fixtures (`tests/test_territorial_priority.py`, `tests/test_mvp_mcda_engine.py`).
+- **First test stubs:** [Era 4] `tests/test_database.py`, `fonte/mapgeo/test/` (PR #14).
+- **CI:** Not configured — tests run manually.
+- **Dev tooling:** `conda` environments via `dotfiles/environment.yml`; operational scripts in `scripts/`.
+- **Logging:** `codes/log_utils.py` [Era 5] writes to `logs/preditor_terra*.log`; `QgsMessageLog` [Era 7] for plugin logging.
+
+## External Services
+
+- **Planetary Computer STAC:** [Era 5] Azure-hosted STAC catalogs (`PC_STAC_URL`) with caching.
+- **BDC STAC:** [Era 5] Brazil Data Cube for Landsat/CBERS imagery.
+- **PostgreSQL/PostGIS:** [Era 3→6] Geometry/lithology tables, adaptive loop schema. Access via SSH tunnel on port 62222.
+- **QGIS:** [Era 2→7] Host environment for both plugins and the consolidated dock widget.

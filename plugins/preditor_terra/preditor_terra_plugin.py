@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import importlib.util
 import os
+import sys
 from pathlib import Path
 
 from qgis.PyQt.QtGui import QIcon
@@ -42,9 +43,9 @@ class PreditorTerraPlugin:
         if env_path:
             candidates.append(Path(env_path).expanduser())
 
+        candidates.append((self._plugin_dir / "PreditoTerra_QGIS.py").resolve())
         repo_candidate = (self._plugin_dir.parent.parent / "codes" / "PreditoTerra_QGIS.py").resolve()
         candidates.append(repo_candidate)
-        candidates.append((self._plugin_dir / "PreditoTerra_QGIS.py").resolve())
 
         for p in candidates:
             if p.is_file():
@@ -61,6 +62,10 @@ class PreditorTerraPlugin:
                 "PreditoTerra_QGIS.py não encontrado. "
                 "Defina PREDITOR_TERRA_CODE_FILE ou mantenha o repositório com a pasta codes/."
             )
+
+        runtime_dir = str(code_file.parent)
+        if runtime_dir not in sys.path:
+            sys.path.insert(0, runtime_dir)
 
         spec = importlib.util.spec_from_file_location("preditor_terra_runtime", str(code_file))
         if spec is None or spec.loader is None:
@@ -90,4 +95,3 @@ class PreditorTerraPlugin:
                 self._module.close_preditor_terra_dock(self.iface)
         except Exception:
             pass
-

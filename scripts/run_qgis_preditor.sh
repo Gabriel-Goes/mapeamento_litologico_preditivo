@@ -113,6 +113,50 @@ echo "[INFO] PYTHONPATH (prefix): ${new_pythonpath}"
 echo "[INFO] QGIS_PLUGINPATH: ${QGIS_PLUGINPATH:-}"
 echo "[INFO] Code: ${PREDITOR_CODE}"
 
+if [[ "${PREDITOR_REMOTE_DIAG:-0}" == "1" || "${PREDITOR_CHECK_PY_DEPS:-0}" == "1" ]]; then
+  echo "[INFO] Verificando dependencias Python para STAC/rasters..."
+  python - <<'PY'
+import importlib.util
+import os
+import sys
+
+# Mantem compatibilidade com bootstrap do PreditorTerra:
+# paths extras ficam como fallback e nao sobrescrevem libs do QGIS.
+extra = os.environ.get("PREDITOR_EXTRA_PYTHONPATH", "")
+if extra:
+    for p in [os.path.abspath(os.path.expanduser(x)) for x in extra.split(":") if x]:
+        while p in sys.path:
+            sys.path.remove(p)
+        sys.path.append(p)
+
+mods = [
+    "pystac_client",
+    "planetary_computer",
+    "rasterio",
+    "rioxarray",
+    "xarray",
+]
+print(f"[INFO] Python exec: {sys.executable}")
+print(f"[INFO] Python version: {sys.version.split()[0]}")
+for m in mods:
+    spec = importlib.util.find_spec(m)
+    if spec is None:
+        print(f"[WARN] modulo ausente: {m}")
+    else:
+        print(f"[OK] modulo encontrado: {m} ({spec.origin})")
+
+try:
+    import pyproj  # type: ignore
+    from pyproj import CRS, datadir  # type: ignore
+    print(f"[INFO] pyproj: {getattr(pyproj, '__file__', '<desconhecido>')}")
+    print(f"[INFO] pyproj data dir: {datadir.get_data_dir()}")
+    CRS("EPSG:4326")
+    print("[OK] pyproj CRS smoke test (EPSG:4326)")
+except Exception as e:
+    print(f"[WARN] pyproj indisponivel/instavel: {e}")
+PY
+fi
+
 if [[ "${DRY_RUN}" -eq 1 ]]; then
   echo "[INFO] Dry-run encerrado."
   exit 0

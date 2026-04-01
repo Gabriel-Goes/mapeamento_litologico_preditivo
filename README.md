@@ -165,6 +165,19 @@ A saída traz o melhor item e a lista ordenada, com campos como ID da
 cena, data de aquisição, fração de nuvem no recorte, fração de
 cobertura sobre a folha e distância em dias para a data fornecida.
 
+## QGIS + PostgreSQL/PostGIS
+
+Caminho operacional preferencial para uso diário:
+
+- [docs/operacao/qgis_postgis_ssh_tunnel.md](./docs/operacao/qgis_postgis_ssh_tunnel.md)
+
+Esse fluxo mantém o PostgreSQL/PostGIS escutando localmente no GeoServer
+e libera o acesso do QGIS no laptop por túnel SSH.
+
+Fluxo legado de QGIS remoto via X11:
+
+- [docs/operacao/qgis_remoto_windows.md](./docs/operacao/qgis_remoto_windows.md)
+
 ## Autor
 Gabriel Góes
 

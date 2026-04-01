@@ -1,7 +1,7 @@
 # Code Conventions
 
 ## Naming
-- **Files:** Lowercase with underscores, e.g., `gs_fusion.py`, `dataset_patches.py`, `torch_datasets.py`. Exceptions exist for QGIS entry points (`PreditorTerra_Final.py`, `PreditorTerra_qgis.py`) to match the GUI names.
+- **Files:** Lowercase with underscores, e.g., `gs_fusion.py`, `dataset_patches.py`, `torch_datasets.py`. Exceptions exist for QGIS entry points (`PreditorTerra_Final.py`, `PreditoTerra_QGIS.py`) to match the GUI names.
 - **Functions/methods:** Snake case (`filter_rankable_candidates`, `build_supercube`, `train_pixel_cnn`); the CLI entry points follow `main()` conventions with `if __name__ == "__main__": main()`.
 - **Classes:** PascalCase (`PixelCNN`, `PatchCNN`).
 - **Constants:** Uppercase with underscores (`DEFAULT_ASTER_TARGET_DATE`, `PREFERRED_ASSETS`, `ORBITAL_DIR`).
@@ -13,7 +13,7 @@
 - `from __future__ import annotations` is used at the top of many files to keep type hints clean.
 
 ## Documentation & Comments
-- Descriptive inline comments and block comments are in Portuguese and explain high-level intent (examples in `PreditorTerra_Final.py`).
+- Descriptive inline comments and block comments are in Portuguese and explain high-level intent (examples in `PreditoTerra_QGIS.py`).
 - Only critical helpers expose docstrings (e.g., `dataset_patches.generate_patches` contains a docstring that explains inputs/outputs). Many files rely on contextual names rather than docstrings.
 
 ## Type Safety & Error Handling
@@ -25,3 +25,38 @@
 - Scripts favor single-responsibility helpers, e.g., `raster_utils` exposes clipping, nodata counts, and cloud computations as separate functions.
 - Each CLI script constructs an `argparse.ArgumentParser`, parses args, then calls `main()` (see `aster_pipeline.py`, `gs_pipeline.py`).
 - Long-running operations are often wrapped with helper functions imported from other modules to keep entry scripts readable.
+
+---
+
+## Pattern Evolution
+
+The coding patterns in this project reflect its 7-era history. Each era introduced new conventions, and older patterns persist alongside newer ones.
+
+### Era 1-3: Flat scripts, print debugging, hardcoded paths
+- Scripts in `codes/` and `fonte/mapgeo/` use `print()` for output and hardcode database names, file paths, and connection strings.
+- No environment variables, no centralized config.
+- Validation happens by running scripts and inspecting console output or notebook cells.
+
+### Era 4: Env vars, import fixes, modernized API usage
+- The Codex modernization (PRs #6-#20) introduced environment variable overrides, removed deprecated QGIS API calls, and fixed broken imports.
+- MIT license added. First test stubs created.
+- Shift from hardcoded values to `os.getenv()` with defaults.
+
+### Era 5: Argparse CLIs, centralized config, STAC abstractions
+- `codes/config.py` became the single source of truth for paths, DB settings, and STAC catalog URLs.
+- CLI scripts adopted `argparse` with `main()` entry points.
+- Multi-catalog STAC abstractions (`stac_utils.iter_catalog_clients`) replaced hardcoded URLs.
+- `log_utils.py` introduced file logging alongside console output.
+
+### Era 6: Dataclasses, package structure, fallback imports, DB abstraction
+- `adaptive/` introduced proper Python package structure with `__init__.py`.
+- `@dataclass`-based `Settings` for typed configuration from env vars.
+- `adaptive/db.py` implemented graceful fallback: try SQLAlchemy, fall back to psycopg2.
+- Formal specs (`.specs/`) introduced for project documentation.
+
+### Era 7: Plugin patterns, QgsTask async, pytest, synthetic fixtures
+- `preditor_territorial_mvp/` follows the standard QGIS `classFactory` plugin pattern.
+- `QgsTask` subclasses for background execution of MCDA operations.
+- pytest with synthetic geometry fixtures for testing without real data.
+- Shell scripts (`scripts/`) for build automation, plugin packaging, and operational workflows.
+- Column name discovery patterns in MCDA code (dynamic attribute lookup from GPKG layers).

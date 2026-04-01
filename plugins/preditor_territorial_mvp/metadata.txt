@@ -1,0 +1,18 @@
+[general]
+name=Preditor Territorial MVP
+qgisMinimumVersion=3.28
+description=Plugin autonomo para analise multicriterio territorial com dados internos (GPKG) e saida em rasters.
+version=0.1.0
+author=Preditor Terra Team
+email=contato@preditor-terra.local
+about=Entrega MVP para planejamento territorial no QGIS com base em ocorrencias minerais, litologia e folha cartografica.
+hasProcessingProvider=no
+tags=geologia,mcda,mvp,qgis,territorial
+category=Raster
+icon=icon.png
+experimental=False
+deprecated=False
+homepage=https://github.com/preditor-terra
+tracker=https://github.com/preditor-terra/issues
+repository=https://github.com/preditor-terra
+server=False

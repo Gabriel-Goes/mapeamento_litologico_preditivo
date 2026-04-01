@@ -5,6 +5,7 @@
 # - Boxplots por FEATURE com escalas independentes (horizontais).
 # - Pré-visualização, treino/aplicação SOM, STAC (listar/baixar/amostrar).
 import os
+import sys
 # ==== Garantir PROJ_DATA/PROJ_LIB se não estiverem exportadas ====
 try:
     _proj_guess = "/usr/share/proj"
@@ -14,12 +15,25 @@ try:
 except Exception:
     pass
 
+# Evita que site-packages extra (ex.: venv temporário) sobrescrevam libs
+# geoespaciais do Python do QGIS (pyproj/gdal), mantendo-os como fallback.
+try:
+    _extra = os.environ.get("PREDITOR_EXTRA_PYTHONPATH", "")
+    if _extra:
+        for _p in [os.path.abspath(os.path.expanduser(p)) for p in _extra.split(":") if p]:
+            while _p in sys.path:
+                sys.path.remove(_p)
+            sys.path.append(_p)
+except Exception:
+    pass
+
 # ============================ IMPORTS ============================
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 from qgis.PyQt.QtCore import QVariant
 from qgis.utils import iface
 
 import os, re, json, math, warnings, tempfile, requests, pathlib
+from datetime import datetime
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -62,11 +76,40 @@ from qgis.core import (
     QgsFields, QgsField, QgsSymbol, QgsRendererRange, QgsGraduatedSymbolRenderer,
     QgsCategorizedSymbolRenderer, QgsRendererCategory, QgsLayerTreeGroup,
     QgsStyle, QgsGradientColorRamp, QgsRasterLayer, QgsRasterShader,
-    QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsApplication
+    QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsApplication, QgsTask
 )
 from osgeo import gdal, osr
 
+try:
+    from territorial_priority import (  # type: ignore
+        DEFAULT_FEATURE_WEIGHTS,
+        PriorityThresholds,
+        build_priority_maps,
+        compute_cluster_scores,
+        summarize_feature_weights,
+    )
+except Exception:
+    DEFAULT_FEATURE_WEIGHTS = {}
+    PriorityThresholds = None
+    build_priority_maps = None
+    compute_cluster_scores = None
+    summarize_feature_weights = None
+
+try:
+    from territorial_sources import (  # type: ignore
+        collect_masks_for_fids,
+        parse_restriction_specs,
+    )
+except Exception:
+    collect_masks_for_fids = None
+    parse_restriction_specs = None
+
 warnings.filterwarnings("ignore")
+
+
+class TaskCancelledError(RuntimeError):
+    """Sinaliza cancelamento explícito de tarefa longa no QGIS."""
+
 
 if vd is None:
     class _VerdeCompat:
@@ -368,6 +411,7 @@ quadricula = {}         # {fid: { 'folha': Series(EPSG=...), 'gama_*': df, 'mag_
 data_grid = None        # nome da camada interpolada SOM (ex.: 'geof_1105_linear')
 som_store = {}          # {k: {'som','imp','sca','feats','layer'}}
 som_last_pred = None
+territorial_last_result = None
 bdc_items = []          # lista de pystac.Item da busca corrente
 sat_store = {}          # { item_id: {'collection','datetime','bbox','assets':{name:path}, 'hrefs':{name:href}} }
 
@@ -437,6 +481,164 @@ def _pg_connect():
     if PG_PASS:
         kwargs["password"] = PG_PASS
     return psycopg2.connect(**kwargs)
+
+
+def _pg_try_start_ml_run(folha_codigo, data_ref, config_json, model_backend="som_mcda"):
+    """Cria registro em ml.run; retorna run_id ou None se indisponível."""
+    try:
+        with _pg_connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO ml.run
+                        (folha_codigo, data_ref, status, config_json, model_backend, started_at)
+                    VALUES
+                        (%s, %s, %s, %s::jsonb, %s, now())
+                    RETURNING id
+                    """,
+                    (
+                        str(folha_codigo),
+                        data_ref,
+                        "running",
+                        json.dumps(config_json, ensure_ascii=False),
+                        str(model_backend),
+                    ),
+                )
+                row = cur.fetchone()
+                return int(row[0]) if row else None
+    except Exception as e:
+        LOGGER.warning("Não foi possível criar ml.run: %s", e)
+        return None
+
+
+def _pg_try_finish_ml_run(run_id, status, metrics=None, artifacts=None, error_message=None):
+    """Finaliza run e persiste métricas/artefatos sem quebrar o fluxo principal."""
+    if not run_id:
+        return
+    metrics = dict(metrics or {})
+    artifacts = list(artifacts or [])
+    try:
+        with _pg_connect() as conn:
+            with conn.cursor() as cur:
+                for name, value in metrics.items():
+                    if value is None:
+                        continue
+                    try:
+                        fval = float(value)
+                    except Exception:
+                        continue
+                    cur.execute(
+                        "INSERT INTO ml.metric (run_id, name, value) VALUES (%s, %s, %s)",
+                        (int(run_id), str(name), fval),
+                    )
+
+                for art in artifacts:
+                    kind = str(art.get("kind", "artifact"))
+                    uri = str(art.get("uri", "")).strip()
+                    if not uri:
+                        continue
+                    attrs = art.get("attrs", {})
+                    cur.execute(
+                        """
+                        INSERT INTO ml.artifact (run_id, kind, uri, attrs)
+                        VALUES (%s, %s, %s, %s::jsonb)
+                        """,
+                        (int(run_id), kind, uri, json.dumps(attrs, ensure_ascii=False)),
+                    )
+
+                cur.execute(
+                    """
+                    UPDATE ml.run
+                    SET status = %s,
+                        finished_at = now(),
+                        error_message = %s
+                    WHERE id = %s
+                    """,
+                    (str(status), error_message, int(run_id)),
+                )
+    except Exception as e:
+        LOGGER.warning("Falha persistindo fechamento do run %s em ml.*: %s", run_id, e)
+
+
+def _safe_mean(values):
+    vals = [float(v) for v in values if v is not None]
+    return float(np.mean(vals)) if vals else 0.0
+
+
+def _query_orbital_pair_summary(folha_codigo, data_ref):
+    """Consulta ASTER/S2 por folha para rastreabilidade territorial."""
+    out = {
+        "folha": str(folha_codigo),
+        "data_ref": str(data_ref),
+        "status": "not_run",
+    }
+    try:
+        from search_pair import (  # type: ignore
+            search_aster_cloudfree_for_folha,
+            search_s2_cloudfree_for_folha_given_aster,
+        )
+        from stac_utils import item_datetime  # type: ignore
+    except Exception as e:
+        out["status"] = "unavailable"
+        out["error"] = f"import_error: {e}"
+        return out
+
+    try:
+        best_aster, aster_candidates, _ = search_aster_cloudfree_for_folha(
+            codigo_folha=str(folha_codigo),
+            aster_target_date_str=str(data_ref),
+            max_items=300,
+        )
+        if best_aster is None:
+            out["status"] = "no_aster"
+            return out
+
+        aster_dt = item_datetime(best_aster["item"])
+        # Evita faixa temporal fixa/defasada para S2 (ex.: 2015-2020).
+        # Mantemos início em 2015 (início da missão S2) e fim na data atual UTC.
+        s2_search_datetime = f"2015-01-01/{datetime.utcnow().date().isoformat()}"
+        best_s2, s2_candidates = search_s2_cloudfree_for_folha_given_aster(
+            codigo_folha=str(folha_codigo),
+            aster_datetime=aster_dt,
+            search_datetime=s2_search_datetime,
+            max_items=300,
+        )
+
+        out.update(
+            {
+                "status": "ok",
+                "aster_id": best_aster.get("id"),
+                "aster_datetime": best_aster.get("datetime"),
+                "aster_delta_days": best_aster.get("delta_days"),
+                "aster_coverage_fraction": best_aster.get("coverage_fraction"),
+                "aster_local_cloud_frac": best_aster.get("local_cloud_frac"),
+                "aster_catalog": best_aster.get("catalog_name"),
+                "aster_candidates_n": len(aster_candidates or []),
+                "s2_id": best_s2.get("id") if best_s2 else None,
+                "s2_datetime": best_s2.get("datetime") if best_s2 else None,
+                "s2_delta_days": best_s2.get("delta_days") if best_s2 else None,
+                "s2_scl_cloud_frac": best_s2.get("scl_cloud_frac") if best_s2 else None,
+                "s2_catalog": best_s2.get("catalog_name") if best_s2 else None,
+                "s2_candidates_n": len(s2_candidates or []),
+                "s2_search_datetime": s2_search_datetime,
+            }
+        )
+        if best_s2 is None:
+            out["status"] = "no_s2"
+    except Exception as e:
+        out["status"] = "error"
+        out["error"] = str(e)
+    return out
+
+
+def _write_territorial_report(payload, report_name):
+    out_dir = os.path.join(tempfile.gettempdir(), "preditor_terra_territorial")
+    os.makedirs(out_dir, exist_ok=True)
+    ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    out_path = os.path.join(out_dir, f"{report_name}_{ts}.json")
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    return out_path
 
 
 def _apply_folha_filters(df, ID=None, IDs=None):
@@ -1022,9 +1224,24 @@ def _plot_layers_for_column(q, ids, layers, column, remove_neg=False):
 
     iface.messageBar().pushInfo("Preditor Terra", f"[Canvas] '{column}': {total} raster(s) adicionados.")
 
-def _interpolate_current_selection(quad, ids, gama_key, mag_key, features, psize, algo, noneg=False):
+def _interpolate_current_selection(
+    quad,
+    ids,
+    gama_key,
+    mag_key,
+    features,
+    psize,
+    algo,
+    noneg=False,
+    progress_fn=None,
+    should_abort=None,
+):
     suf = _infer_suffix_from_names(gama_key, mag_key); out_name = f"geof_{suf}_{algo}"
+    total_steps = max(1, len(ids) * max(1, len(features)))
+    done_steps = 0
     for fid in ids:
+        if callable(should_abort) and should_abort():
+            raise TaskCancelledError("Interpolação cancelada pelo usuário.")
         blob = quad.get(fid, {})
         gdf = _resolve_blob_layer_df(blob, gama_key)
         mdf = _resolve_blob_layer_df(blob, mag_key)
@@ -1047,6 +1264,8 @@ def _interpolate_current_selection(quad, ids, gama_key, mag_key, features, psize
 
         out = {'X': xu, 'Y': yu}
         for f in features:
+            if callable(should_abort) and should_abort():
+                raise TaskCancelledError("Interpolação cancelada pelo usuário.")
             picked = None; arr = None
             for src in _source_order_for_feature(f):
                 if src not in sources: continue
@@ -1062,6 +1281,13 @@ def _interpolate_current_selection(quad, ids, gama_key, mag_key, features, psize
                 LOGGER.info("fid=%s feature=%s ← %s.%s | algo=%s", fid, f, src, col, algo)
                 arr = interp_at(x, y, df[col].to_numpy(), xu, yu, algorithm=algo, extrapolate=True)
             out[f] = arr
+            done_steps += 1
+            if callable(progress_fn):
+                try:
+                    pct = min(100.0, (100.0 * done_steps) / float(total_steps))
+                    progress_fn(pct, f"Interpolando {fid}:{f}")
+                except Exception:
+                    pass
         quad[fid][out_name] = pd.DataFrame(out)
     return out_name
 
@@ -1103,7 +1329,12 @@ def _build_matrix_for_fids(quad, features, layer, fids=None):
             df, xs_mesh, ys_mesh, nx, ny = _normalize_xy(df)
         except Exception:
             continue
-        metas[fid] = {'nx': nx, 'ny': ny, 'xs': xs_mesh, 'ys': ys_mesh}
+        epsg = None
+        try:
+            epsg = int(_grid_epsg_from_blob(blob))
+        except Exception:
+            epsg = None
+        metas[fid] = {'nx': nx, 'ny': ny, 'xs': xs_mesh, 'ys': ys_mesh, 'epsg': epsg}
         X = df[features].to_numpy(dtype='float32')
         if X.size == 0: continue
         all_blocks.append(X)
@@ -1136,14 +1367,20 @@ def _plot_classes(classes_by_fid, metas, n_clusters, flip_ns=False, titulo='Mapa
             Z = np.flipud(Z)
         meta = metas[fid]
         xs_mesh, ys_mesh = meta['xs'], meta['ys']
-        try:
-            epsg = _grid_epsg_from_blob(quadricula.get(fid, {}))
-        except Exception:
-            epsg = 4326
+        epsg = meta.get('epsg', None)
+        if epsg is None:
+            try:
+                epsg = _grid_epsg_from_blob(quadricula.get(fid, {}))
+            except Exception:
+                epsg = 4326
         arr2d = (Z.astype('int32') + 1).astype('uint16', copy=False)  # classes 1..k
         out_name = f"SOMR_k{n_clusters}_{fid}"
         out_tif  = _temp_tif(out_name)
         _write_tif_from_grid(arr2d, xs_mesh, ys_mesh, epsg, out_tif, nodata=0, gdal_type=gdal.GDT_UInt16)
+        LOGGER.debug(
+            "SOM raster escrito | fid=%s k=%s epsg=%s shape=%s flip_ns=%s",
+            fid, n_clusters, epsg, arr2d.shape, flip_ns
+        )
         _add_raster_to_group(out_tif, out_name, "Preditor Terra/SOM (rasters)",
                              numeric=False, classes=n_clusters, ramp_name="Set3")
         added += 1
@@ -1220,7 +1457,11 @@ BDC_ENDPOINT = "https://data.inpe.br/bdc/stac/v1"
 
 def _require_stac_client():
     if Client is None:
-        raise RuntimeError("pystac_client não está disponível no Python do QGIS.")
+        raise RuntimeError(
+            "pystac_client não está disponível no Python do QGIS. "
+            "Instale no Python 3.14 do QGIS ou configure PREDITOR_EXTRA_PYTHONPATH "
+            "com site-packages compatível."
+        )
 
 def _require_rasterio():
     if rasterio is None:
@@ -1292,6 +1533,55 @@ def _open_remote_raster(href):
     if not href.startswith('/vsicurl/'): return rasterio.open('/vsicurl/' + href)
     raise
 
+def _collection_family(item):
+    coll = str(getattr(item, "collection_id", "") or "").lower()
+    if "sentinel" in coll or "s2" in coll:
+        return "sentinel"
+    if "landsat" in coll or coll.startswith("ls") or coll.startswith("le") or coll.startswith("lc"):
+        return "landsat"
+    if "cbers" in coll:
+        return "cbers"
+    return "generic"
+
+def _rgb_triplets_by_family(family):
+    if family == "sentinel":
+        return [
+            ("B04", "B03", "B02"),
+            ("B4", "B3", "B2"),
+            ("red", "green", "blue"),
+        ]
+    if family == "landsat":
+        return [
+            ("SR_B4", "SR_B3", "SR_B2"),
+            ("SR_B3", "SR_B2", "SR_B1"),
+            ("B4", "B3", "B2"),
+            ("B3", "B2", "B1"),
+            ("red", "green", "blue"),
+        ]
+    if family == "cbers":
+        return [
+            ("B4", "B3", "B2"),
+            ("red", "green", "blue"),
+        ]
+    return [
+        ("B04", "B03", "B02"),
+        ("B4", "B3", "B2"),
+        ("B3", "B2", "B1"),
+        ("SR_B4", "SR_B3", "SR_B2"),
+        ("SR_B3", "SR_B2", "SR_B1"),
+        ("red", "green", "blue"),
+    ]
+
+def _suggest_rgb_message(item):
+    family = _collection_family(item)
+    if family == "sentinel":
+        return "B04,B03,B02 (ou B4,B3,B2)"
+    if family == "landsat":
+        return "SR_B4,SR_B3,SR_B2 (ou B4,B3,B2; para L7 antigo, B3,B2,B1)"
+    if family == "cbers":
+        return "B4,B3,B2"
+    return "B4,B3,B2 (ou B04,B03,B02)"
+
 def _resolve_band_assets(item, bands_text):
     wanted = [b.strip() for b in str(bands_text).split(',') if b.strip()]
     out = []
@@ -1309,36 +1599,52 @@ def _resolve_band_assets(item, bands_text):
     for w in wanted:
         lw = w.lower()
         if lw == 'tci':
-            k, href = _pick('tci', 'visual')
-            if not href:
-                has_rgb = (
-                    (assets_ci.get('b4') and assets_ci.get('b3') and assets_ci.get('b2')) or
-                    (assets_ci.get('b04') and assets_ci.get('b03') and assets_ci.get('b02'))
-                )
-                if has_rgb:
-                    raise RuntimeError("Item sem 'tci'/'visual'. Selecione B4,B3,B2 (ou B04,B03,B02).")
-                raise RuntimeError("Item não oferece 'tci'/'visual'.")
-            out.append(('tci', href, (1, 2, 3))); continue
+            _k, href = _pick('tci', 'visual', 'overview')
+            if href:
+                out.append(('tci', href, (1, 2, 3)))
+                continue
+
+            family = _collection_family(item)
+            triplets = _rgb_triplets_by_family(family)
+            rgb_keys = None
+            for trip in triplets:
+                keys = tuple(assets_ci.get(k.lower()) for k in trip)
+                if all(keys):
+                    rgb_keys = keys
+                    break
+
+            if rgb_keys:
+                r_key, g_key, b_key = rgb_keys
+                out.append(("red", item.assets[r_key].href, (1,)))
+                out.append(("green", item.assets[g_key].href, (1,)))
+                out.append(("blue", item.assets[b_key].href, (1,)))
+                continue
+
+            suggestion = _suggest_rgb_message(item)
+            raise RuntimeError(
+                "Item não oferece 'tci'/'visual'. "
+                f"Tente bandas {suggestion}."
+            )
 
         kk = assets_ci.get(lw)
         if kk:
             href = item.assets[kk].href
             out.append((kk, href, (1,))); continue
 
-        if lw in ('red', 'b4', 'b04', 'band4'):
-            k, href = _pick('B4', 'B04', 'red')
+        if lw in ('red', 'b4', 'b04', 'band4', 'sr_b4'):
+            k, href = _pick('B4', 'B04', 'red', 'SR_B4')
             if href: out.append(('red', href, (1,))); continue
-        if lw in ('green', 'b3', 'b03', 'band3'):
-            k, href = _pick('B3', 'B03', 'green')
+        if lw in ('green', 'b3', 'b03', 'band3', 'sr_b3'):
+            k, href = _pick('B3', 'B03', 'green', 'SR_B3')
             if href: out.append(('green', href, (1,))); continue
-        if lw in ('blue', 'b2', 'b02', 'band2'):
-            k, href = _pick('B2', 'B02', 'blue')
+        if lw in ('blue', 'b2', 'b02', 'band2', 'sr_b2'):
+            k, href = _pick('B2', 'B02', 'blue', 'SR_B2')
             if href: out.append(('blue', href, (1,))); continue
 
         m = re.fullmatch(r'b(?:and)?0?(\d+)', lw)
         if m:
             n = int(m.group(1))
-            k, href = _pick(f'B{n}', f'B{n:02d}')
+            k, href = _pick(f'B{n}', f'B{n:02d}', f'SR_B{n}')
             if href: out.append((f'B{n}', href, (1,))); continue
 
         raise RuntimeError(f"Banda/asset '{w}' não encontrada.")
@@ -1455,6 +1761,9 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
         self.iface = iface
         self.setObjectName("PreditorTerraDock")
         self.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
+        self._active_tasks = {}
+        self._task_last_progress = {}
+        self._auto_run_territorial_after_quick = False
         self._build_ui()
 
     # ---------- UI ----------
@@ -1465,6 +1774,9 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
 
         tabs = QtWidgets.QTabWidget()
         layout.addWidget(tabs)
+        self.btnCancelTask = QtWidgets.QPushButton("Cancelar operação em execução")
+        self.btnCancelTask.setEnabled(False)
+        layout.addWidget(self.btnCancelTask)
 
         # === TAB DADOS ===
         tab_dados = QtWidgets.QWidget(); tabs.addTab(tab_dados, "Dados")
@@ -1569,7 +1881,7 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
         self.listTestIds = QtWidgets.QListWidget(); self.listTestIds.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.btnSelTest  = QtWidgets.QPushButton("Selecionar todas")
         self.cbKApply = QtWidgets.QComboBox()
-        self.ckFlip = QtWidgets.QCheckBox("Flip N-S no plot")
+        self.ckFlip = QtWidgets.QCheckBox("Flip N-S nos rasters (SOM + territorial)")
         self.btnApply  = QtWidgets.QPushButton("Aplicar/Testar")
         self.btnEvalAll= QtWidgets.QPushButton("Comparar Ks (QE/TE)")
         self.btnClearModels = QtWidgets.QPushButton("Limpar modelos")
@@ -1630,6 +1942,46 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
         lay_bi.addWidget(self.btnDlAll,2,3); lay_bi.addWidget(self.btnSmAll,2,4)
         lay_b.addWidget(gb_item)
 
+        # === TAB TERRITORIAL ===
+        tab_terr = QtWidgets.QWidget(); tabs.addTab(tab_terr, "Planejamento Territorial")
+        lay_tr = QtWidgets.QVBoxLayout(tab_terr)
+
+        gb_tcfg = QtWidgets.QGroupBox("Configuração MCDA")
+        lay_tc = QtWidgets.QGridLayout(gb_tcfg)
+        self.leDataRefTerr = QtWidgets.QLineEdit("2008-06-01")
+        self.leDataRefTerr.setPlaceholderText("YYYY-MM-DD")
+        self.leRestrCols = QtWidgets.QLineEdit("restricao,restrito,area_restrita,uc_restricao")
+        self.leRestrSpec = QtWidgets.QLineEdit("{}")
+        self.leRestrSpec.setPlaceholderText('JSON opcional, ex.: {"slope_col":"slope","mdt_col":"MDT"}')
+        self.dsbSlopeThr = QtWidgets.QDoubleSpinBox(); self.dsbSlopeThr.setRange(0.0, 90.0); self.dsbSlopeThr.setValue(25.0); self.dsbSlopeThr.setSingleStep(0.5)
+        self.dsbSlopePenalty = QtWidgets.QDoubleSpinBox(); self.dsbSlopePenalty.setRange(0.0, 1.0); self.dsbSlopePenalty.setValue(0.25); self.dsbSlopePenalty.setSingleStep(0.05)
+        self.dsbScoreLow = QtWidgets.QDoubleSpinBox(); self.dsbScoreLow.setRange(0.0, 1.0); self.dsbScoreLow.setValue(0.40); self.dsbScoreLow.setSingleStep(0.05)
+        self.dsbScoreHigh = QtWidgets.QDoubleSpinBox(); self.dsbScoreHigh.setRange(0.0, 1.0); self.dsbScoreHigh.setValue(0.70); self.dsbScoreHigh.setSingleStep(0.05)
+        self.ckAutoQuickTerr = QtWidgets.QCheckBox("Auto-executar fluxo rápido SOM se necessário")
+        self.ckAutoQuickTerr.setChecked(True)
+        self.ckPersistTerr = QtWidgets.QCheckBox("Persistir run em ml.* (PostgreSQL)")
+        self.ckPersistTerr.setChecked(True)
+        self.ckOrbitTerr = QtWidgets.QCheckBox("Consultar ASTER/S2 para rastreabilidade (mais lento)")
+        self.ckOrbitTerr.setChecked(False)
+        self.btnRunTerr = QtWidgets.QPushButton("Gerar Prioridade Territorial")
+        self.btnRunTerr.setStyleSheet("font-weight:700;")
+
+        lay_tc.addWidget(QtWidgets.QLabel("Data de referência"), 0, 0); lay_tc.addWidget(self.leDataRefTerr, 0, 1)
+        lay_tc.addWidget(QtWidgets.QLabel("Limiar declividade (°)"), 0, 2); lay_tc.addWidget(self.dsbSlopeThr, 0, 3)
+        lay_tc.addWidget(QtWidgets.QLabel("Penalidade declividade"), 0, 4); lay_tc.addWidget(self.dsbSlopePenalty, 0, 5)
+        lay_tc.addWidget(QtWidgets.QLabel("Limiar baixa/média"), 1, 0); lay_tc.addWidget(self.dsbScoreLow, 1, 1)
+        lay_tc.addWidget(QtWidgets.QLabel("Limiar média/alta"), 1, 2); lay_tc.addWidget(self.dsbScoreHigh, 1, 3)
+        lay_tc.addWidget(QtWidgets.QLabel("Colunas de restrição"), 2, 0); lay_tc.addWidget(self.leRestrCols, 2, 1, 1, 5)
+        lay_tc.addWidget(QtWidgets.QLabel("Spec JSON"), 3, 0); lay_tc.addWidget(self.leRestrSpec, 3, 1, 1, 5)
+        lay_tc.addWidget(self.ckAutoQuickTerr, 4, 0, 1, 3)
+        lay_tc.addWidget(self.ckPersistTerr, 4, 3, 1, 3)
+        lay_tc.addWidget(self.ckOrbitTerr, 5, 0, 1, 6)
+        lay_tc.addWidget(self.btnRunTerr, 6, 0, 1, 6)
+        lay_tr.addWidget(gb_tcfg)
+
+        self.logTerr = QtWidgets.QPlainTextEdit(); self.logTerr.setReadOnly(True); self.logTerr.setMaximumBlockCount(2000)
+        lay_tr.addWidget(self.logTerr)
+
         self.log = QtWidgets.QPlainTextEdit(); self.log.setReadOnly(True); self.log.setMaximumBlockCount(2000)
         lay_b.addWidget(self.log)
 
@@ -1658,6 +2010,8 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
         self.btnSampleItem.clicked.connect(self._on_bdc_sample)
         self.btnDlAll.clicked.connect(self._on_bdc_dl_all)
         self.btnSmAll.clicked.connect(self._on_bdc_sm_all)
+        self.btnRunTerr.clicked.connect(self._on_territorial_priority)
+        self.btnCancelTask.clicked.connect(self._cancel_active_task)
 
         # inicial
         self._refresh_ids()
@@ -1673,6 +2027,127 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
         listw.clear()
         for it in items: listw.addItem(str(it))
         if autoselect_all and items: self._select_all(listw, True)
+
+    def _tinfo(self, msg):
+        _info(getattr(self, "log", None), msg)
+        _info(getattr(self, "logTerr", None), msg)
+
+    def _twarn(self, msg):
+        _warn(getattr(self, "log", None), msg)
+        _warn(getattr(self, "logTerr", None), msg)
+
+    def _terr(self, msg):
+        _err(getattr(self, "log", None), msg)
+        _err(getattr(self, "logTerr", None), msg)
+
+    def _clone_quadricula(self, q):
+        out = {}
+        for fid, blob in (q or {}).items():
+            try:
+                out[fid] = dict(blob)
+            except Exception:
+                out[fid] = blob
+        return out
+
+    def _long_op_buttons(self):
+        return [
+            self.btnLoad,
+            self.btnQuickFlow,
+            self.btnInterp,
+            self.btnRunTerr,
+            self.btnSearch,
+            self.btnDlAll,
+            self.btnSmAll,
+            self.btnSaveVisual,
+            self.btnSampleItem,
+        ]
+
+    def _set_long_ops_enabled(self, enabled):
+        for btn in self._long_op_buttons():
+            try:
+                btn.setEnabled(bool(enabled))
+            except Exception:
+                pass
+        if not enabled:
+            try:
+                self.btnCancelTask.setEnabled(True)
+            except Exception:
+                pass
+        else:
+            try:
+                self.btnCancelTask.setEnabled(bool(self._active_tasks))
+            except Exception:
+                pass
+
+    def _on_task_progress(self, task_name, value):
+        pct = int(max(0, min(100, round(float(value)))))
+        last = self._task_last_progress.get(task_name, -10)
+        if pct - last < 10 and pct not in (0, 100):
+            return
+        self._task_last_progress[task_name] = pct
+        msg = f"{task_name}: {pct}%"
+        try:
+            self.iface.statusBarIface().showMessage(msg)
+        except Exception:
+            pass
+
+    def _start_long_task(self, task_name, worker_fn, on_success, on_error=None, can_cancel=True):
+        if self._active_tasks:
+            self._twarn("Já existe uma operação em execução. Aguarde ou cancele antes de iniciar outra.")
+            return False
+
+        def _finished(exception, result):
+            self._active_tasks.pop(task_name, None)
+            self._task_last_progress.pop(task_name, None)
+            self._set_long_ops_enabled(True)
+            try:
+                self.iface.statusBarIface().clearMessage()
+            except Exception:
+                pass
+
+            if exception is not None:
+                if isinstance(exception, TaskCancelledError):
+                    self._twarn(f"{task_name} cancelada pelo usuário.")
+                    return
+                LOGGER.exception("Task '%s' falhou: %s", task_name, exception)
+                if callable(on_error):
+                    try:
+                        on_error(exception, result)
+                    except Exception as e:
+                        LOGGER.exception("Erro no callback on_error de '%s': %s", task_name, e)
+                        self._terr(f"[ERRO {task_name}] {e}")
+                else:
+                    self._terr(f"[ERRO {task_name}] {exception}")
+                return
+
+            try:
+                on_success(result)
+            except Exception as e:
+                LOGGER.exception("Erro no callback on_success de '%s': %s", task_name, e)
+                self._terr(f"[ERRO callback {task_name}] {e}")
+
+        task_kwargs = {}
+        if can_cancel:
+            task_kwargs["flags"] = QgsTask.CanCancel
+        task = QgsTask.fromFunction(task_name, worker_fn, on_finished=_finished, **task_kwargs)
+        task.progressChanged.connect(lambda v, name=task_name: self._on_task_progress(name, v))
+
+        self._active_tasks[task_name] = task
+        self._set_long_ops_enabled(False)
+        self._tinfo(f"{task_name} iniciado em background.")
+        QgsApplication.taskManager().addTask(task)
+        return True
+
+    def _cancel_active_task(self):
+        if not self._active_tasks:
+            self._twarn("Nenhuma operação em execução para cancelar.")
+            return
+        for name, task in list(self._active_tasks.items()):
+            try:
+                task.cancel()
+                self._twarn(f"Cancelamento solicitado: {name}")
+            except Exception as e:
+                self._twarn(f"Falha ao solicitar cancelamento de {name}: {e}")
 
     def _rescan_from_quadricula_ui(self):
         q = globals().get('quadricula', {})
@@ -1717,60 +2192,110 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
         self._set_list(self.listIds, ids)
 
     def _on_load(self):
-        try:
-            _info(self.log, "# Montando grade…")
-            ids = self._selected_texts(self.listIds)
-            if not ids: _warn(self.log, "Selecione ao menos 1 folha."); return
-            with timed_step(f"Build_mc escala={self.cbEscala.currentText()} ids={len(ids)}"):
-                quad = Build_mc(escala=self.cbEscala.currentText(), ID=list(ids), verbose=False)
+        ids = self._selected_texts(self.listIds)
+        if not ids:
+            _warn(self.log, "Selecione ao menos 1 folha.")
+            return
 
-            _info(self.log, "# Carregando dados brutos…")
-            _info(self.log, f"Backend={DATA_BACKEND} | gama={self.cbGama.currentText()} | mag={self.cbMag.currentText()}")
-            with timed_step(f"Upload_geof gama={self.cbGama.currentText()} mag={self.cbMag.currentText()} extend={int(self.sbExtend.value())}"):
-                _g, _m = Upload_geof(quad, gama_xyz=self.cbGama.currentText(), mag_xyz=self.cbMag.currentText(), extend_size=int(self.sbExtend.value()))
+        escala = self.cbEscala.currentText()
+        gama_key = self.cbGama.currentText()
+        mag_key = self.cbMag.currentText()
+        extend_size = int(self.sbExtend.value())
 
-            quad = pop_nodata(quad); globals()['quadricula'] = quad
-            _info(self.log, f"Folhas ativas: {len(quad)} | pontos_gama={len(_g)} | pontos_mag={len(_m)}")
-            globals()['data_grid'] = None; som_store.clear(); globals()['som_last_pred']=None
+        _info(self.log, "# Montando grade…")
+        _info(self.log, "# Carregando dados brutos…")
+        _info(self.log, f"Backend={DATA_BACKEND} | gama={gama_key} | mag={mag_key}")
+
+        def _worker(task):
+            if task.isCanceled():
+                raise TaskCancelledError("Carregamento cancelado antes de iniciar.")
+            with timed_step(f"Build_mc escala={escala} ids={len(ids)}"):
+                quad = Build_mc(escala=escala, ID=list(ids), verbose=False)
+            task.setProgress(20.0)
+            if task.isCanceled():
+                raise TaskCancelledError("Carregamento cancelado.")
+            with timed_step(f"Upload_geof gama={gama_key} mag={mag_key} extend={extend_size}"):
+                _g, _m = Upload_geof(quad, gama_xyz=gama_key, mag_xyz=mag_key, extend_size=extend_size)
+            task.setProgress(85.0)
+            quad = pop_nodata(quad)
+            task.setProgress(100.0)
+            return {
+                "quad": quad,
+                "points_gama": int(len(_g)),
+                "points_mag": int(len(_m)),
+            }
+
+        def _on_success(result):
+            quad = result.get("quad") or {}
+            globals()['quadricula'] = quad
+            globals()['data_grid'] = None
+            som_store.clear()
+            globals()['som_last_pred'] = None
             self._rescan_from_quadricula_ui()
+            _info(
+                self.log,
+                f"Folhas ativas: {len(quad)} | pontos_gama={result.get('points_gama', 0)} | "
+                f"pontos_mag={result.get('points_mag', 0)}"
+            )
             _info(self.log, "Pronto. Agora execute a INTERPOLAÇÃO.")
-        except Exception as e:
-            _err(self.log, f"[ERRO _on_load] {e}")
+
+        self._start_long_task("Carregar brutos", _worker, _on_success)
 
     def _on_quick_flow(self):
         """
         Fluxo 1-clique: malha -> pontos DB por interseção -> interpolação -> treino SOM -> mapa preditivo.
         """
-        try:
-            ids = self._selected_texts(self.listIds)
-            if not ids:
-                _warn(self.log, "Selecione ao menos 1 folha.")
-                return
+        ids = self._selected_texts(self.listIds)
+        if not ids:
+            _warn(self.log, "Selecione ao menos 1 folha.")
+            return
 
-            feats_grid = self._selected_texts(self.listFeatsGrid)
-            if not feats_grid:
-                _warn(self.log, "Selecione ao menos 1 feature para interpolação.")
-                return
+        feats_grid = self._selected_texts(self.listFeatsGrid)
+        if not feats_grid:
+            _warn(self.log, "Selecione ao menos 1 feature para interpolação.")
+            return
 
-            ks_sel = [int(i.text()) for i in self.listKs.selectedItems()]
-            k = sorted(set(ks_sel or [8]))[0]
-            sigma = float(self.dsbSigma.value())
-            n_iter = int(self.sbIter.value())
-            pix = int(self.sbPixel.value())
-            algo = self.cbAlgo.currentText()
-            noneg = self.ckNoNegI.isChecked()
+        ks_sel = [int(i.text()) for i in self.listKs.selectedItems()]
+        k = sorted(set(ks_sel or [8]))[0]
+        sigma = float(self.dsbSigma.value())
+        n_iter = int(self.sbIter.value())
+        pix = int(self.sbPixel.value())
+        algo = self.cbAlgo.currentText()
+        noneg = self.ckNoNegI.isChecked()
+        flip_ns = bool(self.ckFlip.isChecked())
+        escala = self.cbEscala.currentText()
+        gama_key = self.cbGama.currentText()
+        mag_key = self.cbMag.currentText()
+        extend_size = int(self.sbExtend.value())
+        seed = int(self.sbSeed.value())
+        feats_som_pref = self._selected_texts(self.listFeatsSom)
 
-            _info(self.log, "# Fluxo rápido iniciado (DB -> SOM -> Mapa)...")
-            _info(self.log, f"Folhas={len(ids)} | k={k} | pixel={pix} | algo={algo}")
+        _info(self.log, "# Fluxo rápido iniciado (DB -> SOM -> Mapa)...")
+        _info(
+            self.log,
+            f"Folhas={len(ids)} | k={k} | pixel={pix} | algo={algo} | flip_ns={flip_ns}",
+        )
+
+        def _worker(task):
+            if task.isCanceled():
+                raise TaskCancelledError("Fluxo rápido cancelado antes de iniciar.")
 
             with timed_step("Fluxo rápido completo"):
-                quad = Build_mc(escala=self.cbEscala.currentText(), ID=list(ids), verbose=False)
+                quad = Build_mc(escala=escala, ID=list(ids), verbose=False)
+                task.setProgress(10.0)
+                if task.isCanceled():
+                    raise TaskCancelledError("Fluxo rápido cancelado.")
+
                 _g, _m = Upload_geof(
                     quad,
-                    gama_xyz=self.cbGama.currentText(),
-                    mag_xyz=self.cbMag.currentText(),
-                    extend_size=int(self.sbExtend.value()),
+                    gama_xyz=gama_key,
+                    mag_xyz=mag_key,
+                    extend_size=extend_size,
                 )
+                task.setProgress(30.0)
+                if task.isCanceled():
+                    raise TaskCancelledError("Fluxo rápido cancelado.")
+
                 quad = pop_nodata(quad)
                 if not quad:
                     raise RuntimeError("Nenhuma folha com pontos geofísicos válidos após interseção no banco.")
@@ -1779,13 +2304,26 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
                 if not ids_ok:
                     raise RuntimeError("Nenhuma das folhas selecionadas recebeu pontos do banco.")
 
-                out_layer = _interpolate_current_selection(
-                    quad, ids_ok,
-                    self.cbGama.currentText(), self.cbMag.currentText(),
-                    feats_grid, pix, algo, noneg
-                )
+                def _interp_progress(pct, _msg):
+                    task.setProgress(30.0 + (0.40 * float(pct)))
 
-                feats_som = self._selected_texts(self.listFeatsSom) or list(feats_grid)
+                out_layer = _interpolate_current_selection(
+                    quad,
+                    ids_ok,
+                    gama_key,
+                    mag_key,
+                    feats_grid,
+                    pix,
+                    algo,
+                    noneg,
+                    progress_fn=_interp_progress,
+                    should_abort=task.isCanceled,
+                )
+                task.setProgress(72.0)
+                if task.isCanceled():
+                    raise TaskCancelledError("Fluxo rápido cancelado.")
+
+                feats_som = list(feats_som_pref or feats_grid)
                 feats_som = [f for f in feats_som if any(
                     isinstance(quad.get(fid, {}).get(out_layer), pd.DataFrame) and f in quad[fid][out_layer].columns
                     for fid in ids_ok
@@ -1797,17 +2335,18 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
                 valid_cols = np.isfinite(X_all).any(axis=0)
                 if not valid_cols.any():
                     raise RuntimeError("Todas as features selecionadas ficaram sem dados válidos (NaN).")
+
+                dropped = []
                 if not np.all(valid_cols):
                     dropped = [feats_som[i] for i, ok in enumerate(valid_cols) if not ok]
                     feats_som = [feats_som[i] for i, ok in enumerate(valid_cols) if ok]
                     X_all = X_all[:, valid_cols]
-                    _warn(self.log, f"Features removidas por NaN total: {dropped}")
 
                 imp = SimpleImputer(strategy='median')
                 X_imp = imp.fit_transform(X_all)
                 sca = StandardScaler().fit(X_imp)
                 X_std = sca.transform(X_imp)
-                np.random.seed(int(self.sbSeed.value()))
+                np.random.seed(seed)
                 som = SOM(m=k, n=1, sigma=sigma, dim=len(feats_som), max_iter=n_iter)
                 som.fit(X_std)
 
@@ -1816,43 +2355,126 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
                 qe = _qe(som, X_te_std)
                 te = _te_1d(som, X_te_std)
                 classes = _predict_per_folha(som, X_te_std, slc_te, metas_te)
-                _plot_classes(classes, metas_te, n_clusters=k, flip_ns=self.ckFlip.isChecked(),
-                              titulo=f"Mapa preditivo (SOM) k={k} | {out_layer}")
-
-                som_store.clear()
-                som_store[k] = {'som': som, 'imp': imp, 'sca': sca, 'feats': feats_som, 'layer': out_layer}
-                globals()['quadricula'] = quad
-                globals()['data_grid'] = out_layer
-                globals()['som_last_pred'] = {
-                    'k': k, 'classes': classes, 'metas': metas_te,
-                    'fids': tuple(ids_ok), 'feats': tuple(feats_som), 'layer': out_layer
+                task.setProgress(100.0)
+                return {
+                    "quad": quad,
+                    "ids_ok": ids_ok,
+                    "out_layer": out_layer,
+                    "som": som,
+                    "imp": imp,
+                    "sca": sca,
+                    "feats_som": feats_som,
+                    "classes": classes,
+                    "metas_te": metas_te,
+                    "qe": float(qe),
+                    "te": float(te),
+                    "points_gama": int(len(_g)),
+                    "dropped_feats": dropped,
+                    "k": int(k),
+                    "flip_ns": flip_ns,
                 }
 
-            self._rescan_from_quadricula_ui()
-            _info(self.log, f"Fluxo concluído | folhas={len(ids_ok)} | pontos_gama={len(_g)} | QE={qe:.6g} | TE={te:.6g}")
-            _info(self.log, "Mapa preditivo adicionado ao grupo: Preditor Terra/SOM (rasters).")
-        except Exception as e:
-            _err(self.log, f"[ERRO fluxo rápido] {e}")
+        def _on_success(result):
+            try:
+                dropped = result.get("dropped_feats") or []
+                if dropped:
+                    _warn(self.log, f"Features removidas por NaN total: {dropped}")
+
+                _plot_classes(
+                    result["classes"],
+                    result["metas_te"],
+                    n_clusters=result["k"],
+                    flip_ns=result["flip_ns"],
+                    titulo=f"Mapa preditivo (SOM) k={result['k']} | {result['out_layer']}",
+                )
+
+                som_store.clear()
+                som_store[result["k"]] = {
+                    'som': result["som"],
+                    'imp': result["imp"],
+                    'sca': result["sca"],
+                    'feats': result["feats_som"],
+                    'layer': result["out_layer"],
+                }
+                globals()['quadricula'] = result["quad"]
+                globals()['data_grid'] = result["out_layer"]
+                globals()['som_last_pred'] = {
+                    'k': result["k"],
+                    'classes': result["classes"],
+                    'metas': result["metas_te"],
+                    'fids': tuple(result["ids_ok"]),
+                    'feats': tuple(result["feats_som"]),
+                    'layer': result["out_layer"],
+                }
+                self._rescan_from_quadricula_ui()
+                _info(
+                    self.log,
+                    f"Fluxo concluído | folhas={len(result['ids_ok'])} | pontos_gama={result['points_gama']} | "
+                    f"QE={result['qe']:.6g} | TE={result['te']:.6g}"
+                )
+                _info(self.log, "Mapa preditivo adicionado ao grupo: Preditor Terra/SOM (rasters).")
+            finally:
+                if self._auto_run_territorial_after_quick:
+                    self._auto_run_territorial_after_quick = False
+                    QtCore.QTimer.singleShot(0, self._on_territorial_priority)
+
+        def _on_error(exception, _result):
+            if self._auto_run_territorial_after_quick:
+                self._auto_run_territorial_after_quick = False
+                self._twarn("Auto-execução territorial cancelada porque o fluxo rápido falhou.")
+            _err(self.log, f"[ERRO fluxo rápido] {exception}")
+
+        self._start_long_task("Fluxo rápido", _worker, _on_success, on_error=_on_error)
 
     def _on_interp(self):
-        try:
-            ids = self._selected_texts(self.listIds)
-            if not ids: _warn(self.log, "Selecione ao menos 1 folha."); return
-            feats_grid = self._selected_texts(self.listFeatsGrid)
-            if not feats_grid: _warn(self.log, "Selecione ao menos 1 feature (grid)."); return
-            q = globals().get('quadricula', {})
-            if not q: _warn(self.log, "Carregue dados brutos primeiro."); return
+        ids = self._selected_texts(self.listIds)
+        if not ids:
+            _warn(self.log, "Selecione ao menos 1 folha.")
+            return
+        feats_grid = self._selected_texts(self.listFeatsGrid)
+        if not feats_grid:
+            _warn(self.log, "Selecione ao menos 1 feature (grid).")
+            return
+        q_base = globals().get('quadricula', {})
+        if not q_base:
+            _warn(self.log, "Carregue dados brutos primeiro.")
+            return
 
-            algo = self.cbAlgo.currentText(); pix = int(self.sbPixel.value()); noneg=self.ckNoNegI.isChecked()
-            _info(self.log, f"# Interpolando (algo={algo}, pixel={pix} m, noneg={noneg})…")
+        algo = self.cbAlgo.currentText()
+        pix = int(self.sbPixel.value())
+        noneg = self.ckNoNegI.isChecked()
+        gama_key = self.cbGama.currentText()
+        mag_key = self.cbMag.currentText()
+        _info(self.log, f"# Interpolando (algo={algo}, pixel={pix} m, noneg={noneg})…")
+
+        q = self._clone_quadricula(q_base)
+
+        def _worker(task):
             with timed_step(f"Interpolate ids={len(ids)} feats={len(feats_grid)}"):
-                out_layer = _interpolate_current_selection(q, ids, self.cbGama.currentText(), self.cbMag.currentText(), feats_grid, pix, algo, noneg)
-            globals()['quadricula'] = q; globals()['data_grid'] = out_layer
-            som_store.clear(); globals()['som_last_pred']=None
-            _info(self.log, f"→ Camada criada: {out_layer}")
+                out_layer = _interpolate_current_selection(
+                    q,
+                    ids,
+                    gama_key,
+                    mag_key,
+                    feats_grid,
+                    pix,
+                    algo,
+                    noneg,
+                    progress_fn=lambda p, _m: task.setProgress(float(p)),
+                    should_abort=task.isCanceled,
+                )
+            task.setProgress(100.0)
+            return {"quad": q, "out_layer": out_layer}
+
+        def _on_success(result):
+            globals()['quadricula'] = result["quad"]
+            globals()['data_grid'] = result["out_layer"]
+            som_store.clear()
+            globals()['som_last_pred'] = None
+            _info(self.log, f"→ Camada criada: {result['out_layer']}")
             self._rescan_from_quadricula_ui()
-        except Exception as e:
-            _err(self.log, f"[ERRO _on_interp] {e}")
+
+        self._start_long_task("Interpolação", _worker, _on_success, on_error=lambda e, _r: _err(self.log, f"[ERRO _on_interp] {e}"))
 
     def _on_preview(self):
         ids = self._selected_texts(self.listIds)
@@ -1962,6 +2584,335 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
             titulo='Boxplots por feature • escalas independentes (valores no eixo X)'
         )
 
+    def _on_territorial_priority(self):
+        if compute_cluster_scores is None or build_priority_maps is None:
+            self._terr("Módulo territorial_priority indisponível no ambiente atual.")
+            return
+        if PriorityThresholds is None:
+            self._terr("Classe PriorityThresholds indisponível no ambiente atual.")
+            return
+
+        lp = globals().get('som_last_pred')
+        if lp is None:
+            if self.ckAutoQuickTerr.isChecked():
+                self._twarn("Sem predição SOM recente; executando fluxo rápido automaticamente.")
+                self._auto_run_territorial_after_quick = True
+                self._on_quick_flow()
+                return
+            self._twarn("Não foi possível obter predição SOM. Execute o fluxo rápido ou aplique um SOM.")
+            return
+
+        q_base = globals().get('quadricula', {})
+        q = self._clone_quadricula(q_base)
+        fids = list(lp.get('fids') or [])
+        layer = lp.get('layer')
+        feats = list(lp.get('feats') or [])
+        classes_raw = lp.get('classes') or {}
+        metas = lp.get('metas') or {}
+
+        classes_by_fid = {fid: np.asarray(classes_raw[fid]) for fid in fids if fid in classes_raw}
+        if not classes_by_fid:
+            self._terr("Predição SOM sem classes por folha.")
+            return
+        if not layer:
+            self._terr("Predição SOM sem layer de origem.")
+            return
+
+        data_ref = (self.leDataRefTerr.text() or "").strip()
+        if not data_ref:
+            data_ref = datetime.utcnow().date().isoformat()
+        try:
+            datetime.strptime(data_ref, "%Y-%m-%d")
+        except Exception:
+            self._terr("Data de referência inválida. Use formato YYYY-MM-DD.")
+            return
+
+        low_thr = float(self.dsbScoreLow.value())
+        high_thr = float(self.dsbScoreHigh.value())
+        if high_thr <= low_thr:
+            self._terr("Limiar alta prioridade deve ser maior que limiar média prioridade.")
+            return
+
+        slope_thr = float(self.dsbSlopeThr.value())
+        slope_penalty = float(self.dsbSlopePenalty.value())
+        restrict_cols_txt = self.leRestrCols.text()
+        restrict_spec_txt = self.leRestrSpec.text()
+        flip_ns_plot = bool(self.ckFlip.isChecked())
+        persist_enabled = bool(self.ckPersistTerr.isChecked() and _use_postgres_backend())
+        orbit_enabled = bool(self.ckOrbitTerr.isChecked())
+
+        run_cfg = {
+            "module": "territorial_priority",
+            "flow": "SOM->MCDA",
+            "fids": fids,
+            "layer": layer,
+            "features": feats,
+            "data_ref": data_ref,
+            "weights_default": dict(DEFAULT_FEATURE_WEIGHTS or {}),
+            "slope_threshold_deg": slope_thr,
+            "slope_penalty": slope_penalty,
+            "threshold_low": low_thr,
+            "threshold_high": high_thr,
+            "restriction_cols": restrict_cols_txt,
+            "flip_ns_plot": flip_ns_plot,
+        }
+
+        self._tinfo("# Prioridade territorial: montando tabela longa...")
+        if orbit_enabled:
+            self._tinfo("Consultando ASTER/S2 para rastreabilidade (pode demorar)...")
+
+        def _worker(task):
+            run_id_local = None
+            fallback_msgs = []
+
+            if persist_enabled:
+                folha_run = fids[0] if len(fids) == 1 else "|".join(fids[:8])
+                run_id_local = _pg_try_start_ml_run(
+                    folha_codigo=folha_run,
+                    data_ref=data_ref,
+                    config_json=run_cfg,
+                    model_backend="som_mcda",
+                )
+
+            df_long = som_build_long_table(
+                q,
+                layer,
+                classes_by_fid,
+                metas,
+                atributos=feats,
+                fids=fids,
+            )
+            task.setProgress(15.0)
+            if task.isCanceled():
+                raise TaskCancelledError("Prioridade territorial cancelada.")
+
+            feature_weights = dict(DEFAULT_FEATURE_WEIGHTS or {})
+            available_cols = set(df_long.columns)
+            overlap = [f for f in feature_weights.keys() if f in available_cols]
+            if not overlap:
+                fallback_feats = [f for f in feats if f in available_cols and f != "classe"]
+                if not fallback_feats:
+                    numeric_cols = [
+                        c for c in df_long.select_dtypes(include=[np.number]).columns
+                        if c != "classe"
+                    ]
+                    fallback_feats = list(numeric_cols)
+                if not fallback_feats:
+                    raise RuntimeError("Nenhuma feature numerica disponivel para pontuacao territorial.")
+                feature_weights = {f: 1.0 for f in fallback_feats}
+                fallback_msgs.append(
+                    "Pesos default sem intersecao com features do SOM; "
+                    f"usando fallback uniforme: {fallback_feats}"
+                )
+
+            cluster_scores, score_table = compute_cluster_scores(
+                df_long=df_long,
+                class_col="classe",
+                feature_weights=feature_weights,
+            )
+            weights_used = summarize_feature_weights(feature_weights, df_long.columns) if summarize_feature_weights else feature_weights
+            task.setProgress(35.0)
+            if task.isCanceled():
+                raise TaskCancelledError("Prioridade territorial cancelada.")
+
+            restriction_cols = [c.strip() for c in (restrict_cols_txt or "").split(",") if c.strip()]
+            specs = parse_restriction_specs(restrict_spec_txt) if parse_restriction_specs else {}
+            if collect_masks_for_fids is not None:
+                restriction_masks, penalty_masks, mask_diag = collect_masks_for_fids(
+                    quad=q,
+                    layer=layer,
+                    fids=fids,
+                    metas=metas,
+                    slope_threshold_deg=slope_thr,
+                    restriction_cols=restriction_cols,
+                    specs=specs,
+                )
+            else:
+                restriction_masks = {fid: np.zeros_like(classes_by_fid[fid], dtype=bool) for fid in classes_by_fid.keys()}
+                penalty_masks = {fid: np.zeros_like(classes_by_fid[fid], dtype=bool) for fid in classes_by_fid.keys()}
+                mask_diag = {fid: {"warning": "territorial_sources indisponível"} for fid in classes_by_fid.keys()}
+            task.setProgress(55.0)
+            if task.isCanceled():
+                raise TaskCancelledError("Prioridade territorial cancelada.")
+
+            thresholds = PriorityThresholds(low=low_thr, high=high_thr)
+            pot_maps, final_maps, prio_maps, metrics_by_fid = build_priority_maps(
+                classes_by_fid=classes_by_fid,
+                cluster_scores=cluster_scores,
+                restriction_masks=restriction_masks,
+                penalty_masks=penalty_masks,
+                penalty_value=slope_penalty,
+                thresholds=thresholds,
+            )
+            task.setProgress(70.0)
+            if task.isCanceled():
+                raise TaskCancelledError("Prioridade territorial cancelada.")
+
+            orbital_summary = {}
+            if orbit_enabled:
+                total_orb = max(1, len(fids))
+                for i, fid in enumerate(fids, start=1):
+                    if task.isCanceled():
+                        raise TaskCancelledError("Prioridade territorial cancelada.")
+                    orbital_summary[fid] = _query_orbital_pair_summary(fid, data_ref)
+                    task.setProgress(70.0 + (20.0 * i / float(total_orb)))
+
+            agg_metrics = {
+                "folhas_processadas": float(len(metrics_by_fid)),
+                "pct_restrita_media": _safe_mean([m.get("pct_restrita") for m in metrics_by_fid.values()]),
+                "pct_baixa_media": _safe_mean([m.get("pct_baixa") for m in metrics_by_fid.values()]),
+                "pct_media_media": _safe_mean([m.get("pct_media") for m in metrics_by_fid.values()]),
+                "pct_alta_media": _safe_mean([m.get("pct_alta") for m in metrics_by_fid.values()]),
+                "score_medio_potencial": _safe_mean([m.get("score_medio_potencial") for m in metrics_by_fid.values()]),
+                "score_medio_final": _safe_mean([m.get("score_medio_final") for m in metrics_by_fid.values()]),
+            }
+
+            fid_tag = "_".join([re.sub(r"[^A-Za-z0-9_]+", "_", f) for f in fids[:3]]) or "folha"
+            report = {
+                "generated_at_utc": datetime.utcnow().isoformat() + "Z",
+                "data_ref": data_ref,
+                "fids": fids,
+                "layer": layer,
+                "features": feats,
+                "weights_used": weights_used,
+                "thresholds": {"low": low_thr, "high": high_thr},
+                "slope": {
+                    "threshold_deg": slope_thr,
+                    "penalty_value": slope_penalty,
+                },
+                "mask_diagnostics": mask_diag,
+                "cluster_score_table": score_table.to_dict(orient="records"),
+                "metrics_by_fid": metrics_by_fid,
+                "metrics_agg": agg_metrics,
+                "orbital_summary": orbital_summary,
+            }
+            report_path_local = _write_territorial_report(report, f"territorial_{fid_tag}")
+            task.setProgress(100.0)
+            return {
+                "run_id": run_id_local,
+                "persist_enabled": persist_enabled,
+                "q": q,
+                "fids": fids,
+                "metas": metas,
+                "pot_maps": pot_maps,
+                "prio_maps": prio_maps,
+                "restriction_masks": restriction_masks,
+                "weights_used": weights_used,
+                "metrics_agg": agg_metrics,
+                "metrics_by_fid": metrics_by_fid,
+                "report": report,
+                "report_path": report_path_local,
+                "flip_ns_plot": flip_ns_plot,
+                "fallback_msgs": fallback_msgs,
+            }
+
+        def _on_success(result):
+            run_id = result.get("run_id")
+            artifacts = [{"kind": "report_json", "uri": result["report_path"], "attrs": {"fids": result["fids"]}}]
+            try:
+                if run_id:
+                    self._tinfo(f"Run territorial iniciado em ml.run: id={run_id}")
+                elif result.get("persist_enabled"):
+                    self._twarn("Persistência ml.run indisponível; seguindo sem run_id.")
+
+                for msg in result.get("fallback_msgs") or []:
+                    self._twarn(msg)
+                self._tinfo(f"Score por cluster calculado com pesos: {result.get('weights_used')}")
+
+                parent = _ensure_group("Preditor Terra/Planejamento Territorial")
+                _remove_by_prefix(parent, "PT_POTENCIAL_")
+                _remove_by_prefix(parent, "PT_RESTRICOES_")
+                _remove_by_prefix(parent, "PT_PRIORIDADE_")
+
+                q_local = result["q"]
+                metas_local = result["metas"]
+                for fid in sorted(result["pot_maps"].keys()):
+                    meta = metas_local.get(fid, {})
+                    if not meta:
+                        continue
+                    xs_mesh = meta.get("xs")
+                    ys_mesh = meta.get("ys")
+                    if xs_mesh is None or ys_mesh is None:
+                        continue
+                    epsg = _grid_epsg_from_blob(q_local.get(fid, {}))
+
+                    p_name = f"PT_POTENCIAL_{fid}"
+                    p_tif = _temp_tif(p_name)
+                    pot_arr = np.asarray(result["pot_maps"][fid], dtype="float32")
+                    if result["flip_ns_plot"]:
+                        pot_arr = np.flipud(pot_arr)
+                    _write_tif_from_grid(
+                        pot_arr, xs_mesh, ys_mesh, epsg, p_tif,
+                        nodata=-9999.0, gdal_type=gdal.GDT_Float32,
+                    )
+                    _add_raster_to_group(p_tif, p_name, "Preditor Terra/Planejamento Territorial", numeric=True, ramp_name="Spectral")
+                    artifacts.append({"kind": "raster_potencial", "uri": p_tif, "attrs": {"fid": fid}})
+
+                    r_name = f"PT_RESTRICOES_{fid}"
+                    r_tif = _temp_tif(r_name)
+                    r_disp = (
+                        np.asarray(result["restriction_masks"].get(fid, np.zeros_like(result["pot_maps"][fid], dtype=bool)), dtype=bool).astype("uint16")
+                        + 1
+                    )
+                    if result["flip_ns_plot"]:
+                        r_disp = np.flipud(r_disp)
+                    _write_tif_from_grid(
+                        r_disp, xs_mesh, ys_mesh, epsg, r_tif,
+                        nodata=0, gdal_type=gdal.GDT_UInt16,
+                    )
+                    _add_raster_to_group(r_tif, r_name, "Preditor Terra/Planejamento Territorial", numeric=False, classes=2, ramp_name="Greys")
+                    artifacts.append({"kind": "raster_restricoes", "uri": r_tif, "attrs": {"fid": fid}})
+
+                    c_name = f"PT_PRIORIDADE_{fid}"
+                    c_tif = _temp_tif(c_name)
+                    prio_arr = np.asarray(result["prio_maps"][fid], dtype="uint16")
+                    if result["flip_ns_plot"]:
+                        prio_arr = np.flipud(prio_arr)
+                    _write_tif_from_grid(
+                        prio_arr, xs_mesh, ys_mesh, epsg, c_tif,
+                        nodata=0, gdal_type=gdal.GDT_UInt16,
+                    )
+                    _add_raster_to_group(c_tif, c_name, "Preditor Terra/Planejamento Territorial", numeric=False, classes=4, ramp_name="RdYlGn")
+                    artifacts.append({"kind": "raster_prioridade", "uri": c_tif, "attrs": {"fid": fid}})
+                    LOGGER.debug(
+                        "Territorial raster escrito | fid=%s epsg=%s flip_ns=%s shape=%s",
+                        fid, epsg, result["flip_ns_plot"], prio_arr.shape
+                    )
+
+                globals()["territorial_last_result"] = result["report"]
+
+                if run_id:
+                    _pg_try_finish_ml_run(
+                        run_id=run_id,
+                        status="completed",
+                        metrics=result["metrics_agg"],
+                        artifacts=artifacts,
+                        error_message=None,
+                    )
+
+                self._tinfo(
+                    "Prioridade territorial concluída | "
+                    f"folhas={len(result['fids'])} | pct_alta_media={result['metrics_agg']['pct_alta_media']:.3f} | "
+                    f"flip_ns={result['flip_ns_plot']}"
+                )
+                self._tinfo(f"Relatório salvo em: {result['report_path']}")
+                self._tinfo("Camadas adicionadas em: Preditor Terra/Planejamento Territorial")
+            except Exception as e:
+                if run_id:
+                    _pg_try_finish_ml_run(
+                        run_id=run_id,
+                        status="failed",
+                        metrics=None,
+                        artifacts=artifacts,
+                        error_message=str(e),
+                    )
+                raise
+
+        def _on_error(exception, _result):
+            self._terr(f"[ERRO prioridade territorial] {exception}")
+
+        self._start_long_task("Prioridade territorial", _worker, _on_success, on_error=_on_error)
+
     # ----- BDC -----
     def _on_bdc_list(self):
         try:
@@ -2046,9 +2997,22 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
             _log(self.log, f"Bandas: {e}"); return
         _log(self.log, f"Amostrando {[b[0] for b in bands]} → '{layer}' em {len(fids_target)} folha(s)…")
         total_cols=0
+        base_prefix = (self.lePrefix.text() or "").strip()
+        rgb_split = len(bands) == 3 and {b[0].lower() for b in bands} == {"red", "green", "blue"}
         for name, href, idxs in bands:
             try:
-                cols = _sample_asset_into_layer(q, fids_target, layer_name=layer, href=href, band_idxs=tuple(idxs), prefix=(self.lePrefix.text() or name))
+                if rgb_split:
+                    prefix = f"{base_prefix}_{name.lower()}" if base_prefix else name.lower()
+                else:
+                    prefix = base_prefix or name
+                cols = _sample_asset_into_layer(
+                    q,
+                    fids_target,
+                    layer_name=layer,
+                    href=href,
+                    band_idxs=tuple(idxs),
+                    prefix=prefix,
+                )
                 total_cols += cols; _log(self.log, f"  - OK {name}: {cols} coluna(s).")
             except Exception as e:
                 _log(self.log, f"  - {name}: erro → {e}")
@@ -2080,11 +3044,24 @@ class PreditorTerraDock(QtWidgets.QDockWidget):
         bands_text = self.leBands.text()
         _log(self.log, f"Amostrar TODOS os itens ({len(items)}) bandas={bands_text} → layer '{layer}' …")
         total_cols = 0; it_done = 0
+        base_prefix = (self.lePrefix.text() or "").strip()
         for it in items:
             try:
                 bands = _resolve_band_assets(it, bands_text)
+                rgb_split = len(bands) == 3 and {b[0].lower() for b in bands} == {"red", "green", "blue"}
                 for name, href, idxs in bands:
-                    cols = _sample_asset_into_layer(q, fids_target, layer_name=layer, href=href, band_idxs=tuple(idxs), prefix=(self.lePrefix.text() or name))
+                    if rgb_split:
+                        prefix = f"{base_prefix}_{name.lower()}" if base_prefix else name.lower()
+                    else:
+                        prefix = base_prefix or name
+                    cols = _sample_asset_into_layer(
+                        q,
+                        fids_target,
+                        layer_name=layer,
+                        href=href,
+                        band_idxs=tuple(idxs),
+                        prefix=prefix,
+                    )
                     total_cols += cols
                 it_done += 1
             except Exception as e:
